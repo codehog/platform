@@ -794,7 +794,8 @@ class EntityReader implements EntityReaderInterface
             );
             $query->setParameter('limit', $fieldCriteria->getLimit());
 
-            $this->connection->executeQuery('SET @n = 0; SET @c = null;');
+            $this->connection->executeQuery('SET @n = 0;');
+            $this->connection->executeQuery('SET @c = null;');            
         }
 
         $mapping = $query->executeQuery()->fetchAllKeyValue();
@@ -974,7 +975,8 @@ class EntityReader implements EntityReaderInterface
         }
 
         // initials the cursor and loop counter, pdo do not allow to execute SET and SELECT in one statement
-        $this->connection->executeQuery('SET @n = 0; SET @c = null;');
+        $this->connection->executeQuery('SET @n = 0;');
+        $this->connection->executeQuery('SET @c = null;');        
 
         $rows = $wrapper->executeQuery()->fetchAllAssociative();
 
