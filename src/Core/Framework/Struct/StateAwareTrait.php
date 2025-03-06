@@ -4,13 +4,13 @@ namespace Shopware\Core\Framework\Struct;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 trait StateAwareTrait
 {
     /**
      * @var array<string>
      */
-    private array $states = [];
+    protected array $states = [];
 
     public function addState(string ...$states): void
     {
@@ -41,5 +41,18 @@ trait StateAwareTrait
     public function getStates(): array
     {
         return array_keys($this->states);
+    }
+
+    public function state(\Closure $closure, string ...$states): mixed
+    {
+        $before = $this->states;
+
+        $this->addState(...$states);
+
+        $result = $closure($this);
+
+        $this->states = $before;
+
+        return $result;
     }
 }

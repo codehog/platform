@@ -1,24 +1,45 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-product-variant-info';
+import { mount } from '@vue/test-utils';
 
 describe('components/base/sw-product-variant-info', () => {
     async function createWrapper() {
-        return shallowMount(await Shopware.Component.build('sw-product-variant-info'), {
-            propsData: {
-                variations: [{
-                    group: 'Size',
-                    option: 'M',
-                }],
+        return mount(await wrapTestComponent('sw-product-variant-info', { sync: true }), {
+            props: {
+                variations: [
+                    {
+                        group: 'Size',
+                        option: 'M',
+                    },
+                ],
             },
             slots: {
                 default: 'Product name from slot',
             },
+            global: {
+                stubs: {
+                    'sw-highlight-text': true,
+                },
+            },
         });
     }
+
+    beforeAll(() => {
+        global.allowedErrors.push({
+            method: 'warn',
+            msgCheck: (msg) => {
+                if (typeof msg !== 'string') {
+                    return false;
+                }
+
+                return msg.includes(
+                    'invoked outside of the render function: this will not track dependencies used in the slot. Invoke the slot function inside the render function instead',
+                );
+            },
+        });
+    });
 
     it('should display the main text from its slot', async () => {
         const wrapper = await createWrapper();

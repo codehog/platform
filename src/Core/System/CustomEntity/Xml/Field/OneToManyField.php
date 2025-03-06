@@ -7,17 +7,12 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class OneToManyField extends AssociationField
 {
     protected string $type = 'one-to-many';
 
     protected bool $reverseRequired = false;
-
-    public static function fromXml(\DOMElement $element): Field
-    {
-        return new self(self::parse($element));
-    }
 
     public function isReverseRequired(): bool
     {

@@ -5,6 +5,13 @@ import OffCanvas from 'src/plugin/offcanvas/offcanvas.plugin';
  */
 describe('OffCanvas tests', () => {
 
+    beforeEach(() => {
+        window.focusHandler = {
+            saveFocusState: jest.fn(),
+            resumeFocusState: jest.fn(),
+        };
+    });
+
     afterEach(() => {
         jest.useRealTimers();
         document.body.innerHTML = '';
@@ -218,6 +225,26 @@ describe('OffCanvas tests', () => {
                 { foo: 'Not allowed' } // Cause some trouble
             )
         }).toThrowError('The type "object" is not supported. Please pass an array or a string.');
+    });
+
+    it('should add aria-labelledby attribute to the OffCanvas', () => {
+        jest.useFakeTimers();
+
+        OffCanvas.open(
+            '<div class="offcanvas-body">Lorem ipsum<div data-id="off-canvas-headline">Nice headline</div></div>',
+            () => {},
+            'right',
+            true,
+            100,
+            true,
+            'custom-class',
+        );
+        jest.runAllTimers();
+
+        const offCanvasElement = document.querySelector('.offcanvas');
+
+        // Should have aria-labelledby attribute on OffCanvas element
+        expect(offCanvasElement.getAttribute('aria-labelledby')).toBe('off-canvas-headline');
     });
 
     const offCanvasPositions = [

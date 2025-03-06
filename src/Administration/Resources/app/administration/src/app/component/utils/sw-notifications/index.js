@@ -1,10 +1,13 @@
+/**
+ * @sw-package framework
+ */
+
 import template from './sw-notifications.html.twig';
 import './sw-notifications.scss';
 
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
  * @private
  * @description
  * Wrapper element for all notifications of the administration.
@@ -25,7 +28,10 @@ Component.register('sw-notifications', {
                 if (!value.length) {
                     return true;
                 }
-                return ['topRight', 'bottomRight'].includes(value);
+                return [
+                    'topRight',
+                    'bottomRight',
+                ].includes(value);
             },
         },
         notificationsGap: {
@@ -40,11 +46,7 @@ Component.register('sw-notifications', {
 
     computed: {
         notifications() {
-            if (this.feature.isActive('VUE3')) {
-                return Object.values(Shopware.State.getters['notification/getGrowlNotificationsObject']);
-            }
-
-            return Shopware.State.getters['notification/getGrowlNotifications'];
+            return Object.values(Shopware.Store.get('notification').growlNotifications);
         },
 
         notificationsStyle() {
@@ -74,7 +76,7 @@ Component.register('sw-notifications', {
 
     methods: {
         onClose(notification) {
-            Shopware.State.commit('notification/removeGrowlNotification', notification);
+            Shopware.Store.get('notification').removeGrowlNotification(notification);
         },
 
         handleAction(action, notification) {
@@ -93,6 +95,39 @@ Component.register('sw-notifications', {
             }
 
             this.onClose(notification);
+        },
+
+        getNotificationVariant(notification) {
+            // If notification has a correct new variant, return it
+            if (
+                [
+                    'info',
+                    'critical',
+                    'positive',
+                    'attention',
+                    'neutral',
+                ].includes(notification.variant)
+            ) {
+                return notification.variant;
+            }
+
+            if (notification.variant === 'info') {
+                return 'info';
+            }
+
+            if (notification.variant === 'error') {
+                return 'critical';
+            }
+
+            if (notification.variant === 'success') {
+                return 'positive';
+            }
+
+            if (notification.variant === 'warning') {
+                return 'attention';
+            }
+
+            return 'neutral';
         },
     },
 });

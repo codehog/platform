@@ -1,11 +1,14 @@
 /**
- * @package admin
-*/
+ * @sw-package framework
+ */
+
 /* eslint-disable sw-test-rules/await-async-functions */
 import { defineAsyncComponent } from 'vue';
 // eslint-disable-next-line import/no-unresolved, import/extensions
 import components from './component-imports';
 import syncComponents from './syncComponents';
+
+const registryCache = new Map();
 
 async function importComponent(componentName) {
     // Check if the component is registered in the component-imports.js.
@@ -14,11 +17,15 @@ async function importComponent(componentName) {
         throw new Error(`Component ${componentName} not found in component-imports.js. Resolve imports manually.`);
     }
 
+    // Check if the component is already registered and cached
+    if (registryCache.has(componentName)) {
+        return registryCache.get(componentName);
+    }
+
     /**
      * @see type componentInfo in scripts/componentImportResolver/generate.ts
      */
     const componentConfig = components[componentName];
-
     /**
      * Contains the component configuration in all cases.
      * Depending on how the component is registered or extended, the component may or may not be registered or extended just by the import statement.
@@ -44,6 +51,9 @@ async function importComponent(componentName) {
         Shopware.Component.extend(componentName, componentConfig.en, component);
     }
 
+    // Cache the component
+    registryCache.set(componentName, component);
+
     return component;
 }
 
@@ -54,6 +64,9 @@ async function importComponent(componentName) {
  * @returns Promise<Component>
  */
 export default async function wrapTestComponent(componentName, config = {}) {
+    if (arguments.length > 2) {
+        throw new Error('wrapTestComponent expects only two arguments.');
+    }
     // Imports the component and handles registration and extensions
     await importComponent(componentName);
 

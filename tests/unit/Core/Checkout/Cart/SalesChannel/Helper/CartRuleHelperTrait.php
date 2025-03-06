@@ -14,7 +14,10 @@ use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
-#[Package('business-ops')]
+/**
+ * @internal
+ */
+#[Package('fundamentals@after-sales')]
 trait CartRuleHelperTrait
 {
     protected static function createLineItem(

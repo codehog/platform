@@ -1,45 +1,45 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
-import { shallowMount } from '@vue/test-utils';
-import swSettingsMailerSmtp from 'src/module/sw-settings-mailer/component/sw-settings-mailer-smtp';
-import 'src/app/component/form/sw-field';
-import 'src/app/component/form/sw-text-field';
-import 'src/app/component/form/sw-number-field';
-import 'src/app/component/form/field-base/sw-contextual-field';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-
-Shopware.Component.register('sw-settings-mailer-smtp', swSettingsMailerSmtp);
+import { mount } from '@vue/test-utils';
 
 describe('src/module/sw-settings-mailer/component/sw-settings-mailer-smtp', () => {
     const createWrapper = async (mailerSettings = {}) => {
-        return shallowMount(await Shopware.Component.build('sw-settings-mailer-smtp'), {
-            provide: {
-                validationService: {},
-            },
-            stubs: {
-                'sw-field': await Shopware.Component.build('sw-field'),
-                'sw-text-field': await Shopware.Component.build('sw-text-field'),
-                'sw-number-field': await Shopware.Component.build('sw-number-field'),
-                'sw-contextual-field': await Shopware.Component.build('sw-contextual-field'),
-                'sw-block-field': await Shopware.Component.build('sw-block-field'),
-                'sw-base-field': await Shopware.Component.build('sw-base-field'),
-                'sw-field-error': true,
-                'sw-single-select': true,
-                'sw-switch-field': true,
-                'sw-password-field': true,
-                'sw-help-text': true,
-            },
-            mocks: {
-                $tc(translationKey) {
-                    return translationKey;
+        return mount(
+            await wrapTestComponent('sw-settings-mailer-smtp', {
+                sync: true,
+            }),
+            {
+                props: {
+                    mailerSettings,
+                },
+                global: {
+                    renderStubDefaultSlot: true,
+                    provide: {
+                        validationService: {},
+                    },
+                    stubs: {
+                        'sw-text-field': await wrapTestComponent('sw-text-field'),
+                        'sw-text-field-deprecated': await wrapTestComponent('sw-text-field-deprecated', { sync: true }),
+                        'sw-contextual-field': await wrapTestComponent('sw-contextual-field'),
+                        'sw-block-field': await wrapTestComponent('sw-block-field'),
+                        'sw-base-field': await wrapTestComponent('sw-base-field'),
+                        'sw-field-error': true,
+                        'sw-single-select': true,
+
+                        'sw-help-text': true,
+                        'sw-field-copyable': true,
+                        'sw-inheritance-switch': true,
+                        'sw-ai-copilot-badge': true,
+                    },
+                    mocks: {
+                        $tc(translationKey) {
+                            return translationKey;
+                        },
+                    },
                 },
             },
-            propsData: {
-                mailerSettings,
-            },
-        });
+        );
     };
 
     it('should be a vue js component', async () => {
@@ -52,8 +52,9 @@ describe('src/module/sw-settings-mailer/component/sw-settings-mailer-smtp', () =
         const wrapper = await createWrapper({
             'core.mailerSettings.host': 'https://example.com',
         });
+        await flushPromises();
 
-        const host = wrapper.find("#sw-field--mailerSettings\\[\\'core-mailerSettings-host\\'\\]").element.value;
+        const host = wrapper.find('input[aria-label="sw-settings-mailer.card-smtp.host"]').element.value;
         expect(host).toBe('https://example.com');
     });
 
@@ -61,8 +62,9 @@ describe('src/module/sw-settings-mailer/component/sw-settings-mailer-smtp', () =
         const wrapper = await createWrapper({
             'core.mailerSettings.port': 476,
         });
+        await flushPromises();
 
-        const port = wrapper.find("#sw-field--mailerSettings\\[\\'core-mailerSettings-port\\'\\]").element.value;
+        const port = wrapper.findByLabel('sw-settings-mailer.card-smtp.port').element.value;
         expect(port).toBe('476');
     });
 });

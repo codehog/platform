@@ -3,15 +3,15 @@
 namespace Shopware\Core\Framework\Increment;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\DataAbstractionLayer\Doctrine\RetryableQuery;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 
 /**
- * @deprecated tag:v6.6.0 - reason:becomes-internal - Type hint to AbstractIncrementer, implementations are internal and should not be used for type hints
+ * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class MySQLIncrementer extends AbstractIncrementer
 {
     /**
@@ -19,11 +19,6 @@ class MySQLIncrementer extends AbstractIncrementer
      */
     public function __construct(private readonly Connection $connection)
     {
-    }
-
-    public function getDecorated(): AbstractIncrementer
-    {
-        throw new DecorationPatternException(self::class);
     }
 
     public function increment(string $cluster, string $key): void
@@ -99,8 +94,8 @@ class MySQLIncrementer extends AbstractIncrementer
             $payload['limit'] = $limit;
             $payload['offset'] = $offset;
             $types = [
-                'offset' => \PDO::PARAM_INT,
-                'limit' => \PDO::PARAM_INT,
+                'offset' => ParameterType::INTEGER,
+                'limit' => ParameterType::INTEGER,
             ];
         }
 

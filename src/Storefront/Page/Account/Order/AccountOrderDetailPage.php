@@ -7,18 +7,12 @@ use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Storefront\Page\Page;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class AccountOrderDetailPage extends Page
 {
-    /**
-     * @var OrderEntity
-     */
-    protected $order;
+    protected OrderEntity $order;
 
-    /**
-     * @var OrderLineItemCollection|null
-     */
-    protected $lineItems;
+    protected ?OrderLineItemCollection $lineItems = null;
 
     public function getOrder(): OrderEntity
     {

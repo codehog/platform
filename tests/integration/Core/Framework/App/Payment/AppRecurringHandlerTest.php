@@ -2,18 +2,17 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\App\Payment;
 
-use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Psr7\Response;
-use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
-use Shopware\Core\Checkout\Order\OrderEntity;
-use Shopware\Core\Checkout\Payment\Cart\RecurringPaymentTransactionStruct;
-use Shopware\Core\Checkout\Payment\PaymentException;
+use Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStruct;
+use Shopware\Core\Framework\App\AppException;
 use Shopware\Core\Framework\App\Hmac\Guzzle\AuthMiddleware;
 use Shopware\Core\Framework\App\Payment\Handler\AppPaymentHandler;
-use Shopware\Core\Framework\App\Payment\Response\RecurringPayResponse;
+use Shopware\Core\Framework\App\Payment\Response\PaymentResponse;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Log\Package;
 
 /**
@@ -28,17 +27,17 @@ class AppRecurringHandlerTest extends AbstractAppPaymentHandlerTestCase
         $orderId = $this->createOrder($paymentMethodId);
         $transactionId = $this->createTransaction($orderId, $paymentMethodId);
 
-        $response = RecurringPayResponse::create($transactionId, [
+        $response = PaymentResponse::create([
             'status' => OrderTransactionStates::STATE_PAID,
         ]);
 
         $this->appendNewResponse($this->signResponse($response->jsonSerialize()));
 
-        $paymentHandler = $this->getContainer()->get(AppPaymentHandler::class);
-        $paymentHandler->captureRecurring($this->getRecurringStruct(), Context::createDefaultContext());
+        $paymentHandler = static::getContainer()->get(AppPaymentHandler::class);
+        $paymentHandler->recurring($this->getRecurringStruct(), Context::createDefaultContext());
 
-        /** @var Request $request */
         $request = $this->getLastRequest();
+        static::assertNotNull($request);
         $body = $request->getBody()->getContents();
 
         $appSecret = $this->app->getAppSecret();
@@ -57,6 +56,7 @@ class AppRecurringHandlerTest extends AbstractAppPaymentHandlerTestCase
             'url' => $this->shopUrl,
             'shopId' => $this->shopIdProvider->getShopId(),
             'appVersion' => '1.0.0',
+            'inAppPurchases' => null,
         ], $content['source']);
 
         $this->assertOrderTransactionState(OrderTransactionStates::STATE_PAID, $transactionId);
@@ -68,19 +68,19 @@ class AppRecurringHandlerTest extends AbstractAppPaymentHandlerTestCase
         $orderId = $this->createOrder($paymentMethodId);
         $transactionId = $this->createTransaction($orderId, $paymentMethodId);
 
-        $response = RecurringPayResponse::create($transactionId, [
+        $response = PaymentResponse::create([
             'message' => 'FOO_BAR_ERROR_MESSAGE',
         ]);
 
         $this->appendNewResponse($this->signResponse($response->jsonSerialize()));
 
-        $paymentHandler = $this->getContainer()->get(AppPaymentHandler::class);
+        $paymentHandler = static::getContainer()->get(AppPaymentHandler::class);
 
         try {
-            $paymentHandler->captureRecurring($this->getRecurringStruct(), Context::createDefaultContext());
+            $paymentHandler->recurring($this->getRecurringStruct(), Context::createDefaultContext());
         } catch (\Throwable $e) {
-            static::assertInstanceOf(PaymentException::class, $e);
-            static::assertSame('The recurring capture process was interrupted due to the following error:
+            static::assertInstanceOf(AppException::class, $e);
+            static::assertSame('The app payment process was interrupted due to the following error:
 FOO_BAR_ERROR_MESSAGE', $e->getMessage());
 
             $this->assertOrderTransactionState(OrderTransactionStates::STATE_OPEN, $transactionId);
@@ -97,20 +97,19 @@ FOO_BAR_ERROR_MESSAGE', $e->getMessage());
         $orderId = $this->createOrder($paymentMethodId);
         $transactionId = $this->createTransaction($orderId, $paymentMethodId);
 
-        $response = RecurringPayResponse::create($transactionId, []);
+        $response = PaymentResponse::create([]);
         $json = \json_encode($response, \JSON_THROW_ON_ERROR);
         static::assertNotFalse($json);
 
         $this->appendNewResponse(new Response(200, [], $json));
 
-        $paymentHandler = $this->getContainer()->get(AppPaymentHandler::class);
+        $paymentHandler = static::getContainer()->get(AppPaymentHandler::class);
 
         try {
-            $paymentHandler->captureRecurring($this->getRecurringStruct(), Context::createDefaultContext());
+            $paymentHandler->recurring($this->getRecurringStruct(), Context::createDefaultContext());
         } catch (\Throwable $e) {
-            static::assertInstanceOf(PaymentException::class, $e);
-            static::assertSame('The recurring capture process was interrupted due to the following error:
-Invalid app response', $e->getMessage());
+            static::assertInstanceOf(ServerException::class, $e);
+            static::assertSame('Could not verify the authenticity of the response', $e->getMessage());
 
             $this->assertOrderTransactionState(OrderTransactionStates::STATE_OPEN, $transactionId);
 
@@ -126,20 +125,19 @@ Invalid app response', $e->getMessage());
         $orderId = $this->createOrder($paymentMethodId);
         $transactionId = $this->createTransaction($orderId, $paymentMethodId);
 
-        $response = RecurringPayResponse::create($transactionId, []);
+        $response = PaymentResponse::create([]);
         $json = \json_encode($response, \JSON_THROW_ON_ERROR);
         static::assertNotFalse($json);
 
         $this->appendNewResponse(new Response(200, ['shopware-app-signature' => 'invalid'], $json));
 
-        $paymentHandler = $this->getContainer()->get(AppPaymentHandler::class);
+        $paymentHandler = static::getContainer()->get(AppPaymentHandler::class);
 
         try {
-            $paymentHandler->captureRecurring($this->getRecurringStruct(), Context::createDefaultContext());
+            $paymentHandler->recurring($this->getRecurringStruct(), Context::createDefaultContext());
         } catch (\Throwable $e) {
-            static::assertInstanceOf(PaymentException::class, $e);
-            static::assertSame('The recurring capture process was interrupted due to the following error:
-Invalid app response', $e->getMessage());
+            static::assertInstanceOf(ServerException::class, $e);
+            static::assertSame('Could not verify the authenticity of the response', $e->getMessage());
 
             $this->assertOrderTransactionState(OrderTransactionStates::STATE_OPEN, $transactionId);
 
@@ -149,21 +147,14 @@ Invalid app response', $e->getMessage());
         static::fail('Should catch a RecurringException');
     }
 
-    private function getRecurringStruct(): RecurringPaymentTransactionStruct
+    private function getRecurringStruct(): PaymentTransactionStruct
     {
-        $criteria = new Criteria([$this->ids->get('order')]);
-        $criteria->addAssociation('transactions.paymentMethod.appPaymentMethod.app');
+        $criteria = new Criteria();
+        $criteria->addFilter(new EqualsFilter('order.id', $this->ids->get('order')));
 
-        $order = $this->orderRepository->search($criteria, Context::createDefaultContext())->first();
+        $transactionId = $this->orderTransactionRepository->searchIds($criteria, Context::createDefaultContext())->firstId();
+        static::assertNotNull($transactionId);
 
-        static::assertInstanceOf(OrderEntity::class, $order);
-        static::assertInstanceOf(OrderTransactionCollection::class, $order->getTransactions());
-        static::assertCount(1, $order->getTransactions());
-
-        $paymentTransaction = $order->getTransactions()->first();
-
-        static::assertNotNull($paymentTransaction);
-
-        return new RecurringPaymentTransactionStruct($paymentTransaction, $order);
+        return new PaymentTransactionStruct($transactionId);
     }
 }

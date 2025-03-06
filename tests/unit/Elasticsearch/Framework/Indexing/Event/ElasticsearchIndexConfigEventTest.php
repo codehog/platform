@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Elasticsearch\Framework\Indexing\Event;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Context;
 use Shopware\Elasticsearch\Framework\AbstractElasticsearchDefinition;
@@ -9,9 +10,8 @@ use Shopware\Elasticsearch\Framework\Indexing\Event\ElasticsearchIndexConfigEven
 
 /**
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Framework\Indexing\Event\ElasticsearchIndexConfigEvent
  */
+#[CoversClass(ElasticsearchIndexConfigEvent::class)]
 class ElasticsearchIndexConfigEventTest extends TestCase
 {
     public function testEvent(): void
@@ -19,8 +19,6 @@ class ElasticsearchIndexConfigEventTest extends TestCase
         $event = new ElasticsearchIndexConfigEvent('index', ['config' => 'value'], $this->createMock(AbstractElasticsearchDefinition::class), Context::createDefaultContext());
         static::assertSame('index', $event->getIndexName());
         static::assertSame(['config' => 'value'], $event->getConfig());
-        static::assertInstanceOf(AbstractElasticsearchDefinition::class, $event->getDefinition());
-        static::assertInstanceOf(Context::class, $event->getContext());
 
         $event->setConfig(['config' => 'value2']);
 

@@ -1,16 +1,14 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount, createLocalVue } from '@vue/test-utils';
+import { shallowMount } from '@vue/test-utils';
 import { resetCurrentDrag, getCurrentDragElement } from 'src/app/directive/dragdrop.directive';
 
 jest.useFakeTimers();
 jest.spyOn(global, 'setTimeout');
 
-const createWrapper = (startingDragConfig) => {
-    const localVue = createLocalVue();
-
+const createWrapper = async (startingDragConfig) => {
     const div = document.createElement('div');
     div.id = 'root';
     document.body.appendChild(div);
@@ -52,7 +50,11 @@ const createWrapper = (startingDragConfig) => {
         },
         methods: {
             onDragStart(dragConfig, draggedElement, dragElement) {
-                this.$emit('drag-start', { dragConfig, draggedElement, dragElement });
+                this.$emit('drag-start', {
+                    dragConfig,
+                    draggedElement,
+                    dragElement,
+                });
             },
 
             onDragEnter(dragData, dropData) {
@@ -69,10 +71,13 @@ const createWrapper = (startingDragConfig) => {
         },
     };
 
-    return shallowMount(dragdropComponent, {
-        localVue,
+    const wrapper = shallowMount(dragdropComponent, {
         attachTo: '#root',
     });
+
+    await flushPromises();
+
+    return wrapper;
 };
 
 describe('directives/dragdrop', () => {
@@ -89,30 +94,20 @@ describe('directives/dragdrop', () => {
         document.body.innerHTML = '';
     });
 
-    it('should be exist class name is--droppable', () => {
-        wrapper = createWrapper();
+    it('should be exist class name is--droppable', async () => {
+        wrapper = await createWrapper();
 
-        expect(
-            wrapper.findAll('span')
-                .at(0)
-                .find('.is--droppable')
-                .exists(),
-        ).toBeTruthy();
+        expect(wrapper.findAll('span').at(0).classes('is--droppable')).toBe(true);
     });
 
-    it('should be exist class name is--draggable', () => {
-        wrapper = createWrapper();
+    it('should be exist class name is--draggable', async () => {
+        wrapper = await createWrapper();
 
-        expect(
-            wrapper.findAll('span')
-                .at(0)
-                .find('.is--draggable')
-                .exists(),
-        ).toBeTruthy();
+        expect(wrapper.findAll('span').at(0).classes('is--draggable')).toBe(true);
     });
 
-    it('should remove class name `is--draggable` for the draggable directive', () => {
-        wrapper = createWrapper();
+    it('should remove class name `is--draggable` for the draggable directive', async () => {
+        wrapper = await createWrapper();
 
         const mockElement = document.getElementById('sw-dragdrop--1');
 
@@ -125,13 +120,13 @@ describe('directives/dragdrop', () => {
 
         expect(mockElement.className).toBe('is--droppable is--draggable');
 
-        draggable.unbind(mockElement, mockBinding);
+        draggable.unmounted(mockElement, mockBinding);
 
         expect(mockElement.className).toBe('is--droppable');
     });
 
-    it('should update data for the droppable directive with default config', () => {
-        wrapper = createWrapper();
+    it('should update data for the droppable directive with default config', async () => {
+        wrapper = await createWrapper();
 
         const mockElement = document.getElementById('sw-dragdrop--2');
 
@@ -145,13 +140,13 @@ describe('directives/dragdrop', () => {
 
         expect(mockElement.className).toBe('is--droppable is--draggable');
 
-        draggable.update(mockElement, mockBinding);
+        draggable.updated(mockElement, mockBinding);
 
         expect(mockElement.className).toBe('is--droppable');
     });
 
-    it('should update data for the droppable directive with new config', () => {
-        createWrapper({
+    it('should update data for the droppable directive with new config', async () => {
+        await createWrapper({
             disabled: true,
         });
 
@@ -166,13 +161,13 @@ describe('directives/dragdrop', () => {
 
         expect(mockElement.className).toBe('is--droppable');
 
-        draggable.update(mockElement, mockBinding);
+        draggable.updated(mockElement, mockBinding);
 
         expect(mockElement.className).toBe('is--droppable is--draggable');
     });
 
-    it('should remove class name `is--droppable` for the droppable directive', () => {
-        wrapper = createWrapper();
+    it('should remove class name `is--droppable` for the droppable directive', async () => {
+        wrapper = await createWrapper();
 
         const mockElement = document.getElementById('sw-dragdrop--3');
 
@@ -185,13 +180,13 @@ describe('directives/dragdrop', () => {
 
         expect(mockElement.className).toBe('is--droppable is--draggable');
 
-        droppable.unbind(mockElement, mockBinding);
+        droppable.unmounted(mockElement, mockBinding);
 
         expect(mockElement.className).toBe('is--draggable');
     });
 
     it('should create the correct class on drag', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
         });
 
@@ -207,7 +202,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should set the correct values when dragDrop moves over dropzone', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
         });
 
@@ -256,7 +251,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should set the correct values when dragDrop moves over an invalid dropzone', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
             validateDrop: () => false,
         });
@@ -306,7 +301,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should set the correct values when dragDrop leaves dropzone', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
         });
 
@@ -352,12 +347,11 @@ describe('directives/dragdrop', () => {
     });
 
     it('should stop the drag correctly', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
         });
 
         const dragDrop1 = wrapper.find('#sw-dragdrop--1');
-
 
         await dragDrop1.trigger('mousedown', {
             buttons: 1,
@@ -373,7 +367,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should stop the drag correctly with delay', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 100,
         });
 
@@ -395,7 +389,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should stop the drag correctly with delay before it gets triggered', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 100,
         });
 
@@ -422,7 +416,7 @@ describe('directives/dragdrop', () => {
 
     it('should execute the onDrop method when given', async () => {
         const mockMethod = jest.fn(() => null);
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
             onDrop: () => mockMethod(),
         });
@@ -441,7 +435,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should not do anything when event is no mouseEvent and no buttons were clicked', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
         });
 
@@ -455,7 +449,7 @@ describe('directives/dragdrop', () => {
     });
 
     it('should update the dropConfig correctly so that the second drop is now invalid', async () => {
-        wrapper = createWrapper({
+        wrapper = await createWrapper({
             delay: 0,
         });
 

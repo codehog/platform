@@ -2,6 +2,7 @@
 
 namespace Shopware\Core\Framework\Api\Route;
 
+use Shopware\Core\Framework\Api\ApiException;
 use Shopware\Core\Framework\Api\Controller\ApiController;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityDefinition;
@@ -11,9 +12,15 @@ use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
-#[Package('core')]
+#[Package('framework')]
 class ApiRouteLoader extends Loader
 {
+    /**
+     * The dynamic API allows traverse associations over the route path. This key for an option
+     * holds the root path for each entity definition without further associations in the path.
+     */
+    public const DYNAMIC_RESOURCE_ROOT_PATH = 'resourceRootPath';
+
     private bool $isLoaded = false;
 
     /**
@@ -26,7 +33,7 @@ class ApiRouteLoader extends Loader
     public function load(mixed $resource, ?string $type = null): RouteCollection
     {
         if ($this->isLoaded) {
-            throw new \RuntimeException('Do not add the "api" loader twice');
+            throw ApiException::apiRoutesAreAlreadyLoaded();
         }
 
         $routes = new RouteCollection();
@@ -48,10 +55,10 @@ class ApiRouteLoader extends Loader
         $class = ApiController::class;
 
         // uuid followed by any number of '/{entity-name}/{uuid}' | '/extensions/{entity-name}/{uuid}' pairs followed by an optional slash
-        $detailSuffix = '[0-9a-f]{32}(\/(extensions\/)?[a-zA-Z-]+\/[0-9a-f]{32})*\/?$';
+        $detailSuffix = '[0-9a-f]{32}(\/(extensions\/)?[0-9a-zA-Z-]+\/[0-9a-f]{32})*\/?$';
 
         // '/{uuid}/{entity-name}' | '/{uuid}/extensions/{entity-name}' pairs followed by an optional slash
-        $listSuffix = '(\/[0-9a-f]{32}\/(extensions\/)?[a-zA-Z-]+)*\/?$';
+        $listSuffix = '(\/[0-9a-f]{32}\/(extensions\/)?[0-9a-zA-Z-]+)*\/?$';
 
         $elements = $this->definitionRegistry->getDefinitions();
         usort($elements, fn (EntityDefinition $a, EntityDefinition $b) => $a->getEntityName() <=> $b->getEntityName());
@@ -67,6 +74,7 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $detailSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/' . $resourceName . '/{id}');
             $routes->add('api.' . $entityName . '.detail', $route);
 
             $route = new Route('/api/' . $resourceName . '/{path}');
@@ -75,6 +83,7 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $detailSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/' . $resourceName . '/{id}');
             $routes->add('api.' . $entityName . '.update', $route);
 
             $route = new Route('/api/' . $resourceName . '/{path}');
@@ -83,6 +92,7 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $detailSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/' . $resourceName . '/{id}');
             $routes->add('api.' . $entityName . '.delete', $route);
 
             // list routes
@@ -92,6 +102,7 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $listSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/' . $resourceName);
             $routes->add('api.' . $entityName . '.list', $route);
 
             $route = new Route('/api/search/' . $resourceName . '{path}');
@@ -100,6 +111,7 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $listSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/search/' . $resourceName);
             $routes->add('api.' . $entityName . '.search', $route);
 
             $route = new Route('/api/search-ids/' . $resourceName . '{path}');
@@ -108,7 +120,17 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $listSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/search-ids/' . $resourceName);
             $routes->add('api.' . $entityName . '.search-ids', $route);
+
+            $route = new Route('/api/aggregate/' . $resourceName . '{path}');
+            $route->setMethods(['POST']);
+            $route->setDefault('_controller', $class . '::aggregate');
+            $route->setDefault('entityName', $resourceName);
+            $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
+            $route->addRequirements(['path' => $listSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/aggregate/' . $resourceName);
+            $routes->add('api.' . $entityName . '.aggregate', $route);
 
             $route = new Route('/api/' . $resourceName . '{path}');
             $route->setMethods(['POST']);
@@ -116,6 +138,7 @@ class ApiRouteLoader extends Loader
             $route->setDefault('entityName', $resourceName);
             $route->setDefault(PlatformRequest::ATTRIBUTE_ROUTE_SCOPE, ['api']);
             $route->addRequirements(['path' => $listSuffix, 'version' => '\d+']);
+            $route->setOption(self::DYNAMIC_RESOURCE_ROOT_PATH, '/api/' . $resourceName);
             $routes->add('api.' . $entityName . '.create', $route);
         }
     }

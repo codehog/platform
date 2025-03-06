@@ -43,7 +43,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'dal:create:hydrators',
     description: 'Creates the hydrator classes',
 )]
-#[Package('core')]
+#[Package('framework')]
 class CreateHydratorCommand extends Command
 {
     private readonly string $dir;
@@ -56,7 +56,7 @@ class CreateHydratorCommand extends Command
         string $rootDir
     ) {
         parent::__construct();
-        $this->dir = $rootDir . '/platform/src';
+        $this->dir = $rootDir . '/src';
     }
 
     protected function configure(): void

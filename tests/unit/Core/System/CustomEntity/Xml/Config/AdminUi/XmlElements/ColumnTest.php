@@ -2,21 +2,18 @@
 
 namespace Shopware\Tests\Unit\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\Column;
 
 /**
- * @package content
- *
  * @internal
- *
- * @covers \Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\Column
  */
+#[CoversClass(Column::class)]
 class ColumnTest extends TestCase
 {
-    /**
-     * @dataProvider provider
-     */
+    #[DataProvider('provider')]
     public function testFromXml(?string $hidden, bool $result): void
     {
         $dom = new \DOMDocument();
@@ -28,8 +25,6 @@ class ColumnTest extends TestCase
         }
 
         $column = Column::fromXml($columnElement);
-
-        static::assertInstanceOf(Column::class, $column);
         static::assertEquals($result, $column->isHidden());
         static::assertEquals('column ref', $column->getRef());
     }

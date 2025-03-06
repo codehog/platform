@@ -7,43 +7,29 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @codeCoverageIgnore
  */
-#[Package('merchant-services')]
+#[Package('checkout')]
 class VariantStruct extends StoreStruct
 {
     final public const TYPE_RENT = 'rent';
     final public const TYPE_BUY = 'buy';
     final public const TYPE_FREE = 'free';
 
-    /**
-     * @var int
-     */
-    protected $id;
+    protected int $id;
+
+    protected string $type;
+
+    protected float $netPrice;
+
+    protected bool $trialPhaseIncluded = false;
+
+    protected ?DiscountCampaignStruct $discountCampaign;
 
     /**
-     * @var string
+     * @return VariantStruct
      */
-    protected $type;
-
-    /**
-     * @var float
-     */
-    protected $netPrice;
-
-    /**
-     * @var bool
-     */
-    protected $trialPhaseIncluded = false;
-
-    /**
-     * @var DiscountCampaignStruct|null
-     */
-    protected $discountCampaign;
-
     public static function fromArray(array $data): StoreStruct
     {
-        $variant = new self();
-
-        return $variant->assign($data);
+        return (new self())->assign($data);
     }
 
     public function getId(): int

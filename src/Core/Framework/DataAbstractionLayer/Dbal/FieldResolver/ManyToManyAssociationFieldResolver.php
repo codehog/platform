@@ -14,7 +14,7 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class ManyToManyAssociationFieldResolver extends AbstractFieldResolver
 {
     public function join(FieldResolverContext $context): string
@@ -108,8 +108,10 @@ class ManyToManyAssociationFieldResolver extends AbstractFieldResolver
             return EntityDefinitionQueryHelper::escape($field->getReferenceField());
         }
 
-        /** @var ReverseInherited $flag */
         $flag = $field->getFlag(ReverseInherited::class);
+        if ($flag === null) {
+            return EntityDefinitionQueryHelper::escape($field->getReferenceField());
+        }
 
         return EntityDefinitionQueryHelper::escape($flag->getReversedPropertyName());
     }

@@ -1,3 +1,7 @@
+/**
+ * @sw-package framework
+ */
+
 import template from './sw-status.html.twig';
 import './sw-status.scss';
 

@@ -3,21 +3,25 @@
 namespace Shopware\Core\Framework\Plugin\Util;
 
 use League\Flysystem\FilesystemOperator;
+use Shopware\Core\DevOps\Environment\EnvironmentHelper;
 use Shopware\Core\Framework\Adapter\Cache\CacheInvalidator;
-use Shopware\Core\Framework\App\Lifecycle\AbstractAppLoader;
-use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Adapter\Filesystem\Plugin\CopyBatch;
+use Shopware\Core\Framework\Adapter\Filesystem\Plugin\CopyBatchInput;
+use Shopware\Core\Framework\App\Source\SourceResolver;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Parameter\AdditionalBundleParameters;
 use Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Plugin\Exception\PluginNotFoundException;
 use Shopware\Core\Framework\Plugin\KernelPluginLoader\KernelPluginLoader;
+use Shopware\Core\Framework\Plugin\PluginException;
+use Shopware\Core\Framework\Util\Hasher;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class AssetService
 {
     /**
@@ -29,7 +33,7 @@ class AssetService
         private readonly KernelInterface $kernel,
         private readonly KernelPluginLoader $pluginLoader,
         private readonly CacheInvalidator $cacheInvalidator,
-        private readonly AbstractAppLoader $appLoader,
+        private readonly SourceResolver $sourceResolver,
         private readonly ParameterBagInterface $parameterBag
     ) {
     }
@@ -59,21 +63,15 @@ class AssetService
         );
     }
 
-    /**
-     * @decrecated tag:v6.6.0 - Will be removed without replacement
-     */
-    public function copyRecoveryAssets(): void
-    {
-        Feature::triggerDeprecationOrThrow('v6.6.0.0', Feature::deprecatedMethodMessage(self::class, __METHOD__, 'v6.6.0.0'));
-    }
-
     public function copyAssetsFromApp(string $appName, string $appPath, bool $force = false): void
     {
-        $publicDirectory = $this->appLoader->locatePath($appPath, 'Resources/public');
+        $fs = $this->sourceResolver->filesystemForAppName($appName);
 
-        if ($publicDirectory === null) {
+        if (!$fs->has('Resources/public')) {
             return;
         }
+
+        $publicDirectory = $fs->path('Resources/public');
 
         $this->copyAssetsFromBundleOrApp(
             $publicDirectory,
@@ -150,7 +148,9 @@ class AssetService
         $manifest[$bundleOrAppName] = $localBundleManifest;
         $this->writeManifest($manifest);
 
-        $this->cacheInvalidator->invalidate(['asset-metaData'], true);
+        if (!EnvironmentHelper::getVariable('SHOPWARE_SKIP_ASSET_INSTALL_CACHE_INVALIDATION', false)) {
+            $this->cacheInvalidator->invalidate(['asset-metaData'], true);
+        }
     }
 
     /**
@@ -176,7 +176,7 @@ class AssetService
     {
         $localManifest = array_combine(
             array_map(fn (SplFileInfo $file) => $file->getRelativePathname(), $files),
-            array_map(fn (SplFileInfo $file) => (string) hash_file('sha256', $file->getPathname()), $files)
+            array_map(fn (SplFileInfo $file) => Hasher::hashFile($file->getPathname()), $files)
         );
 
         ksort($localManifest);
@@ -184,25 +184,10 @@ class AssetService
         return $localManifest;
     }
 
-    private function copyFile(string $from, string $to): void
-    {
-        $fp = fopen($from, 'rb');
-
-        // @codeCoverageIgnoreStart
-        if (!\is_resource($fp)) {
-            throw new \RuntimeException('Could not open file ' . $from);
-        }
-        // @codeCoverageIgnoreEnd
-
-        $this->filesystem->writeStream($to, $fp);
-
-        // The Google Cloud Storage filesystem closes the stream even though it should not. To prevent a fatal
-        // error, we therefore need to check whether the stream has been closed yet.
-        if (\is_resource($fp)) {
-            fclose($fp);
-        }
-    }
-
+    /**
+     * Adopted from symfony, as they also strip the bundle suffix:
+     * https://github.com/symfony/symfony/blob/7.2/src/Symfony/Bundle/FrameworkBundle/Command/AssetsInstallCommand.php#L128
+     */
     private function getTargetDirectory(string $name): string
     {
         $assetDir = preg_replace('/bundle$/', '', mb_strtolower($name));
@@ -234,9 +219,16 @@ class AssetService
             $this->filesystem->delete($targetDirectory . '/' . $file);
         }
 
+        $batches = [];
+
         foreach ($uploads as $file) {
-            $this->copyFile($originDir . '/' . $file, $targetDirectory . '/' . $file);
+            $batches[] = new CopyBatchInput(
+                $originDir . '/' . $file,
+                [$targetDirectory . '/' . $file]
+            );
         }
+
+        CopyBatch::copy($this->filesystem, ...$batches);
     }
 
     /**
@@ -251,7 +243,7 @@ class AssetService
         }
 
         if ($bundle === null) {
-            throw new PluginNotFoundException($bundleName);
+            throw PluginException::notFound($bundleName);
         }
 
         return $bundle;

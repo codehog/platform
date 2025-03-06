@@ -1,218 +1,256 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-/* eslint-disable max-len */
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import Vue from 'vue';
-import uuid from 'src/../test/_helper_/uuid';
-import 'src/app/component/form/sw-custom-field-set-renderer';
-import 'src/app/component/utils/sw-inherit-wrapper';
-import 'src/app/component/form/sw-form-field-renderer';
-import 'src/app/component/form/sw-field';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/base/sw-label';
-import 'src/app/component/base/sw-tabs';
-import 'src/app/component/base/sw-tabs-item';
-import 'src/app/component/form/sw-text-field';
-import 'src/app/component/form/sw-switch-field';
-import 'src/app/component/form/sw-number-field';
-import 'src/app/component/form/sw-checkbox-field';
-import 'src/app/component/form/field-base/sw-contextual-field';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/form/field-base/sw-field-error';
-import 'src/app/component/base/sw-inheritance-switch';
-import 'src/app/component/base/sw-icon';
-import 'src/app/component/form/select/base/sw-single-select';
-import 'src/app/component/form/select/base/sw-multi-select';
-import 'src/app/component/form/select/base/sw-select-base';
-import 'src/app/component/form/select/base/sw-select-result-list';
-import 'src/app/component/form/select/base/sw-select-result';
-import 'src/app/component/form/select/base/sw-select-selection-list';
-import 'src/app/component/utils/sw-popover';
-import 'src/app/component/base/sw-highlight-text';
-import SwMediaField from 'src/app/asyncComponent/media/sw-media-field';
-import SwMediaMediaItem from 'src/app/asyncComponent/media/sw-media-media-item';
-import SwMediaBaseItem from 'src/app/asyncComponent/media/sw-media-base-item';
-import SwMediaPreviewV2 from 'src/app/asyncComponent/media/sw-media-preview-v2';
-import 'src/app/filter/media-name.filter';
-import 'src/app/component/utils/sw-skeleton';
-import 'src/app/component/utils/sw-skeleton-bar';
-
-Shopware.Component.register('sw-media-field', SwMediaField);
-Shopware.Component.register('sw-media-media-item', SwMediaMediaItem);
-Shopware.Component.register('sw-media-base-item', SwMediaBaseItem);
-Shopware.Component.register('sw-media-preview-v2', SwMediaPreviewV2);
+/* eslint-disable max-len,jest/no-conditional-expect */
+import { mount } from '@vue/test-utils';
+import uuid from 'test/_helper_/uuid';
 
 function createEntityCollection(entities = []) {
     return new Shopware.Data.EntityCollection('collection', 'collection', {}, null, entities);
 }
 
 async function createWrapper(props) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-    localVue.directive('popover', {});
-    localVue.filter('mediaName', Shopware.Filter.getByName('mediaName'));
+    return mount(
+        await wrapTestComponent('sw-custom-field-set-renderer', {
+            sync: true,
+        }),
+        {
+            props,
+            global: {
+                stubs: {
+                    'sw-label': await wrapTestComponent('sw-label'),
+                    'sw-tabs': await wrapTestComponent('sw-tabs'),
+                    'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                    'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                    'sw-inherit-wrapper': await wrapTestComponent('sw-inherit-wrapper'),
+                    'sw-inheritance-switch': await wrapTestComponent('sw-inheritance-switch'),
+                    'sw-form-field-renderer': await wrapTestComponent('sw-form-field-renderer', {
+                        sync: true,
+                    }),
+                    'sw-text-field': await wrapTestComponent('sw-text-field'),
+                    'sw-text-field-deprecated': await wrapTestComponent('sw-text-field-deprecated', { sync: true }),
+                    'sw-contextual-field': await wrapTestComponent('sw-contextual-field'),
 
-    return shallowMount(await Shopware.Component.build('sw-custom-field-set-renderer'), {
-        localVue,
-        propsData: props,
-        stubs: {
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-label': await Shopware.Component.build('sw-label'),
-            'sw-tabs': await Shopware.Component.build('sw-tabs'),
-            'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
-            'sw-inherit-wrapper': await Shopware.Component.build('sw-inherit-wrapper'),
-            'sw-inheritance-switch': await Shopware.Component.build('sw-inheritance-switch'),
-            'sw-form-field-renderer': await Shopware.Component.build('sw-form-field-renderer'),
-            'sw-field': await Shopware.Component.build('sw-field'),
-            'sw-text-field': await Shopware.Component.build('sw-text-field'),
-            'sw-contextual-field': await Shopware.Component.build('sw-contextual-field'),
-            'sw-switch-field': await Shopware.Component.build('sw-switch-field'),
-            'sw-number-field': await Shopware.Component.build('sw-number-field'),
-            'sw-checkbox-field': await Shopware.Component.build('sw-checkbox-field'),
-            'sw-entity-multi-select': true,
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-field-error': await Shopware.Component.build('sw-field-error'),
-            'sw-icon': {
-                template: '<div class="sw-icon" @click="$emit(\'click\')"></div>',
-            },
-            'sw-single-select': await Shopware.Component.build('sw-single-select'),
-            'sw-multi-select': await Shopware.Component.build('sw-multi-select'),
-            'sw-select-base': await Shopware.Component.build('sw-select-base'),
-            'sw-select-result-list': await Shopware.Component.build('sw-select-result-list'),
-            'sw-select-result': await Shopware.Component.build('sw-select-result'),
-            'sw-select-selection-list': await Shopware.Component.build('sw-select-selection-list'),
-            'sw-popover': await Shopware.Component.build('sw-popover'),
-            'sw-highlight-text': await Shopware.Component.build('sw-highlight-text'),
-            'sw-media-field': await Shopware.Component.build('sw-media-field'),
-            'sw-media-media-item': await Shopware.Component.build('sw-media-media-item'),
-            'sw-media-base-item': await Shopware.Component.build('sw-media-base-item'),
-            'sw-media-preview-v2': await Shopware.Component.build('sw-media-preview-v2'),
-            'sw-colorpicker': await Shopware.Component.build('sw-text-field'),
-            'sw-upload-listener': true,
-            'sw-simple-search-field': true,
-            'sw-loader': true,
-            'sw-datepicker': await Shopware.Component.build('sw-text-field'),
-            'sw-text-editor': {
-                props: ['value'],
-                template: '<input type="text" :value="value" @change="$emit(\'change\', $event.target.value)"></input>',
-            },
-            'sw-skeleton': await Shopware.Component.build('sw-skeleton'),
-            'sw-skeleton-bar': await Shopware.Component.build('sw-skeleton-bar'),
-        },
-        provide: {
-            repositoryFactory: {
-                create: (entity) => ({
-                    search: () => {
-                        if (entity === 'media') {
-                            return Promise.resolve([
-                                {
-                                    hasFile: true,
-                                    fileName: 'media_after',
-                                    fileExtension: 'jpg',
-                                    id: uuid.get('media after'),
-                                },
-                                {
-                                    hasFile: true,
-                                    fileName: 'media_before',
-                                    fileExtension: 'jpg',
-                                    id: uuid.get('media before'),
-                                },
-                            ]);
-                        }
-
-                        return Promise.resolve('bar');
+                    'sw-number-field': await wrapTestComponent('sw-number-field'),
+                    'sw-number-field-deprecated': await wrapTestComponent('sw-number-field-deprecated', { sync: true }),
+                    'sw-checkbox-field': await wrapTestComponent('sw-checkbox-field'),
+                    'sw-checkbox-field-deprecated': await wrapTestComponent('sw-checkbox-field-deprecated', { sync: true }),
+                    'sw-entity-multi-select': true,
+                    'sw-block-field': await wrapTestComponent('sw-block-field', {
+                        sync: true,
+                    }),
+                    'sw-base-field': await wrapTestComponent('sw-base-field', {
+                        sync: true,
+                    }),
+                    'sw-field-error': await wrapTestComponent('sw-field-error'),
+                    'sw-single-select': await wrapTestComponent('sw-single-select'),
+                    'sw-multi-select': await wrapTestComponent('sw-multi-select'),
+                    'sw-select-base': await wrapTestComponent('sw-select-base'),
+                    'sw-select-result-list': await wrapTestComponent('sw-select-result-list'),
+                    'sw-select-result': await wrapTestComponent('sw-select-result'),
+                    'sw-select-selection-list': await wrapTestComponent('sw-select-selection-list'),
+                    'sw-popover': await wrapTestComponent('sw-popover'),
+                    'sw-popover-deprecated': await wrapTestComponent('sw-popover-deprecated', { sync: true }),
+                    'sw-highlight-text': await wrapTestComponent('sw-highlight-text'),
+                    'sw-media-field': await wrapTestComponent('sw-media-field'),
+                    'sw-media-media-item': await wrapTestComponent('sw-media-media-item'),
+                    'sw-media-base-item': await wrapTestComponent('sw-media-base-item'),
+                    'sw-media-preview-v2': await wrapTestComponent('sw-media-preview-v2'),
+                    // Looks strange? Try to fix it and add to the count: I
+                    'sw-colorpicker-deprecated': await wrapTestComponent('sw-text-field-deprecated'),
+                    'sw-upload-listener': true,
+                    'sw-simple-search-field': true,
+                    'sw-loader': true,
+                    // Looks strange? Try to fix it and add to the count: I
+                    'sw-datepicker-deprecated': await wrapTestComponent('sw-text-field-deprecated'),
+                    'sw-text-editor': {
+                        props: ['value'],
+                        template:
+                            '<input type="text" :value="value" @change="$emit(\'update:value\', $event.target.value)"/>',
                     },
-                    get: (id) => {
-                        if (entity === 'media') {
-                            if (id === uuid.get('media before')) {
-                                return Promise.resolve({
-                                    hasFile: true,
-                                    fileName: 'media_before',
-                                    fileExtension: 'jpg',
-                                    id: uuid.get('media before'),
-                                });
-                            }
-
-                            if (id === uuid.get('media after')) {
-                                return Promise.resolve({
-                                    hasFile: true,
-                                    fileName: 'media_after',
-                                    fileExtension: 'jpg',
-                                    id: uuid.get('media after'),
-                                });
-                            }
-                        }
-
-                        if (id === uuid.get('custom_sports')) {
-                            return Promise.resolve({
-                                id: uuid.get('custom_sports'),
-                                name: 'custom_sports',
-                                position: 1,
-                                config: { label: { 'en-GB': 'Sports' } },
-                                customFields: [
-                                    {
-                                        active: true,
-                                        name: 'custom_sports_football',
-                                        type: 'text',
-                                        config: {
-                                            customFieldPosition: 1,
-                                            customFieldType: 'text',
-                                            componentName: 'sw-field',
-                                            type: 'text',
+                    'sw-skeleton': await wrapTestComponent('sw-skeleton'),
+                    'sw-skeleton-bar': await wrapTestComponent('sw-skeleton-bar'),
+                    'sw-entity-single-select': await wrapTestComponent('sw-entity-single-select'),
+                    'sw-switch-field-deprecated': await wrapTestComponent('sw-switch-field-deprecated'),
+                    'sw-button-process': true,
+                    'sw-media-collapse': true,
+                    'mt-tabs': true,
+                    'sw-extension-component-section': true,
+                    'router-link': true,
+                    'sw-help-text': true,
+                    'mt-text-field': true,
+                    'sw-field-copyable': true,
+                    'sw-ai-copilot-badge': true,
+                    'mt-skeleton-bar': true,
+                    'sw-skeleton-bar-deprecated': true,
+                    'mt-number-field': true,
+                    'mt-floating-ui': true,
+                    'sw-color-badge': true,
+                    'sw-media-upload-v2': true,
+                    'sw-pagination': true,
+                    'sw-context-menu-item': true,
+                    'sw-media-modal-replace': true,
+                    'sw-media-modal-delete': true,
+                    'sw-media-modal-move': true,
+                    'sw-context-button': true,
+                    'mt-checkbox': true,
+                    'sw-product-variant-info': true,
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: (entity) => ({
+                            search: () => {
+                                if (entity === 'media') {
+                                    return Promise.resolve([
+                                        {
+                                            hasFile: true,
+                                            fileName: 'media_after',
+                                            fileExtension: 'jpg',
+                                            id: uuid.get('media after'),
                                         },
-                                    },
-                                    {
-                                        active: true,
-                                        name: 'custom_sports_score',
-                                        type: 'float',
-                                        config: {
-                                            type: 'number',
-                                            label: { 'en-GB': 'qui et vel' },
-                                            numberType: 'float',
-                                            placeholder: { 'en-GB': 'Type a floating point number...' },
-                                            componentName: 'sw-field',
-                                            customFieldType: 'number',
-                                            customFieldPosition: 1,
+                                        {
+                                            hasFile: true,
+                                            fileName: 'media_before',
+                                            fileExtension: 'jpg',
+                                            id: uuid.get('media before'),
                                         },
-                                    },
-                                ],
-                            });
-                        }
+                                    ]);
+                                }
 
-                        if (id === uuid.get('custom_clothing')) {
-                            return Promise.resolve({
-                                id: uuid.get('custom_clothing'),
-                                name: 'custom_clothing',
-                                position: 1,
-                                config: { label: { 'en-GB': 'Clothing' } },
-                                customFields: [
-                                    {
-                                        active: true,
-                                        name: 'custom_clothing_name',
-                                        type: 'text',
-                                        config: {
-                                            customFieldPosition: 1,
-                                            customFieldType: 'text',
-                                            componentName: 'sw-field',
-                                            type: 'text',
+                                if (entity === 'country') {
+                                    return Promise.resolve([
+                                        {
+                                            id: uuid.get('Germany'),
+                                            name: 'Germany',
                                         },
-                                    },
-                                ],
-                            });
-                        }
+                                        {
+                                            id: uuid.get('Vietnam'),
+                                            name: 'Vietnam',
+                                        },
+                                    ]);
+                                }
 
-                        return Promise.resolve({});
+                                return Promise.resolve('bar');
+                            },
+                            get: (id) => {
+                                if (entity === 'media') {
+                                    if (id === uuid.get('media before')) {
+                                        return Promise.resolve({
+                                            hasFile: true,
+                                            fileName: 'media_before',
+                                            fileExtension: 'jpg',
+                                            id: uuid.get('media before'),
+                                        });
+                                    }
+
+                                    if (id === uuid.get('media after')) {
+                                        return Promise.resolve({
+                                            hasFile: true,
+                                            fileName: 'media_after',
+                                            fileExtension: 'jpg',
+                                            id: uuid.get('media after'),
+                                        });
+                                    }
+                                }
+
+                                if (id === uuid.get('custom_sports')) {
+                                    return Promise.resolve({
+                                        id: uuid.get('custom_sports'),
+                                        name: 'custom_sports',
+                                        position: 1,
+                                        config: {
+                                            label: { 'en-GB': 'Sports' },
+                                        },
+                                        customFields: [
+                                            {
+                                                active: true,
+                                                name: 'custom_sports_football',
+                                                type: 'text',
+                                                config: {
+                                                    customFieldPosition: 1,
+                                                    customFieldType: 'text',
+                                                    componentName: 'sw-field',
+                                                    type: 'text',
+                                                },
+                                            },
+                                            {
+                                                active: true,
+                                                name: 'custom_sports_score',
+                                                type: 'float',
+                                                config: {
+                                                    type: 'number',
+                                                    label: {
+                                                        'en-GB': 'qui et vel',
+                                                    },
+                                                    numberType: 'float',
+                                                    placeholder: {
+                                                        'en-GB': 'Type a floating point number...',
+                                                    },
+                                                    componentName: 'sw-field',
+                                                    customFieldType: 'number',
+                                                    customFieldPosition: 1,
+                                                },
+                                            },
+                                        ],
+                                    });
+                                }
+
+                                if (entity === 'country') {
+                                    if (id === uuid.get('Germany')) {
+                                        return Promise.resolve({
+                                            id: uuid.get('Germany'),
+                                            name: 'Germany',
+                                        });
+                                    }
+
+                                    if (id === uuid.get('Vietnam')) {
+                                        return Promise.resolve({
+                                            id: uuid.get('Vietnam'),
+                                            name: 'Vietnam',
+                                        });
+                                    }
+                                }
+
+                                if (id === uuid.get('custom_clothing')) {
+                                    return Promise.resolve({
+                                        id: uuid.get('custom_clothing'),
+                                        name: 'custom_clothing',
+                                        position: 1,
+                                        config: {
+                                            label: { 'en-GB': 'Clothing' },
+                                        },
+                                        customFields: [
+                                            {
+                                                active: true,
+                                                name: 'custom_clothing_name',
+                                                type: 'text',
+                                                config: {
+                                                    customFieldPosition: 1,
+                                                    customFieldType: 'text',
+                                                    componentName: 'sw-field',
+                                                    type: 'text',
+                                                },
+                                            },
+                                        ],
+                                    });
+                                }
+
+                                return Promise.resolve({});
+                            },
+                        }),
                     },
-                }),
+                    validationService: {},
+                    mediaService: {},
+                    systemConfigApiService: {
+                        getValues: () => {
+                            return Promise.resolve({});
+                        },
+                    },
+                },
             },
-            validationService: {},
-            mediaService: {},
         },
-    });
+    );
 }
 
 describe('src/app/component/form/sw-custom-field-set-renderer', () => {
@@ -231,8 +269,14 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             componentLabel: 'I am a single select field',
             componentConfigAddition: {
                 options: [
-                    { label: { 'en-GB': 'First choice' }, value: 'first_choice' },
-                    { label: { 'en-GB': 'Second choice' }, value: 'second_choice' },
+                    {
+                        label: { 'en-GB': 'First choice' },
+                        value: 'first_choice',
+                    },
+                    {
+                        label: { 'en-GB': 'Second choice' },
+                        value: 'second_choice',
+                    },
                 ],
             },
             domFallbackValue: '',
@@ -247,6 +291,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             changeValueFunction: async (customField) => {
                 // open select field
                 await customField.find('.sw-select__selection').trigger('click');
+                await flushPromises();
 
                 // check if second option exists
                 const secondChoiceOption = customField.find('.sw-select-option--second_choice');
@@ -262,13 +307,22 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             customFieldConfigType: 'select',
             fieldName: 'custom_first_tab_i_am_a_multi_select',
             entityCustomFieldValueBefore: ['first_choice'],
-            entityCustomFieldValueAfter: ['first_choice', 'second_choice'],
+            entityCustomFieldValueAfter: [
+                'first_choice',
+                'second_choice',
+            ],
             componentName: 'sw-multi-select',
             componentLabel: 'I am a multi select field',
             componentConfigAddition: {
                 options: [
-                    { label: { 'en-GB': 'First choice' }, value: 'first_choice' },
-                    { label: { 'en-GB': 'Second choice' }, value: 'second_choice' },
+                    {
+                        label: { 'en-GB': 'First choice' },
+                        value: 'first_choice',
+                    },
+                    {
+                        label: { 'en-GB': 'Second choice' },
+                        value: 'second_choice',
+                    },
                 ],
             },
             domFallbackValue: '',
@@ -287,6 +341,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             changeValueFunction: async (customField) => {
                 // open select field
                 await customField.find('.sw-select__selection').trigger('click');
+                await flushPromises();
 
                 // check if second option exists
                 const secondChoiceOption = customField.find('.sw-select-option--second_choice');
@@ -346,8 +401,10 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             changeValueFunction: async (customField) => {
                 // change input value
                 await customField.find('.sw-media-field__toggle-button').trigger('click');
-                await wrapper.vm.$nextTick();
-                await customField.find('.sw-media-field__suggestion-list-entry:first-child .sw-media-base-item').trigger('click');
+                await flushPromises();
+                await customField
+                    .find('.sw-media-field__suggestion-list-entry:first-child .sw-media-base-item')
+                    .trigger('click');
             },
         },
         {
@@ -451,6 +508,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             },
         },
         {
+            isMeteorComponent: false,
             testFieldLabel: 'active/inactive switch field',
             customFieldType: 'bool',
             customFieldConfigType: 'switch',
@@ -470,9 +528,9 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             domFieldValueSelectorAfter: 'input[type="checkbox"]',
             domFieldValueAfter: false,
             changeValueFunction: async (customField) => {
+                const currentValue = customField.find('input[type="checkbox"]').element.checked;
                 // change input value
-                await customField.find('input[type="checkbox"]').trigger('click');
-                await customField.find('input[type="checkbox"]').trigger('change');
+                await customField.find('input[type="checkbox"]').setChecked(!currentValue);
             },
         },
         {
@@ -523,13 +581,49 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 // change input value
                 await customField.find('input[type="text"]').setValue('#48e8e8');
                 await customField.find('input[type="text"]').trigger('change');
-                await wrapper.vm.$nextTick();
+                await flushPromises();
+            },
+        },
+        {
+            testFieldLabel: 'entity single select',
+            customFieldType: 'select',
+            customFieldConfigType: 'entity',
+            fieldName: 'custom_first_tab_i_am_an_entity_single_select',
+            entityCustomFieldValueBefore: uuid.get('Germany'),
+            entityCustomFieldValueAfter: uuid.get('Vietnam'),
+            componentName: 'sw-entity-single-select',
+            componentLabel: 'I am an entity single select field',
+            componentConfigAddition: {
+                entity: 'country',
+            },
+            domFallbackValue: '',
+            fallbackValue: [],
+            domFieldValueSelectorExpectation: (domFieldValue, domFieldValueBefore) => {
+                expect(domFieldValue.text()).toBe(domFieldValueBefore);
+            },
+            domFieldValueSelectorBefore: '.sw-entity-single-select__selection-text',
+            domFieldValueBefore: 'Germany',
+            domFieldValueSelectorAfter: '.sw-entity-single-select__selection-text',
+            domFieldValueAfter: 'Vietnam',
+            changeValueFunction: async (customField) => {
+                // open select field
+                await customField.find('.sw-entity-single-select__selection').trigger('click');
+                await flushPromises();
+
+                // check if second option exists
+                const secondChoiceOption = customField.find('.sw-select-option--1');
+                expect(secondChoiceOption.isVisible()).toBe(true);
+
+                // click on second option
+                await secondChoiceOption.trigger('click');
             },
         },
     ];
 
     beforeAll(() => {
-        Shopware.Utils.debounce = () => {};
+        Shopware.Utils.debounce = (fn) => {
+            return fn;
+        };
     });
 
     it('should be a Vue.JS component', async () => {
@@ -542,18 +636,22 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
 
     it('should inherit the value from parent entity', async () => {
         const props = {
-            sets: createEntityCollection([{
-                id: 'example',
-                name: 'example',
-                config: {},
-                customFields: [{
-                    name: 'customFieldName',
-                    type: 'text',
-                    config: {
-                        label: 'configFieldLabel',
-                    },
-                }],
-            }]),
+            sets: createEntityCollection([
+                {
+                    id: 'example',
+                    name: 'example',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'customFieldName',
+                            type: 'text',
+                            config: {
+                                label: 'configFieldLabel',
+                            },
+                        },
+                    ],
+                },
+            ]),
             entity: {
                 customFields: {
                     customFieldName: null,
@@ -573,6 +671,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             },
         };
         wrapper = await createWrapper(props);
+        await flushPromises();
 
         const customFieldEl = wrapper.find('.sw-inherit-wrapper input[name=customFieldName]');
         expect(customFieldEl.exists()).toBe(true);
@@ -591,30 +690,36 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                     return 'product';
                 },
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {},
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
-                    config: {
-                        label: 'field1Label',
-                    },
-                }],
-            },
-            {
-                id: 'set2',
-                name: 'set2',
-                config: {},
-                customFields: [{
-                    name: 'field2',
-                    type: 'text',
-                    config: {
-                        label: 'field2Label',
-                    },
-                }],
-            }]),
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+                {
+                    id: 'set2',
+                    name: 'set2',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field2',
+                            type: 'text',
+                            config: {
+                                label: 'field2Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: false,
         };
 
@@ -633,30 +738,36 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 },
                 customFieldSetSelectionActive: null,
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {},
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
-                    config: {
-                        label: 'field1Label',
-                    },
-                }],
-            },
-            {
-                id: 'set2',
-                name: 'set2',
-                config: {},
-                customFields: [{
-                    name: 'field2',
-                    type: 'text',
-                    config: {
-                        label: 'field2Label',
-                    },
-                }],
-            }]),
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+                {
+                    id: 'set2',
+                    name: 'set2',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field2',
+                            type: 'text',
+                            config: {
+                                label: 'field2Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -675,22 +786,26 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 },
                 customFieldSetSelectionActive: null,
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {
-                    label: {
-                        'en-GB': 'Set 1 Label',
-                    },
-                },
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
                     config: {
-                        label: 'field1Label',
+                        label: {
+                            'en-GB': 'Set 1 Label',
+                        },
                     },
-                }],
-            }]),
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -710,22 +825,26 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 },
                 customFieldSetSelectionActive: null,
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {
-                    label: {
-                        'en-GB': null,
-                    },
-                },
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
                     config: {
-                        label: 'field1Label',
+                        label: {
+                            'en-GB': null,
+                        },
                     },
-                }],
-            }]),
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -745,30 +864,36 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 },
                 customFieldSets: createEntityCollection([{ id: 'set2' }]),
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {},
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
-                    config: {
-                        label: 'field1Label',
-                    },
-                }],
-            },
-            {
-                id: 'set2',
-                name: 'set2',
-                config: {},
-                customFields: [{
-                    name: 'field2',
-                    type: 'text',
-                    config: {
-                        label: 'field2Label',
-                    },
-                }],
-            }]),
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+                {
+                    id: 'set2',
+                    name: 'set2',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field2',
+                            type: 'text',
+                            config: {
+                                label: 'field2Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -789,30 +914,36 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 customFieldSets: createEntityCollection([{ id: 'set2' }]),
                 customFieldSetSelectionActive: null,
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {},
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
-                    config: {
-                        label: 'field1Label',
-                    },
-                }],
-            },
-            {
-                id: 'set2',
-                name: 'set2',
-                config: {},
-                customFields: [{
-                    name: 'field2',
-                    type: 'text',
-                    config: {
-                        label: 'field2Label',
-                    },
-                }],
-            }]),
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+                {
+                    id: 'set2',
+                    name: 'set2',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field2',
+                            type: 'text',
+                            config: {
+                                label: 'field2Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -833,30 +964,36 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 customFieldSets: createEntityCollection([{ id: 'set2' }]),
                 customFieldSetSelectionActive: null,
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {},
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
-                    config: {
-                        label: 'field1Label',
-                    },
-                }],
-            },
-            {
-                id: 'set2',
-                name: 'set2',
-                config: {},
-                customFields: [{
-                    name: 'field2',
-                    type: 'text',
-                    config: {
-                        label: 'field2Label',
-                    },
-                }],
-            }]),
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+                {
+                    id: 'set2',
+                    name: 'set2',
+                    config: {},
+                    customFields: [
+                        {
+                            name: 'field2',
+                            type: 'text',
+                            config: {
+                                label: 'field2Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             parentEntity: {
                 id: 'parentId',
             },
@@ -876,15 +1013,18 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                 customFieldSetSelectionActive: false,
                 customFieldSets: undefined,
             },
-            sets: createEntityCollection([{
-                name: 'set1',
-                id: 'set1',
-                position: 2,
-            }, {
-                name: 'set2',
-                id: 'set2',
-                position: 1,
-            }]),
+            sets: createEntityCollection([
+                {
+                    name: 'set1',
+                    id: 'set1',
+                    position: 2,
+                },
+                {
+                    name: 'set2',
+                    id: 'set2',
+                    position: 1,
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -894,7 +1034,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
 
         wrapper.vm.onChangeCustomFieldSetSelectionActive();
 
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         expect(spyInitializeCustomFields).toHaveBeenCalledTimes(1);
     });
@@ -904,15 +1044,18 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             entity: {
                 customFieldSetSelectionActive: false,
             },
-            sets: createEntityCollection([{
-                name: 'set1',
-                id: 'set1',
-                position: 2,
-            }, {
-                name: 'set2',
-                id: 'set2',
-                position: 1,
-            }]),
+            sets: createEntityCollection([
+                {
+                    name: 'set1',
+                    id: 'set1',
+                    position: 2,
+                },
+                {
+                    name: 'set2',
+                    id: 'set2',
+                    position: 1,
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -978,7 +1121,9 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                                 type: 'number',
                                 label: { 'en-GB': 'qui et vel' },
                                 numberType: 'float',
-                                placeholder: { 'en-GB': 'Type a floating point number...' },
+                                placeholder: {
+                                    'en-GB': 'Type a floating point number...',
+                                },
                                 componentName: 'sw-field',
                                 customFieldType: 'number',
                                 customFieldPosition: 1,
@@ -1008,6 +1153,8 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
             ],
         });
 
+        await flushPromises();
+
         // get tab contents
         const tabContentSports = wrapper.find('.sw-custom-field-set-renderer-tab-content__custom_sports');
         const tabContentClothing = wrapper.find('.sw-custom-field-set-renderer-tab-content__custom_clothing');
@@ -1021,8 +1168,8 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
         expect(tabContentClothing.isVisible()).toBe(false);
 
         // get fields for sports tab
-        const footballField = tabContentSports.find('.sw-form-field-renderer-input-field__custom_sports_football');
-        const scoreField = tabContentSports.find('.sw-form-field-renderer-input-field__custom_sports_score');
+        const footballField = tabContentSports.findComponent('.sw-form-field-renderer-input-field__custom_sports_football');
+        const scoreField = tabContentSports.findComponent('.sw-form-field-renderer-input-field__custom_sports_score');
 
         expect(footballField.exists()).toBe(true);
         expect(scoreField.exists()).toBe(true);
@@ -1037,7 +1184,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
         expect(scoreField.props().config.type).toBe('number');
 
         // get fields for clothing tab
-        const soccerField = tabContentClothing.find('.sw-form-field-renderer-input-field__custom_sports_soccer');
+        const soccerField = tabContentClothing.findComponent('.sw-form-field-renderer-input-field__custom_sports_soccer');
         expect(soccerField.exists()).toBe(true);
         expect(soccerField.isVisible()).toBe(false);
 
@@ -1068,16 +1215,14 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                     name: 'custom_sports',
                     position: 1,
                     config: { label: { 'en-GB': 'Sports' } },
-                    customFields: [
-                    ],
+                    customFields: [],
                 },
                 {
                     id: uuid.get('custom_clothing'),
                     name: 'custom_clothing',
                     position: 1,
                     config: { label: { 'en-GB': 'Clothing' } },
-                    customFields: [
-                    ],
+                    customFields: [],
                 },
             ],
         });
@@ -1094,8 +1239,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
         expect(tabContentSports.isVisible()).toBe(true);
         expect(tabContentClothing.isVisible()).toBe(false);
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         // get fields for sports & clothing tab
         const footballField = tabContentSports.find('.sw-form-field-renderer-input-field__custom_sports_football');
@@ -1111,8 +1255,7 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
         // click on clothing tab
         await wrapper.find('.sw-tab--name-custom_clothing').trigger('click');
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         // get fields for clothing tab
         nameField = tabContentClothing.find('.sw-form-field-renderer-input-field__custom_clothing_name');
@@ -1137,22 +1280,26 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
                     customFields: {},
                 },
             },
-            sets: createEntityCollection([{
-                id: 'set1',
-                name: 'set1',
-                config: {
-                    label: {
-                        'en-GB': 'Set 1 Label',
-                    },
-                },
-                customFields: [{
-                    name: 'field1',
-                    type: 'text',
+            sets: createEntityCollection([
+                {
+                    id: 'set1',
+                    name: 'set1',
                     config: {
-                        label: 'field1Label',
+                        label: {
+                            'en-GB': 'Set 1 Label',
+                        },
                     },
-                }],
-            }]),
+                    customFields: [
+                        {
+                            name: 'field1',
+                            type: 'text',
+                            config: {
+                                label: 'field1Label',
+                            },
+                        },
+                    ],
+                },
+            ]),
             showCustomFieldSetSelection: true,
         };
 
@@ -1167,490 +1314,618 @@ describe('src/app/component/form/sw-custom-field-set-renderer', () => {
     /**
      * Iterate through each possible custom field and check if everything works as expected
      */
-    configuredFields.forEach(({
-        testFieldLabel,
-        fieldName,
-        customFieldType,
-        customFieldConfigType,
-        entityCustomFieldValueBefore,
-        entityCustomFieldValueAfter,
-        componentName,
-        componentLabel,
-        componentConfigAddition,
-        domFallbackValue,
-        fallbackValue,
-        domFieldValueSelectorExpectation,
-        domFieldValueSelectorBefore,
-        domFieldValueBefore,
-        domFieldValueSelectorAfter,
-        domFieldValueAfter,
-        changeValueFunction,
-    }) => {
-        it(`should render the custom field and update value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
+    configuredFields.forEach(
+        ({
+            isMeteorComponent = false,
+            testFieldLabel,
+            fieldName,
+            customFieldType,
+            customFieldConfigType,
+            entityCustomFieldValueBefore,
+            entityCustomFieldValueAfter,
+            componentName,
+            componentLabel,
+            componentConfigAddition,
+            domFallbackValue,
+            fallbackValue,
+            domFieldValueSelectorExpectation,
+            domFieldValueSelectorBefore,
+            domFieldValueBefore,
+            domFieldValueSelectorAfter,
+            domFieldValueAfter,
+            changeValueFunction,
+        }) => {
+            it(`should render the custom field and update value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {
+                            [fieldName]: entityCustomFieldValueBefore,
+                        },
+                    },
+                    parentEntity: {},
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                let domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // check if default value is set right
+                expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // change value of custom field
+                await changeValueFunction(customField);
+
+                // check if new choosen value is set right
+                entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                expect(entityValueForCustomField).toEqual(entityCustomFieldValueAfter);
+
+                domFieldValue = customField.find(domFieldValueSelectorAfter);
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueAfter);
+            });
+
+            it(`should render the custom field with parent value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {},
+                    },
+                    parentEntity: {
+                        id: uuid.get('parentEntity'),
+                        translated: {
+                            customFields: {
+                                [fieldName]: entityCustomFieldValueBefore,
+                            },
+                        },
+                    },
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                const entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                const domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // entity value should be undefined
+                expect(entityValueForCustomField).toBeUndefined();
+
+                // check if parent value is visible
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // check if inheritance switch is visible
+                const inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                expect(inheritanceSwitch.isVisible()).toBe(true);
+
+                // check if switch show inheritance
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Unlink inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
+                }
+            });
+
+            it(`should render the custom field with his value when has also parent value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {
+                            [fieldName]: entityCustomFieldValueBefore,
+                        },
+                    },
+                    parentEntity: {
+                        id: uuid.get('parentEntity'),
+                        translated: {
+                            customFields: {
+                                [fieldName]: entityCustomFieldValueAfter,
+                            },
+                        },
+                    },
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                const entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                const domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // entity value should be his value
+                expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
+
+                // check if his value is visible
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // check if inheritance switch is visible
+                const inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                expect(inheritanceSwitch.isVisible()).toBe(true);
+
+                // check if switch show no inheritance
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Link inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
+                }
+            });
+
+            it(`should render the custom field with parent value and can remove inheritance when parent has value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {},
+                    },
+                    parentEntity: {
+                        id: uuid.get('parentEntity'),
+                        translated: {
+                            customFields: {
+                                [fieldName]: entityCustomFieldValueBefore,
+                            },
+                        },
+                    },
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                let domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // entity value should be undefined
+                expect(entityValueForCustomField).toBeUndefined();
+
+                // check if parent value is visible
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // check if inheritance switch is visible
+                let inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                expect(inheritanceSwitch.isVisible()).toBe(true);
+
+                // check if switch show inheritance
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Unlink inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
+                }
+
+                // click on switch
+                if (isMeteorComponent) {
+                    await inheritanceSwitch.trigger('click');
+                } else {
+                    await inheritanceSwitch.find('.mt-icon').trigger('click');
+                }
+                await flushPromises();
+
+                // check if entity value contains parent value and not undefined
+                entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
+
+                // check if DOM value contains parent value
+                domFieldValue = customField.find(domFieldValueSelectorBefore);
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // check if inheritance switch is not inherit anymore
+                inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Link inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
+                }
+            });
+
+            it(`should render the custom field with parent value and can remove inheritance when parent has no value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {},
+                    },
+                    parentEntity: {
+                        id: uuid.get('parentEntity'),
+                        translated: {
+                            customFields: {},
+                        },
+                    },
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                let domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // entity value should be undefined
+                expect(entityValueForCustomField).toBeUndefined();
+
+                // check if fallback value is visible
+                await domFieldValueSelectorExpectation(domFieldValue, domFallbackValue);
+
+                // check if inheritance switch is visible
+                let inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                expect(inheritanceSwitch.isVisible()).toBe(true);
+
+                // check if switch show inheritance
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Unlink inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
+                }
+
+                // click on switch
+                if (isMeteorComponent) {
+                    await inheritanceSwitch.trigger('click');
+                } else {
+                    await inheritanceSwitch.find('.mt-icon').trigger('click');
+                }
+
+                // check if entity value contains fallback value and not undefined
+                entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                expect(entityValueForCustomField).toEqual(fallbackValue);
+
+                // check if DOM value contains fallback value
+                domFieldValue = customField.find(domFieldValueSelectorBefore);
+                await domFieldValueSelectorExpectation(domFieldValue, domFallbackValue);
+
+                // check if inheritance switch is not inherit anymore
+                inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Link inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
+                }
+            });
+
+            it(`should render the custom field with custom value and can restore inheritance when parent has value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {
+                            [fieldName]: entityCustomFieldValueBefore,
+                        },
+                    },
+                    parentEntity: {
+                        id: uuid.get('parentEntity'),
+                        translated: {
+                            customFields: {
+                                [fieldName]: entityCustomFieldValueAfter,
+                            },
+                        },
+                    },
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                let domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // entity value should be defined
+                expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
+
+                // check if his value is visible
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // check if inheritance switch is visible
+                let inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                expect(inheritanceSwitch.isVisible()).toBe(true);
+
+                // check if switch show no inheritance
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Link inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
+                }
+
+                // click on switch
+                if (isMeteorComponent) {
+                    await inheritanceSwitch.trigger('click');
+                } else {
+                    await inheritanceSwitch.find('.mt-icon').trigger('click');
+                }
+                await flushPromises();
+
+                // entity value should be null
+                entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                expect(entityValueForCustomField).toBeNull();
+
+                // check if parent value is visible
+                domFieldValue = customField.find(domFieldValueSelectorAfter);
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueAfter);
+
+                // check if inheritance switch is inherited
+                inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Unlink inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
+                }
+            });
+
+            it(`should render the custom field with custom value and can restore inheritance when parent has no value: ${testFieldLabel}`, async () => {
+                wrapper = await createWrapper({
+                    entity: {
+                        customFields: {
+                            [fieldName]: entityCustomFieldValueBefore,
+                        },
+                    },
+                    parentEntity: {
+                        id: uuid.get('parentEntity'),
+                        translated: {
+                            customFields: {},
+                        },
+                    },
+                    sets: [
+                        {
+                            id: uuid.get('custom_first_tab'),
+                            name: 'custom_first_tab',
+                            position: 1,
+                            config: { label: { 'en-GB': 'First tab' } },
+                            customFields: [
+                                {
+                                    active: true,
+                                    name: fieldName,
+                                    type: customFieldType,
+                                    config: {
+                                        customFieldPosition: 1,
+                                        customFieldType: customFieldConfigType,
+                                        type: customFieldConfigType,
+                                        componentName: componentName,
+                                        label: { 'en-GB': componentLabel },
+                                        ...componentConfigAddition,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                await flushPromises();
+
+                const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
+                let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                let domFieldValue = customField.find(domFieldValueSelectorBefore);
+
+                // entity value should be defined
+                expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
+
+                // check if his value is visible
+                await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
+
+                // check if inheritance switch is visible
+                let inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                expect(inheritanceSwitch.isVisible()).toBe(true);
+
+                // check if switch show no inheritance
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Link inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
+                }
+
+                // click on switch
+                if (isMeteorComponent) {
+                    await inheritanceSwitch.trigger('click');
+                } else {
+                    await inheritanceSwitch.find('.mt-icon').trigger('click');
+                }
+                await flushPromises();
+
+                // entity value should be null
+                entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
+                expect(entityValueForCustomField).toBeNull();
+
+                // check if parent value is visible
+                domFieldValue = customField.find(domFieldValueSelectorAfter);
+                await domFieldValueSelectorExpectation(domFieldValue, domFallbackValue);
+
+                // check if inheritance switch is inherited
+                inheritanceSwitch = isMeteorComponent
+                    ? wrapper.find('button.mt-field-label__inheritance-switch')
+                    : wrapper.find('.sw-inheritance-switch');
+                if (isMeteorComponent) {
+                    expect(inheritanceSwitch.attributes('aria-label')).toBe('Unlink inheritance');
+                } else {
+                    expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
+                }
+            });
+        },
+    );
+
+    it.each([
+        { name: 'default', customFields: { field1: 'de' }, expected: 'de' },
+        { name: 'empty', customFields: { field: null }, expected: undefined },
+    ])(
+        'should not use the custom field translation as a fallback for input fields: $name',
+        async ({ customFields, expected }) => {
+            const props = {
                 entity: {
-                    customFields: {
-                        [fieldName]: entityCustomFieldValueBefore,
-                    },
-                },
-                parentEntity: {},
-                sets: [
-                    {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
-                        customFields: [
-                            {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
-                                config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
-                                },
-                            },
-                        ],
-                    },
-                ],
-            });
-
-            await wrapper.vm.$nextTick();
-
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            let domFieldValue = customField.find(domFieldValueSelectorBefore);
-
-            // check if default value is set right
-            expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // change value of custom field
-            await changeValueFunction(customField);
-
-            // check if new choosen value is set right
-            entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            expect(entityValueForCustomField).toEqual(entityCustomFieldValueAfter);
-
-            domFieldValue = customField.find(domFieldValueSelectorAfter);
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueAfter);
-        });
-
-        it(`should render the custom field with parent value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
-                entity: Vue.observable({
-                    customFields: {},
-                }),
-                parentEntity: Vue.observable({
-                    id: uuid.get('parentEntity'),
+                    customFields,
                     translated: {
                         customFields: {
-                            [fieldName]: entityCustomFieldValueBefore,
-                        },
-                    },
-                }),
-                sets: [
-                    {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
-                        customFields: [
-                            {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
-                                config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
-                                },
-                            },
-                        ],
-                    },
-                ],
-            });
-
-            await wrapper.vm.$nextTick();
-
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            const entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            const domFieldValue = customField.find(domFieldValueSelectorBefore);
-
-            // entity value should be undefined
-            expect(entityValueForCustomField).toBeUndefined();
-
-            // check if parent value is visible
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // check if inheritance switch is visible
-            const inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.isVisible()).toBe(true);
-
-            // check if switch show inheritance
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
-        });
-
-        it(`should render the custom field with his value when has also parent value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
-                entity: Vue.observable({
-                    customFields: {
-                        [fieldName]: entityCustomFieldValueBefore,
-                    },
-                }),
-                parentEntity: Vue.observable({
-                    id: uuid.get('parentEntity'),
-                    translated: {
-                        customFields: {
-                            [fieldName]: entityCustomFieldValueAfter,
-                        },
-                    },
-                }),
-                sets: [
-                    {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
-                        customFields: [
-                            {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
-                                config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
-                                },
-                            },
-                        ],
-                    },
-                ],
-            });
-
-            await wrapper.vm.$nextTick();
-
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            const entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            const domFieldValue = customField.find(domFieldValueSelectorBefore);
-
-            // entity value should be his value
-            expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
-
-            // check if his value is visible
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // check if inheritance switch is visible
-            const inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.isVisible()).toBe(true);
-
-            // check if switch show no inheritance
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
-        });
-
-        it(`should render the custom field with parent value and can remove inheritance when parent has value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
-                entity: Vue.observable({
-                    customFields: {},
-                }),
-                parentEntity: {
-                    id: uuid.get('parentEntity'),
-                    translated: {
-                        customFields: {
-                            [fieldName]: entityCustomFieldValueBefore,
+                            field1: 'en',
                         },
                     },
                 },
-                sets: [
+                sets: createEntityCollection([
                     {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
-                        customFields: [
-                            {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
-                                config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
-                                },
+                        id: 'set1',
+                        name: 'set1',
+                        config: {
+                            label: {
+                                'en-GB': 'Set 1 Label GB',
+                                'de-DE': 'Set 1 Label DE',
                             },
-                        ],
-                    },
-                ],
-            });
-
-            await wrapper.vm.$nextTick();
-
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            let domFieldValue = customField.find(domFieldValueSelectorBefore);
-
-            // entity value should be undefined
-            expect(entityValueForCustomField).toBeUndefined();
-
-            // check if parent value is visible
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // check if inheritance switch is visible
-            let inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.isVisible()).toBe(true);
-
-            // check if switch show inheritance
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
-
-            // click on switch
-            await inheritanceSwitch.find('.sw-icon').trigger('click');
-            await wrapper.vm.$nextTick();
-
-            // check if entity value contains parent value and not undefined
-            entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
-
-            // check if DOM value contains parent value
-            domFieldValue = customField.find(domFieldValueSelectorBefore);
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // check if inheritance switch is not inherit anymore
-            inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
-        });
-
-        it(`should render the custom field with parent value and can remove inheritance when parent has no value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
-                entity: Vue.observable({
-                    customFields: {},
-                }),
-                parentEntity: Vue.observable({
-                    id: uuid.get('parentEntity'),
-                    translated: {
-                        customFields: {},
-                    },
-                }),
-                sets: [
-                    {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
-                        customFields: [
-                            {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
-                                config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
-                                },
-                            },
-                        ],
-                    },
-                ],
-            });
-
-            await wrapper.vm.$nextTick();
-
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            let domFieldValue = customField.find(domFieldValueSelectorBefore);
-
-            // entity value should be undefined
-            expect(entityValueForCustomField).toBeUndefined();
-
-            // check if fallback value is visible
-            await domFieldValueSelectorExpectation(domFieldValue, domFallbackValue);
-
-            // check if inheritance switch is visible
-            let inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.isVisible()).toBe(true);
-
-            // check if switch show inheritance
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
-
-            // click on switch
-            await inheritanceSwitch.find('.sw-icon').trigger('click');
-
-            // check if entity value contains fallback value and not undefined
-            entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            expect(entityValueForCustomField).toEqual(fallbackValue);
-
-            // check if DOM value contains fallback value
-            domFieldValue = customField.find(domFieldValueSelectorBefore);
-            await domFieldValueSelectorExpectation(domFieldValue, domFallbackValue);
-
-            // check if inheritance switch is not inherit anymore
-            inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
-        });
-
-        it(`should render the custom field with custom value and can restore inheritance when parent has value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
-                entity: Vue.observable({
-                    customFields: {
-                        [fieldName]: entityCustomFieldValueBefore,
-                    },
-                }),
-                parentEntity: Vue.observable({
-                    id: uuid.get('parentEntity'),
-                    translated: {
-                        customFields: {
-                            [fieldName]: entityCustomFieldValueAfter,
                         },
-                    },
-                }),
-                sets: [
-                    {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
                         customFields: [
                             {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
+                                name: 'field1',
+                                type: 'text',
                                 config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
+                                    label: 'field1Label',
                                 },
                             },
                         ],
                     },
-                ],
-            });
+                ]),
+            };
 
-            await wrapper.vm.$nextTick();
+            wrapper = await createWrapper(props);
+            await flushPromises();
 
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            let domFieldValue = customField.find(domFieldValueSelectorBefore);
+            const inputField = wrapper.find('.sw-form-field-renderer-field__field1 input');
+            expect(inputField.exists()).toBe(true);
 
-            // entity value should be defined
-            expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
-
-            // check if his value is visible
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // check if inheritance switch is visible
-            let inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.isVisible()).toBe(true);
-
-            // check if switch show no inheritance
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
-
-            // click on switch
-            await inheritanceSwitch.find('.sw-icon').trigger('click');
-            await wrapper.vm.$nextTick();
-
-            // entity value should be null
-            entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            expect(entityValueForCustomField).toBeNull();
-
-            // check if parent value is visible
-            domFieldValue = customField.find(domFieldValueSelectorAfter);
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueAfter);
-
-            // check if inheritance switch is inherited
-            inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
-        });
-
-        it(`should render the custom field with custom value and can restore inheritance when parent has no value: ${testFieldLabel}`, async () => {
-            wrapper = await createWrapper({
-                entity: Vue.observable({
-                    customFields: {
-                        [fieldName]: entityCustomFieldValueBefore,
-                    },
-                }),
-                parentEntity: Vue.observable({
-                    id: uuid.get('parentEntity'),
-                    translated: {
-                        customFields: {},
-                    },
-                }),
-                sets: [
-                    {
-                        id: uuid.get('custom_first_tab'),
-                        name: 'custom_first_tab',
-                        position: 1,
-                        config: { label: { 'en-GB': 'First tab' } },
-                        customFields: [
-                            {
-                                active: true,
-                                name: fieldName,
-                                type: customFieldType,
-                                config: {
-                                    customFieldPosition: 1,
-                                    customFieldType: customFieldConfigType,
-                                    type: customFieldConfigType,
-                                    componentName: componentName,
-                                    label: { 'en-GB': componentLabel },
-                                    ...componentConfigAddition,
-                                },
-                            },
-                        ],
-                    },
-                ],
-            });
-
-            await wrapper.vm.$nextTick();
-
-            const customField = wrapper.find(`.sw-form-field-renderer-field__${fieldName}`);
-            let entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            let domFieldValue = customField.find(domFieldValueSelectorBefore);
-
-            // entity value should be defined
-            expect(entityValueForCustomField).toEqual(entityCustomFieldValueBefore);
-
-            // check if his value is visible
-            await domFieldValueSelectorExpectation(domFieldValue, domFieldValueBefore);
-
-            // check if inheritance switch is visible
-            let inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.isVisible()).toBe(true);
-
-            // check if switch show no inheritance
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
-
-            // click on switch
-            await inheritanceSwitch.find('.sw-icon').trigger('click');
-            await wrapper.vm.$nextTick();
-
-            // entity value should be null
-            entityValueForCustomField = wrapper.vm.entity.customFields[fieldName];
-            expect(entityValueForCustomField).toBeNull();
-
-            // check if parent value is visible
-            domFieldValue = customField.find(domFieldValueSelectorAfter);
-            await domFieldValueSelectorExpectation(domFieldValue, domFallbackValue);
-
-            // check if inheritance switch is inherited
-            inheritanceSwitch = wrapper.find('.sw-inheritance-switch');
-            expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
-        });
-    });
+            expect(inputField.attributes('value')).toBe(expected);
+        },
+    );
 });

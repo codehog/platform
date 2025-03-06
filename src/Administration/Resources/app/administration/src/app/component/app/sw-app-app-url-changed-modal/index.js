@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-app-app-url-changed-modal.html.twig';
@@ -8,12 +8,14 @@ import './sw-app-app-url-changed-modal.scss';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-app-app-url-changed-modal', {
     template,
 
     inject: ['appUrlChangeService'],
+
+    emits: ['modal-close'],
 
     mixins: [Shopware.Mixin.getByName('notification')],
 
@@ -75,7 +77,8 @@ Component.register('sw-app-app-url-changed-modal', {
         },
 
         confirm() {
-            this.appUrlChangeService.resolveUrlChange(this.selectedStrategy)
+            this.appUrlChangeService
+                .resolveUrlChange(this.selectedStrategy)
                 .then(() => {
                     this.createNotificationSuccess({
                         message: this.$tc('sw-app.component.sw-app-app-url-changed-modal.success'),

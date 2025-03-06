@@ -3,6 +3,8 @@
 namespace Shopware\Tests\Unit\Core\Content\Product\SalesChannel\Listing\Filter;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Content\Product\SalesChannel\Listing\Filter;
@@ -11,6 +13,7 @@ use Shopware\Core\Content\Product\SalesChannel\Listing\ProductListingResult;
 use Shopware\Core\Content\Property\Aggregate\PropertyGroupOption\PropertyGroupOptionCollection;
 use Shopware\Core\Content\Property\Aggregate\PropertyGroupOption\PropertyGroupOptionDefinition;
 use Shopware\Core\Content\Property\Aggregate\PropertyGroupOption\PropertyGroupOptionEntity;
+use Shopware\Core\Content\Property\PropertyGroupDefinition;
 use Shopware\Core\Content\Property\PropertyGroupEntity;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
@@ -26,18 +29,17 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\AndFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsAnyFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\OrFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityWriteGatewayInterface;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
 use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticEntityRepository;
-use Shopware\Tests\Unit\Common\Stubs\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SalesChannel\Listing\Filter\PropertyListingFilterHandler
  */
+#[CoversClass(PropertyListingFilterHandler::class)]
 class PropertyFilterHandlerTest extends TestCase
 {
     public function testDeactivateFilter(): void
@@ -94,11 +96,11 @@ class PropertyFilterHandlerTest extends TestCase
 
     /**
      * @param array<string> $input
+     * @param array<string> $expectedIds
      * @param array<array<string, string>> $mapping
-     *
-     * @dataProvider createProvider
      */
-    public function testCreate(array $input, AndFilter $expected, array $mapping): void
+    #[DataProvider('createProvider')]
+    public function testCreate(array $input, AndFilter $expectedFilter, array $expectedIds, array $mapping): void
     {
         $request = new Request([], ['properties' => implode('|', $input)]);
 
@@ -126,8 +128,40 @@ class PropertyFilterHandlerTest extends TestCase
                 new TermsAggregation('properties', 'product.properties.id'),
                 new TermsAggregation('options', 'product.options.id'),
             ],
-            $expected,
-            $input,
+            $expectedFilter,
+            $expectedIds,
+            false
+        );
+
+        static::assertEquals($expected, $result);
+    }
+
+    public function testCreateWithInvalidIds(): void
+    {
+        $request = new Request([], ['properties' => 'foo|bar']);
+
+        $request->setMethod(Request::METHOD_POST);
+
+        $context = $this->createMock(SalesChannelContext::class);
+
+        $connection = $this->createMock(Connection::class);
+
+        $handler = new PropertyListingFilterHandler(
+            new StaticEntityRepository([]),
+            $connection
+        );
+
+        $result = $handler->create($request, $context);
+
+        $expected = new Filter(
+            'properties',
+            false,
+            [
+                new TermsAggregation('properties', 'product.properties.id'),
+                new TermsAggregation('options', 'product.options.id'),
+            ],
+            new AndFilter([]),
+            [],
             false
         );
 
@@ -203,6 +237,7 @@ class PropertyFilterHandlerTest extends TestCase
                         'position' => 1,
                         'group' => (new PropertyGroupEntity())->assign([
                             'id' => 'color',
+                            'sortingType' => PropertyGroupDefinition::SORTING_TYPE_POSITION,
                             'position' => 1,
                         ]),
                     ]),
@@ -212,6 +247,7 @@ class PropertyFilterHandlerTest extends TestCase
                         'position' => 2,
                         'group' => (new PropertyGroupEntity())->assign([
                             'id' => 'color',
+                            'sortingType' => PropertyGroupDefinition::SORTING_TYPE_POSITION,
                             'position' => 2,
                         ]),
                     ]),
@@ -221,6 +257,7 @@ class PropertyFilterHandlerTest extends TestCase
                         'position' => 2,
                         'group' => (new PropertyGroupEntity())->assign([
                             'id' => 'size',
+                            'sortingType' => PropertyGroupDefinition::SORTING_TYPE_POSITION,
                             'position' => 1,
                         ]),
                     ]),
@@ -230,6 +267,7 @@ class PropertyFilterHandlerTest extends TestCase
                         'position' => 1,
                         'group' => (new PropertyGroupEntity())->assign([
                             'id' => 'size',
+                            'sortingType' => PropertyGroupDefinition::SORTING_TYPE_POSITION,
                             'position' => 1,
                         ]),
                     ]),
@@ -315,6 +353,9 @@ class PropertyFilterHandlerTest extends TestCase
                 ]),
             ]),
 
+            // expected ids
+            [$ids->get('XL'), $ids->get('green')],
+
             // mapping from the storage
             [
                 ['property_group_id' => $ids->get('size'), 'id' => $ids->get('XL')],
@@ -332,6 +373,9 @@ class PropertyFilterHandlerTest extends TestCase
                     new EqualsAnyFilter('product.propertyIds', [$ids->get('green'), $ids->get('red')]),
                 ]),
             ]),
+
+            // expected ids
+            [$ids->get('green'), $ids->get('red')],
 
             // mapping from the storage
             [
@@ -360,12 +404,47 @@ class PropertyFilterHandlerTest extends TestCase
                 ]),
             ]),
 
+            // expected ids
+            [
+                $ids->get('green'),
+                $ids->get('red'),
+                $ids->get('XL'),
+                $ids->get('L'),
+            ],
+
             // mapping from the storage
             [
                 ['property_group_id' => $ids->get('color'), 'id' => $ids->get('green')],
                 ['property_group_id' => $ids->get('color'), 'id' => $ids->get('red')],
                 ['property_group_id' => $ids->get('size'), 'id' => $ids->get('XL')],
                 ['property_group_id' => $ids->get('size'), 'id' => $ids->get('L')],
+            ],
+        ];
+
+        yield 'Test two groups and single option with invalid id' => [
+            // input for the request
+            [$ids->get('XL'), $ids->get('green'), 'foo', 'bar'],
+
+            // expected filter
+            new AndFilter([
+                // each "group" should be an OR filter (e.g. size OR color)
+                new OrFilter([
+                    new EqualsAnyFilter('product.optionIds', [$ids->get('XL')]),
+                    new EqualsAnyFilter('product.propertyIds', [$ids->get('XL')]),
+                ]),
+                new OrFilter([
+                    new EqualsAnyFilter('product.optionIds', [$ids->get('green')]),
+                    new EqualsAnyFilter('product.propertyIds', [$ids->get('green')]),
+                ]),
+            ]),
+
+            // expected ids
+            [$ids->get('XL'), $ids->get('green')],
+
+            // mapping from the storage
+            [
+                ['property_group_id' => $ids->get('size'), 'id' => $ids->get('XL')],
+                ['property_group_id' => $ids->get('color'), 'id' => $ids->get('green')],
             ],
         ];
     }

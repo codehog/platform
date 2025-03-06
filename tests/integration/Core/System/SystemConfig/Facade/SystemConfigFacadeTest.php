@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\System\SystemConfig\Facade;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Api\Exception\MissingPrivilegeException;
 use Shopware\Core\Framework\App\AppEntity;
@@ -19,14 +20,14 @@ use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SystemConfig\Facade\SystemConfigFacadeHookFactory;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\Test\AppSystemTestBehaviour;
+use Shopware\Core\Test\Generator;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Framework\App\AppSystemTestBehaviour;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\Generator;
 
 /**
  * @internal
  */
-#[Package('system-settings')]
+#[Package('framework')]
 class SystemConfigFacadeTest extends TestCase
 {
     use AppSystemTestBehaviour;
@@ -38,13 +39,11 @@ class SystemConfigFacadeTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->systemConfigService = $this->getContainer()->get(SystemConfigService::class);
-        $this->factory = $this->getContainer()->get(SystemConfigFacadeHookFactory::class);
+        $this->systemConfigService = static::getContainer()->get(SystemConfigService::class);
+        $this->factory = static::getContainer()->get(SystemConfigFacadeHookFactory::class);
     }
 
-    /**
-     * @dataProvider getWithoutAppCases
-     */
+    #[DataProvider('getWithoutAppCases')]
     public function testGetForScriptWithoutApp(Hook $hook, ?string $salesChannelId, string $result): void
     {
         $this->systemConfigService->set('test.value', 'generic');
@@ -63,7 +62,7 @@ class SystemConfigFacadeTest extends TestCase
      */
     public static function getWithoutAppCases(): array
     {
-        $salesChannelContext = Generator::createSalesChannelContext();
+        $salesChannelContext = Generator::generateSalesChannelContext();
         $salesChannelContext->getSalesChannel()->setId(TestDefaults::SALES_CHANNEL);
 
         return [
@@ -179,7 +178,7 @@ class SystemConfigFacadeTest extends TestCase
             ]
         );
 
-        $this->getContainer()->get(ScriptExecutor::class)->execute($hook);
+        static::getContainer()->get(ScriptExecutor::class)->execute($hook);
 
         static::assertTrue($page->hasExtension('systemConfigExtension'));
         $extension = $page->getExtension('systemConfigExtension');
@@ -194,7 +193,7 @@ class SystemConfigFacadeTest extends TestCase
         $this->loadAppsFromDir($appDir);
 
         /** @var AppEntity $app */
-        $app = $this->getContainer()->get('app.repository')->search(new Criteria(), Context::createDefaultContext())->first();
+        $app = static::getContainer()->get('app.repository')->search(new Criteria(), Context::createDefaultContext())->first();
 
         return new ScriptAppInformation(
             $app->getId(),

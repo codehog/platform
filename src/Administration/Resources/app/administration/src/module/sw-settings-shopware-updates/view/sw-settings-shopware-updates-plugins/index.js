@@ -3,10 +3,9 @@ import template from './sw-shopware-updates-plugins.html.twig';
 const { Component } = Shopware;
 
 /**
- * @package system-settings
- * @deprecated tag:v6.6.0 - Will be private
+ * @sw-package framework
+ * @private
  */
-// eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 Component.register('sw-settings-shopware-updates-plugins', {
     template,
 
@@ -40,7 +39,9 @@ Component.register('sw-settings-shopware-updates-plugins', {
 
     methods: {
         openMyExtensions() {
-            this.$router.push({ name: 'sw.extension.my-extensions.listing.app' });
+            this.$router.push({
+                name: 'sw.extension.my-extensions.listing.app',
+            });
         },
     },
 });

@@ -2,21 +2,47 @@ import './sw-order-promotion-field.scss';
 import template from './sw-order-promotion-field.html.twig';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-const { Component } = Shopware;
+const { Store } = Shopware;
 const { ChangesetGenerator } = Shopware.Data;
-const { mapState } = Component.getComponentHelper();
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
-    inject: [
-        'repositoryFactory',
-        'orderService',
-        'acl',
+    inject: {
+        swOrderDetailOnLoadingChange: {
+            from: 'swOrderDetailOnLoadingChange',
+            default: null,
+        },
+        swOrderDetailOnError: {
+            from: 'swOrderDetailOnError',
+            default: null,
+        },
+        swOrderDetailOnReloadEntityData: {
+            from: 'swOrderDetailOnReloadEntityData',
+            default: null,
+        },
+        repositoryFactory: {
+            from: 'repositoryFactory',
+            default: null,
+        },
+        orderService: {
+            from: 'orderService',
+            default: null,
+        },
+        acl: {
+            from: 'acl',
+            default: null,
+        },
+    },
+
+    emits: [
+        'loading-change',
+        'error',
+        'reload-entity-data',
     ],
 
     mixins: [
@@ -39,17 +65,16 @@ export default {
     },
 
     computed: {
-        ...mapState('swOrderDetail', [
-            'order',
-            'versionContext',
-        ]),
+        order: () => Store.get('swOrderDetail').order,
+
+        versionContext: () => Store.get('swOrderDetail').versionContext,
 
         orderLineItemRepository() {
             return this.repositoryFactory.create('order_line_item');
         },
 
         hasLineItem() {
-            return this.order.lineItems.filter(item => item.hasOwnProperty('id')).length > 0;
+            return this.order.lineItems.filter((item) => item.hasOwnProperty('id')).length > 0;
         },
 
         currency() {
@@ -57,16 +82,16 @@ export default {
         },
 
         manualPromotions() {
-            return this.order.lineItems.filter(item => item.type === 'promotion' && item.referencedId !== null);
+            return this.order.lineItems.filter((item) => item.type === 'promotion' && item.referencedId !== null);
         },
 
         automaticPromotions() {
-            return this.order.lineItems.filter(item => item.type === 'promotion' && item.referencedId === null);
+            return this.order.lineItems.filter((item) => item.type === 'promotion' && item.referencedId === null);
         },
 
         promotionCodeTags: {
             get() {
-                return this.manualPromotions.map(item => item.payload);
+                return this.manualPromotions.map((item) => item.payload);
             },
 
             set(newValue) {
@@ -86,7 +111,9 @@ export default {
                 }
 
                 if (promotionCodeLength > 0 && latestTag.isInvalid) {
-                    this.promotionError = { detail: this.$tc('sw-order.createBase.textInvalidPromotionCode') };
+                    this.promotionError = {
+                        detail: this.$tc('sw-order.createBase.textInvalidPromotionCode'),
+                    };
                 }
             },
         },
@@ -133,28 +160,51 @@ export default {
                 return Promise.resolve();
             }
 
-            return this.orderLineItemRepository
-                .syncDeleted(this.automaticPromotions.map(promotion => promotion.id), this.versionContext)
+            const deletionPromises = [];
+
+            this.automaticPromotions.forEach((promotion) => {
+                deletionPromises.push(this.orderLineItemRepository.delete(promotion.id, this.versionContext));
+            });
+
+            return Promise.all(deletionPromises)
                 .then(() => {
                     this.automaticPromotions.forEach((promotion) => {
                         this.createNotificationSuccess({
-                            message: this.$tc('sw-order.detailBase.textPromotionRemoved', 0, {
-                                promotion: promotion.label,
-                            }),
+                            message: this.$tc(
+                                'sw-order.detailBase.textPromotionRemoved',
+                                {
+                                    promotion: promotion.label,
+                                },
+                                0,
+                            ),
                         });
                     });
-                }).catch((error) => {
+                })
+                .catch((error) => {
                     this.$emit('loading-change', false);
+                    if (this.swOrderDetailOnLoadingChange) {
+                        this.swOrderDetailOnLoadingChange(false);
+                    }
+
                     this.$emit('error', error);
+                    if (this.swOrderDetailOnError) {
+                        this.swOrderDetailOnError(error);
+                    }
                 });
         },
 
         toggleAutomaticPromotions(state) {
             this.$emit('loading-change', true);
+            if (this.swOrderDetailOnLoadingChange) {
+                this.swOrderDetailOnLoadingChange(true);
+            }
 
             // Throw notification warning and reset switch state
             if (this.hasOrderUnsavedChanges) {
                 this.$emit('loading-change', false);
+                if (this.swOrderDetailOnLoadingChange) {
+                    this.swOrderDetailOnLoadingChange(false);
+                }
                 this.handleUnsavedOrderChangesResponse();
                 this.$nextTick(() => {
                     this.disabledAutoPromotions = !state;
@@ -162,41 +212,63 @@ export default {
                 return;
             }
 
-            this.deleteAutomaticPromotions().then(() => {
-                return this.orderService.toggleAutomaticPromotions(
-                    this.order.id,
-                    this.order.versionId,
-                    state,
-                );
-            }).then((response) => {
-                this.handlePromotionResponse(response);
-                this.$emit('reload-entity-data');
-            }).catch((error) => {
-                this.$emit('loading-change', false);
-                this.$emit('error', error);
-            });
+            this.deleteAutomaticPromotions()
+                .then(() => {
+                    return this.orderService.toggleAutomaticPromotions(this.order.id, this.order.versionId, state);
+                })
+                .then((response) => {
+                    this.handlePromotionResponse(response);
+                    this.$emit('reload-entity-data');
+                    if (this.swOrderDetailOnReloadEntityData) {
+                        this.swOrderDetailOnReloadEntityData();
+                    }
+                })
+                .catch((error) => {
+                    this.$emit('loading-change', false);
+                    if (this.swOrderDetailOnLoadingChange) {
+                        this.swOrderDetailOnLoadingChange(false);
+                    }
+                    this.$emit('error', error);
+                    if (this.swOrderDetailOnError) {
+                        this.swOrderDetailOnError(error);
+                    }
+                });
         },
 
         onSubmitCode(code) {
             this.$emit('loading-change', true);
+            if (this.swOrderDetailOnLoadingChange) {
+                this.swOrderDetailOnLoadingChange(true);
+            }
 
             if (this.hasOrderUnsavedChanges) {
                 this.$emit('loading-change', false);
+                if (this.swOrderDetailOnLoadingChange) {
+                    this.swOrderDetailOnLoadingChange(false);
+                }
                 this.handleUnsavedOrderChangesResponse();
                 return;
             }
 
-            this.orderService.addPromotionToOrder(
-                this.order.id,
-                this.order.versionId,
-                code,
-            ).then((response) => {
-                this.handlePromotionResponse(response);
-                this.$emit('reload-entity-data');
-            }).catch((error) => {
-                this.$emit('loading-change', false);
-                this.$emit('error', error);
-            });
+            this.orderService
+                .addPromotionToOrder(this.order.id, this.order.versionId, code)
+                .then((response) => {
+                    this.handlePromotionResponse(response);
+                    this.$emit('reload-entity-data');
+                    if (this.swOrderDetailOnReloadEntityData) {
+                        this.swOrderDetailOnReloadEntityData();
+                    }
+                })
+                .catch((error) => {
+                    this.$emit('loading-change', false);
+                    if (this.swOrderDetailOnLoadingChange) {
+                        this.swOrderDetailOnLoadingChange(false);
+                    }
+                    this.$emit('error', error);
+                    if (this.swOrderDetailOnError) {
+                        this.swOrderDetailOnError(error);
+                    }
+                });
         },
 
         handlePromotionResponse(response) {
@@ -237,6 +309,9 @@ export default {
 
             if (this.hasOrderUnsavedChanges) {
                 this.$emit('loading-change', false);
+                if (this.swOrderDetailOnLoadingChange) {
+                    this.swOrderDetailOnLoadingChange(false);
+                }
                 this.handleUnsavedOrderChangesResponse();
                 return;
             }
@@ -249,15 +324,24 @@ export default {
                 .delete(lineItem.id, this.versionContext)
                 .then(() => {
                     this.$emit('reload-entity-data');
+                    if (this.swOrderDetailOnReloadEntityData) {
+                        this.swOrderDetailOnReloadEntityData();
+                    }
                 })
                 .catch((error) => {
                     this.$emit('loading-change', false);
+                    if (this.swOrderDetailOnLoadingChange) {
+                        this.swOrderDetailOnLoadingChange(false);
+                    }
                     this.$emit('error', error);
+                    if (this.swOrderDetailOnError) {
+                        this.swOrderDetailOnError(error);
+                    }
                 });
         },
 
         getLineItemByPromotionCode(code) {
-            return this.order.lineItems.find(item => {
+            return this.order.lineItems.find((item) => {
                 return item.type === 'promotion' && item.payload.code === code;
             });
         },

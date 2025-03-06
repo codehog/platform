@@ -24,7 +24,7 @@ class DeliveryPositionCollection extends Collection
     }
 
     /**
-     * @param string|int       $key
+     * @param string|int $key
      * @param DeliveryPosition $deliveryPosition
      */
     public function set($key, $deliveryPosition): void
@@ -49,7 +49,7 @@ class DeliveryPositionCollection extends Collection
     public function getPrices(): PriceCollection
     {
         return new PriceCollection(
-            array_map(static fn (DeliveryPosition $position) => $position->getPrice(), $this->elements)
+            $this->map(static fn (DeliveryPosition $position) => $position->getPrice())
         );
     }
 
@@ -116,7 +116,7 @@ class DeliveryPositionCollection extends Collection
     public function getWithoutDeliveryFree(): DeliveryPositionCollection
     {
         return $this->filter(function (DeliveryPosition $position) {
-            if ($position->getLineItem()->getDeliveryInformation() !== null && !$position->getLineItem()->getDeliveryInformation()->getFreeDelivery()) {
+            if ($position->getLineItem()->getDeliveryInformation()?->getFreeDelivery() === false) {
                 return $position;
             }
 

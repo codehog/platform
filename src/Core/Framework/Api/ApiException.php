@@ -2,6 +2,8 @@
 
 namespace Shopware\Core\Framework\Api;
 
+use Shopware\Core\Framework\Api\Context\AdminApiSource;
+use Shopware\Core\Framework\Api\Context\Exception\InvalidContextSourceException;
 use Shopware\Core\Framework\Api\Exception\ExpectationFailedException;
 use Shopware\Core\Framework\Api\Exception\InvalidSalesChannelIdException;
 use Shopware\Core\Framework\Api\Exception\InvalidSyncOperationException;
@@ -23,7 +25,7 @@ use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnsupportedMediaTypeHttpException;
 
-#[Package('core')]
+#[Package('framework')]
 class ApiException extends HttpException
 {
     public const API_INVALID_SYNC_CRITERIA_EXCEPTION = 'API_INVALID_SYNC_CRITERIA_EXCEPTION';
@@ -43,8 +45,50 @@ class ApiException extends HttpException
     public const API_CUSTOMER_ID_PARAMETER_IS_MISSING = 'FRAMEWORK__API_CUSTOMER_ID_PARAMETER_IS_MISSING';
     public const API_SHIPPING_COSTS_PARAMETER_IS_MISSING = 'FRAMEWORK__API_SHIPPING_COSTS_PARAMETER_IS_MISSING';
     public const API_UNABLE_GENERATE_BUNDLE = 'FRAMEWORK__API_UNABLE_GENERATE_BUNDLE';
+
     public const API_INVALID_ACCESS_KEY_EXCEPTION = 'FRAMEWORK__API_INVALID_ACCESS_KEY';
     public const API_INVALID_ACCESS_KEY_IDENTIFIER_EXCEPTION = 'FRAMEWORK__API_INVALID_ACCESS_KEY_IDENTIFIER';
+
+    public const API_INVALID_SYNC_RESOLVERS = 'FRAMEWORK__API_INVALID_SYNC_RESOLVERS';
+    public const API_SALES_CHANNEL_MAINTENANCE_MODE = 'FRAMEWORK__API_SALES_CHANNEL_MAINTENANCE_MODE';
+    public const API_SYNC_RESOLVER_FIELD_NOT_FOUND = 'FRAMEWORK__API_SYNC_RESOLVER_FIELD_NOT_FOUND';
+    public const API_INVALID_ASSOCIATION_FIELD = 'FRAMEWORK__API_INVALID_ASSOCIATION';
+    public const API_UNSUPPORTED_ENCODER_INPUT = 'FRAMEWORK__API_UNSUPPORTED_ENCODER_INPUT';
+    public const API_INVALID_CONTEXT_SOURCE = 'FRAMEWORK__INVALID_CONTEXT_SOURCE';
+    public const API_EXPECTED_USER = 'FRAMEWORK__API_EXPECTED_USER';
+    public const API_INVALID_SCOPE_ACCESS_TOKEN = 'FRAMEWORK__INVALID_SCOPE_ACCESS_TOKEN';
+
+    public const API_ROUTES_ARE_LOADED_ALREADY = 'FRAMEWORK__API_ROUTES_ARE_LOADED_ALREADY';
+
+    public const API_NOTIFICATION_THROTTLED = 'FRAMEWORK__NOTIFICATION_THROTTLED';
+
+    public const API_DIRECTORY_NOT_CREATED = 'FRAMEWORK__API_DIRECTORY_NOT_CREATED';
+
+    /**
+     * @param array<array{pointer: string, entity: string}> $exceptions
+     */
+    public static function canNotResolveForeignKeysException(array $exceptions): self
+    {
+        $message = [];
+        $parameters = [];
+
+        foreach ($exceptions as $i => $exception) {
+            $message[] = \sprintf(
+                'Can not resolve foreign key at position %s. Reference field: %s',
+                $exception['pointer'],
+                $exception['entity']
+            );
+            $parameters['pointer-' . $i] = $exception['pointer'];
+            $parameters['field-' . $i] = $exception['entity'];
+        }
+
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::API_INVALID_SYNC_RESOLVERS,
+            implode("\n", $message),
+            $parameters
+        );
+    }
 
     public static function invalidSyncCriteriaException(string $operationKey): self
     {
@@ -105,6 +149,16 @@ class ApiException extends HttpException
         );
     }
 
+    public static function pathIsNoAssociationField(string $path): self
+    {
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::API_INVALID_ASSOCIATION_FIELD,
+            'Field "%s" is not a valid association field.',
+            ['path' => $path]
+        );
+    }
+
     public static function notExistingRelation(string $path): self
     {
         return new self(
@@ -117,7 +171,7 @@ class ApiException extends HttpException
 
     public static function unsupportedMediaType(string $contentType): SymfonyHttpException
     {
-        return new UnsupportedMediaTypeHttpException(sprintf('The Content-Type "%s" is unsupported.', $contentType));
+        return new UnsupportedMediaTypeHttpException(\sprintf('The Content-Type "%s" is unsupported.', $contentType));
     }
 
     public static function badRequest(string $message): SymfonyHttpException
@@ -272,7 +326,7 @@ class ApiException extends HttpException
     public static function invalidAccessKey(): self
     {
         return new self(
-            Response::HTTP_INTERNAL_SERVER_ERROR,
+            Response::HTTP_FORBIDDEN,
             self::API_INVALID_ACCESS_KEY_EXCEPTION,
             'Access key is invalid and could not be identified.',
         );
@@ -284,6 +338,88 @@ class ApiException extends HttpException
             Response::HTTP_INTERNAL_SERVER_ERROR,
             self::API_INVALID_ACCESS_KEY_IDENTIFIER_EXCEPTION,
             'Given identifier for access key is invalid.',
+        );
+    }
+
+    public static function salesChannelInMaintenanceMode(): self
+    {
+        return new self(
+            Response::HTTP_SERVICE_UNAVAILABLE,
+            self::API_SALES_CHANNEL_MAINTENANCE_MODE,
+            'The sales channel is in maintenance mode.',
+        );
+    }
+
+    public static function canNotResolveResolverField(string $entity, string $fieldName): self
+    {
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::API_SYNC_RESOLVER_FIELD_NOT_FOUND,
+            'Can not resolve entity field name {{ entity }}.{{ field }} for sync operation resolver',
+            ['entity' => $entity, 'field' => $fieldName]
+        );
+    }
+
+    public static function unsupportedEncoderInput(): self
+    {
+        return new self(
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+            self::API_UNSUPPORTED_ENCODER_INPUT,
+            'Unsupported encoder data provided. Only entities and entity collections are supported',
+        );
+    }
+
+    public static function apiRoutesAreAlreadyLoaded(): self
+    {
+        return new self(
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+            self::API_ROUTES_ARE_LOADED_ALREADY,
+            'API routes are already loaded',
+        );
+    }
+
+    public static function invalidAdminSource(string $actual): self
+    {
+        return new InvalidContextSourceException(AdminApiSource::class, $actual);
+    }
+
+    public static function userNotLoggedIn(): self
+    {
+        return new self(
+            Response::HTTP_FORBIDDEN,
+            self::API_EXPECTED_USER,
+            'For this interaction an authenticated user login is required.'
+        );
+    }
+
+    public static function invalidScopeAccessToken(string $identifier): self
+    {
+        return new self(
+            Response::HTTP_FORBIDDEN,
+            self::API_INVALID_SCOPE_ACCESS_TOKEN,
+            'This access token does not have the scope "{{ scope }}" to process this Request',
+            ['scope' => $identifier]
+        );
+    }
+
+    public static function notificationThrottled(int $waitTime, \Throwable $e): self
+    {
+        return new self(
+            Response::HTTP_TOO_MANY_REQUESTS,
+            self::API_NOTIFICATION_THROTTLED,
+            'Notification throttled for {{ seconds }} seconds.',
+            ['seconds' => $waitTime],
+            $e
+        );
+    }
+
+    public static function directoryWasNotCreated(string $directory): self
+    {
+        return new self(
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+            self::API_DIRECTORY_NOT_CREATED,
+            'Directory "{{ directory }}" was not created.',
+            ['directory' => $directory]
         );
     }
 }

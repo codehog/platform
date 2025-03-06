@@ -9,12 +9,12 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class FinishController extends AbstractController
 {
     #[Route('/finish', name: 'finish', defaults: ['step' => 3])]

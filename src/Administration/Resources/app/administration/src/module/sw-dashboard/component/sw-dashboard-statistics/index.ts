@@ -1,4 +1,3 @@
-import type EntityCollection from '@shopware-ag/admin-extension-sdk/es/data/_internals/EntityCollection';
 import template from './sw-dashboard-statistics.html.twig';
 import './sw-dashboard-statistics.scss';
 
@@ -7,50 +6,50 @@ const { Criteria } = Shopware.Data;
 type OrderEntity = EntitySchema.order;
 
 type HistoryDateRange = {
-    label: string,
-    range: number,
-    interval: 'hour' | 'day',
-    aggregate: 'hour' | 'day',
-}
+    label: string;
+    range: number;
+    interval: 'hour' | 'day';
+    aggregate: 'hour' | 'day';
+};
 
 type BucketData = {
-    key: string,
-    count: number,
+    key: string;
+    count: number;
     totalAmount: {
-        sum: number,
-    },
-}
+        sum: number;
+    };
+};
 
 type HistoryOrderDataCount = {
-    apiAlias: 'order_count_bucket_aggregation',
-    buckets: Array<BucketData>,
-    name: 'order_count_bucket',
-}
+    apiAlias: 'order_sum_bucket_aggregation';
+    buckets: Array<BucketData>;
+    name: 'order_sum_bucket';
+};
 
 type HistoryOrderDataSum = {
-    apiAlias: 'order_sum_bucket_aggregation',
-    buckets: Array<BucketData>,
-    name: 'order_sum_bucket',
-}
+    apiAlias: 'order_sum_bucket_aggregation';
+    buckets: Array<BucketData>;
+    name: 'order_sum_bucket';
+};
 
 type HistoryOrderData = HistoryOrderDataCount | HistoryOrderDataSum | null;
 
 interface ComponentData {
-    historyOrderDataCount: HistoryOrderDataCount | null,
-    historyOrderDataSum: HistoryOrderDataSum | null,
-    todayOrderData: EntityCollection<'order'> | null,
-    todayOrderDataLoaded: boolean
-    todayOrderDataSortBy: 'orderDateTime',
-    todayOrderDataSortDirection: 'DESC' | 'ASC',
-    ordersDateRange: HistoryDateRange,
-    turnoverDateRange: HistoryDateRange,
-    isLoading: boolean,
+    historyOrderDataCount: HistoryOrderDataCount | null;
+    historyOrderDataSum: HistoryOrderDataSum | null;
+    todayOrderData: EntityCollection<'order'> | null;
+    todayOrderDataLoaded: boolean;
+    todayOrderDataSortBy: 'orderDateTime';
+    todayOrderDataSortDirection: 'DESC' | 'ASC';
+    ordersDateRange: HistoryDateRange;
+    turnoverDateRange: HistoryDateRange;
+    isLoading: boolean;
 }
 
 /**
- * @package merchant-services
+ * @sw-package after-sales
  *
- * @private
+ * @private might get removed with any update (even minor!) as it likely gets replaced by shopware analytics
  */
 export default Shopware.Component.wrapComponentConfig({
     template,
@@ -87,32 +86,38 @@ export default Shopware.Component.wrapComponentConfig({
 
     computed: {
         rangesValueMap(): Array<HistoryDateRange> {
-            return [{
-                label: '30Days',
-                range: 30,
-                interval: 'day',
-                aggregate: 'day',
-            }, {
-                label: '14Days',
-                range: 14,
-                interval: 'day',
-                aggregate: 'day',
-            }, {
-                label: '7Days',
-                range: 7,
-                interval: 'day',
-                aggregate: 'day',
-            }, {
-                label: '24Hours',
-                range: 24,
-                interval: 'hour',
-                aggregate: 'hour',
-            }, {
-                label: 'yesterday',
-                range: 1,
-                interval: 'day',
-                aggregate: 'hour',
-            }];
+            return [
+                {
+                    label: '30Days',
+                    range: 30,
+                    interval: 'day',
+                    aggregate: 'day',
+                },
+                {
+                    label: '14Days',
+                    range: 14,
+                    interval: 'day',
+                    aggregate: 'day',
+                },
+                {
+                    label: '7Days',
+                    range: 7,
+                    interval: 'day',
+                    aggregate: 'day',
+                },
+                {
+                    label: '24Hours',
+                    range: 24,
+                    interval: 'hour',
+                    aggregate: 'hour',
+                },
+                {
+                    label: 'yesterday',
+                    range: 1,
+                    interval: 'day',
+                    aggregate: 'hour',
+                },
+            ];
         },
 
         availableRanges(): string[] {
@@ -133,7 +138,9 @@ export default Shopware.Component.wrapComponentConfig({
                     min: 0,
                     tickAmount: 3,
                     labels: {
-                        formatter: (value: string) => { return parseInt(value, 10); },
+                        formatter: (value: string) => {
+                            return parseInt(value, 10);
+                        },
                     },
                 },
             };
@@ -154,11 +161,12 @@ export default Shopware.Component.wrapComponentConfig({
                     tickAmount: 5,
                     labels: {
                         // price aggregations do not support currencies yet, see NEXT-5069
-                        formatter: (value: string) => Shopware.Utils.format.currency(
-                            Number.parseFloat(value),
-                            Shopware.Context.app.systemCurrencyISOCode as string,
-                            2,
-                        ),
+                        formatter: (value: string) =>
+                            Shopware.Utils.format.currency(
+                                Number.parseFloat(value),
+                                Shopware.Context.app.systemCurrencyISOCode as string,
+                                2,
+                            ),
                     },
                 },
             };
@@ -183,7 +191,12 @@ export default Shopware.Component.wrapComponentConfig({
                 seriesData.push({ x: this.today.getTime(), y: 0 });
             }
 
-            return [{ name: this.$tc('sw-dashboard.monthStats.numberOfOrders'), data: seriesData }];
+            return [
+                {
+                    name: this.$tc('sw-dashboard.monthStats.numberOfOrders'),
+                    data: seriesData,
+                },
+            ];
         },
 
         orderCountToday() {
@@ -204,7 +217,10 @@ export default Shopware.Component.wrapComponentConfig({
 
             // format data for chart
             const seriesData = this.historyOrderDataSum.buckets.map((data: BucketData) => {
-                return { x: this.parseDate(data.key), y: data.totalAmount.sum };
+                return {
+                    x: this.parseDate(data.key),
+                    y: data.totalAmount.sum,
+                };
             });
 
             // add empty value for today if there isn't any order, otherwise today would be missing
@@ -212,7 +228,12 @@ export default Shopware.Component.wrapComponentConfig({
                 seriesData.push({ x: this.today.getTime(), y: 0 });
             }
 
-            return [{ name: this.$tc('sw-dashboard.monthStats.totalTurnover'), data: seriesData }];
+            return [
+                {
+                    name: this.$tc('sw-dashboard.monthStats.totalTurnover'),
+                    data: seriesData,
+                },
+            ];
         },
 
         orderSumToday() {
@@ -249,7 +270,7 @@ export default Shopware.Component.wrapComponentConfig({
         },
 
         isSessionLoaded() {
-            return !Shopware.State.get('session')?.userPending;
+            return !Shopware.Store.get('session')?.userPending;
         },
 
         currencyFilter() {
@@ -318,75 +339,68 @@ export default Shopware.Component.wrapComponentConfig({
         getHistoryOrderData() {
             return Promise.all([
                 this.fetchHistoryOrderDataCount().then((response) => {
-                    if (response.aggregations) {
-                        // @ts-expect-error
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                        this.historyOrderDataCount = response.aggregations.order_count_bucket;
-                    }
+                    this.historyOrderDataCount = response;
                 }),
                 this.fetchHistoryOrderDataSum().then((response) => {
-                    if (response.aggregations) {
-                        // @ts-expect-error
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                        this.historyOrderDataSum = response.aggregations.order_sum_bucket;
-                    }
+                    this.historyOrderDataSum = response;
                 }),
             ]);
         },
 
         fetchHistoryOrderDataCount() {
-            const criteria = new Criteria(1, 1);
-
-            criteria.addAggregation(
-                Criteria.histogram(
-                    'order_count_bucket',
-                    'orderDateTime',
-                    this.ordersDateRange.aggregate,
-                    null,
-                    Criteria.sum('totalAmount', 'amountTotal'),
-                    // eslint-disable-next-line max-len
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
-                    Shopware.State.get('session').currentUser?.timeZone ?? 'UTC',
-                ),
-            );
-
-            criteria.addFilter(Criteria.range('orderDate', {
-                gte: this.formatDateToISO(this.getDateAgo(this.ordersDateRange)),
-            }));
-
-            return this.orderRepository.search(criteria);
+            return this.fetchHistory(false, this.formatDateToISO(this.getDateAgo(this.ordersDateRange)));
         },
 
         fetchHistoryOrderDataSum() {
-            const criteria = new Criteria(1, 1);
+            return this.fetchHistory(true, this.formatDateToISO(this.getDateAgo(this.turnoverDateRange)));
+        },
 
-            criteria.addAggregation(
-                Criteria.histogram(
-                    'order_sum_bucket',
-                    'orderDateTime',
-                    this.turnoverDateRange.aggregate,
-                    null,
-                    Criteria.sum('totalAmount', 'amountTotal'),
-                    // eslint-disable-next-line max-len
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access
-                    Shopware.State.get('session').currentUser?.timeZone ?? 'UTC',
-                ),
-            );
+        fetchHistory(paid: boolean, since: string) {
+            const headers = this.orderRepository.buildHeaders();
 
-            criteria.addAssociation('stateMachineState');
+            const initContainer = Shopware.Application.getContainer('init');
+            const httpClient = initContainer.httpClient;
+            const timezone = Shopware.Store.get('session').currentUser?.timeZone ?? 'UTC';
 
-            criteria.addFilter(Criteria.equals('transactions.stateMachineState.technicalName', 'paid'));
-            criteria.addFilter(Criteria.range('orderDate', {
-                gte: this.formatDateToISO(this.getDateAgo(this.turnoverDateRange)),
-            }));
+            return httpClient
+                .get<
+                    undefined,
+                    {
+                        data: {
+                            statistic: Array<{
+                                date: string;
+                                count: number;
+                                amount: number;
+                            }>;
+                        };
+                    }
+                >(`/_admin/dashboard/order-amount/${since}?timezone=${timezone}&paid=${paid.toString()}`, { headers })
+                .then((response) => {
+                    const buckets = response.data.statistic.map((bucket) => {
+                        return {
+                            key: bucket.date,
+                            count: bucket.count,
+                            apiAlias: 'aggregation_bucket',
+                            totalAmount: {
+                                sum: bucket.amount,
+                                name: 'totalAmount',
+                            },
+                        };
+                    });
 
-            return this.orderRepository.search(criteria);
+                    return {
+                        name: 'order_sum_bucket',
+                        buckets: buckets,
+                        apiAlias: 'order_sum_bucket_aggregation',
+                    } as const;
+                });
         },
 
         fetchTodayData() {
             const criteria = new Criteria(1, 10);
 
             criteria.addAssociation('currency');
+            criteria.addAssociation('stateMachineState');
 
             criteria.addFilter(Criteria.equals('orderDate', this.formatDateToISO(new Date())));
             criteria.addSorting(Criteria.sort(this.todayOrderDataSortBy, this.todayOrderDataSortDirection));
@@ -408,33 +422,39 @@ export default Shopware.Component.wrapComponentConfig({
         },
 
         orderGridColumns() {
-            return [{
-                property: 'orderNumber',
-                label: 'sw-order.list.columnOrderNumber',
-                routerLink: 'sw.order.detail',
-                allowResize: true,
-                primary: true,
-            }, {
-                property: 'orderDateTime',
-                dataIndex: 'orderDateTime',
-                label: 'sw-dashboard.todayStats.orderTime',
-                allowResize: true,
-                primary: false,
-            }, {
-                property: 'orderCustomer.firstName',
-                dataIndex: 'orderCustomer.firstName,orderCustomer.lastName',
-                label: 'sw-order.list.columnCustomerName',
-                allowResize: true,
-            }, {
-                property: 'stateMachineState.name',
-                label: 'sw-order.list.columnState',
-                allowResize: true,
-            }, {
-                property: 'amountTotal',
-                label: 'sw-order.list.columnAmount',
-                align: 'right',
-                allowResize: true,
-            }];
+            return [
+                {
+                    property: 'orderNumber',
+                    label: 'sw-order.list.columnOrderNumber',
+                    routerLink: 'sw.order.detail',
+                    allowResize: true,
+                    primary: true,
+                },
+                {
+                    property: 'orderDateTime',
+                    dataIndex: 'orderDateTime',
+                    label: 'sw-dashboard.todayStats.orderTime',
+                    allowResize: true,
+                    primary: false,
+                },
+                {
+                    property: 'orderCustomer.firstName',
+                    dataIndex: 'orderCustomer.firstName,orderCustomer.lastName',
+                    label: 'sw-order.list.columnCustomerName',
+                    allowResize: true,
+                },
+                {
+                    property: 'stateMachineState.name',
+                    label: 'sw-order.list.columnState',
+                    allowResize: true,
+                },
+                {
+                    property: 'amountTotal',
+                    label: 'sw-order.list.columnAmount',
+                    align: 'right',
+                    allowResize: true,
+                },
+            ];
         },
 
         getVariantFromOrderState(order: OrderEntity): string {
@@ -443,14 +463,16 @@ export default Shopware.Component.wrapComponentConfig({
                 return '';
             }
 
-            return this.stateStyleDataProviderService.getStyle(
-                'order.state',
-                state,
-            ).variant;
+            return this.stateStyleDataProviderService.getStyle('order.state', state).variant;
         },
 
         parseDate(date: string): number {
-            const parsedDate = new Date(date.replace(/-/g, '/').replace('T', ' ').replace(/\..*|\+.*/, ''));
+            const parsedDate = new Date(
+                date
+                    .replace(/-/g, '/')
+                    .replace('T', ' ')
+                    .replace(/\..*|\+.*/, ''),
+            );
             return parsedDate.valueOf();
         },
 
@@ -463,13 +485,7 @@ export default Shopware.Component.wrapComponentConfig({
 
             this.ordersDateRange = ordersDateRange;
 
-            const response = await this.fetchHistoryOrderDataCount();
-
-            if (response.aggregations) {
-                // @ts-expect-error
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                this.historyOrderDataCount = response.aggregations.order_count_bucket;
-            }
+            this.historyOrderDataCount = await this.fetchHistoryOrderDataCount();
         },
 
         async onTurnoverRangeUpdate(range: string): Promise<void> {
@@ -480,14 +496,7 @@ export default Shopware.Component.wrapComponentConfig({
             }
 
             this.turnoverDateRange = turnoverDateRange;
-
-            const response = await this.fetchHistoryOrderDataSum();
-
-            if (response.aggregations) {
-                // @ts-expect-error
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                this.historyOrderDataSum = response.aggregations.order_sum_bucket;
-            }
+            this.historyOrderDataSum = await this.fetchHistoryOrderDataSum();
         },
 
         getCardSubtitle(range: HistoryDateRange): string {
@@ -512,6 +521,6 @@ export default Shopware.Component.wrapComponentConfig({
 });
 
 /**
- * @private
+ * @private might get removed with any update (even minor!) as it likely gets replaced by shopware analytics
  */
 export type { HistoryDateRange };

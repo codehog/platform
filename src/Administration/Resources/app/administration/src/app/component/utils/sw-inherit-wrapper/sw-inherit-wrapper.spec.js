@@ -1,44 +1,43 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/utils/sw-inherit-wrapper';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(options = {}) {
-    return shallowMount(await Shopware.Component.build('sw-inherit-wrapper'), {
+    return mount(await wrapTestComponent('sw-inherit-wrapper', { sync: true }), {
         ...options,
     });
 }
 
+const createWrapperGlobalValue = {
+    stubs: {
+        'sw-inheritance-switch': true,
+        'sw-help-text': true,
+    },
+};
+
 describe('src/app/component/utils/sw-inherit-wrapper', () => {
-    /** @type Wrapper */
-    let wrapper;
-
-    afterEach(async () => {
-        if (wrapper) {
-            await wrapper.destroy();
-        }
-    });
-
     it('should be a Vue.JS component', async () => {
-        wrapper = await createWrapper({
+        const wrapper = await createWrapper({
             propsData: {
                 value: 1,
                 inheritedValue: 2,
             },
+            global: createWrapperGlobalValue,
         });
 
         expect(wrapper.vm).toBeTruthy();
     });
 
     it('should not inherit on different values', async () => {
-        wrapper = await createWrapper({
+        const wrapper = await createWrapper({
             propsData: {
                 value: 1,
                 inheritedValue: 2,
                 hasParent: true,
             },
+            global: createWrapperGlobalValue,
         });
 
         expect(wrapper.vm).toBeTruthy();
@@ -46,12 +45,13 @@ describe('src/app/component/utils/sw-inherit-wrapper', () => {
     });
 
     it('should inherit on same values', async () => {
-        wrapper = await createWrapper({
+        const wrapper = await createWrapper({
             propsData: {
                 value: null,
                 inheritedValue: 1,
                 hasParent: true,
             },
+            global: createWrapperGlobalValue,
         });
 
         expect(wrapper.vm).toBeTruthy();
@@ -59,7 +59,7 @@ describe('src/app/component/utils/sw-inherit-wrapper', () => {
     });
 
     it('should have error classes', async () => {
-        wrapper = await createWrapper({
+        const wrapper = await createWrapper({
             propsData: {
                 value: 1,
                 inheritedValue: 2,
@@ -67,11 +67,26 @@ describe('src/app/component/utils/sw-inherit-wrapper', () => {
                     detail: 'Whoops',
                 },
             },
+            global: createWrapperGlobalValue,
         });
 
         expect(wrapper.vm).toBeTruthy();
         expect(wrapper.vm.labelClasses).toStrictEqual({
             'has--error': true,
         });
+    });
+
+    it('should inherit on empty array', async () => {
+        const wrapper = await createWrapper({
+            propsData: {
+                value: [],
+                inheritedValue: 1,
+                hasParent: true,
+            },
+            global: createWrapperGlobalValue,
+        });
+
+        expect(wrapper.vm).toBeTruthy();
+        expect(wrapper.vm.isInherited).toBe(true);
     });
 });

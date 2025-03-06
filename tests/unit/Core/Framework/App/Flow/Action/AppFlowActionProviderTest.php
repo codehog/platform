@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Core\Framework\App\Flow\Action;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Event\CheckoutOrderPlacedEvent;
 use Shopware\Core\Checkout\Order\OrderEntity;
@@ -10,18 +11,17 @@ use Shopware\Core\Content\Flow\Dispatching\FlowFactory;
 use Shopware\Core\Content\Flow\Dispatching\Storer\OrderStorer;
 use Shopware\Core\Framework\Adapter\Twig\StringTemplateRenderer;
 use Shopware\Core\Framework\App\Flow\Action\AppFlowActionProvider;
-use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\EntitySearchResult;
-use Shopware\Core\Framework\Test\TestDataCollection;
 use Shopware\Core\Framework\Webhook\BusinessEventEncoder;
+use Shopware\Core\Test\Generator;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\App\Flow\Action\AppFlowActionProvider
  */
+#[CoversClass(AppFlowActionProvider::class)]
 class AppFlowActionProviderTest extends TestCase
 {
     public function testGetWebhookPayloadAndHeaders(): void
@@ -48,7 +48,7 @@ class AppFlowActionProviderTest extends TestCase
                 ['parameters' => json_encode($params), 'headers' => json_encode($headers)]
             );
 
-        $ids = new TestDataCollection();
+        $ids = new IdsCollection();
         $order = new OrderEntity();
         $order->setId($ids->get('orderId'));
 
@@ -62,12 +62,13 @@ class AppFlowActionProviderTest extends TestCase
             ->method('search')
             ->willReturn($entitySearchResult);
 
-        $awareEvent = new CheckoutOrderPlacedEvent(Context::createDefaultContext(), $order, 'asdsad');
+        $context = Generator::generateSalesChannelContext();
+
+        $awareEvent = new CheckoutOrderPlacedEvent($context, $order);
 
         $orderStorer = new OrderStorer($orderRepo, $this->createMock(EventDispatcherInterface::class));
-        $flowFactory = new FlowFactory([$orderStorer]);
 
-        $flow = $flowFactory->create($awareEvent);
+        $flow = (new FlowFactory([$orderStorer]))->create($awareEvent);
         $flow->setConfig($config);
 
         $stringTemplateRender = $this->createMock(StringTemplateRenderer::class);

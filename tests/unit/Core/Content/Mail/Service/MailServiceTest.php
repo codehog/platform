@@ -3,18 +3,17 @@
 namespace Shopware\Tests\Unit\Core\Content\Mail\Service;
 
 use Monolog\Level;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Shopware\Core\Content\Mail\Service\AbstractMailFactory;
 use Shopware\Core\Content\Mail\Service\AbstractMailSender;
 use Shopware\Core\Content\Mail\Service\MailService;
-use Shopware\Core\Content\MailTemplate\Exception\SalesChannelNotFoundException;
 use Shopware\Core\Content\MailTemplate\Service\Event\MailBeforeSentEvent;
 use Shopware\Core\Content\MailTemplate\Service\Event\MailBeforeValidateEvent;
 use Shopware\Core\Content\MailTemplate\Service\Event\MailErrorEvent;
 use Shopware\Core\Content\MailTemplate\Service\Event\MailSentEvent;
-use Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface;
 use Shopware\Core\Framework\Adapter\Twig\StringTemplateRenderer;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -33,9 +32,8 @@ use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Mail\Service\MailService
  */
+#[CoversClass(MailService::class)]
 class MailServiceTest extends TestCase
 {
     /**
@@ -83,23 +81,8 @@ class MailServiceTest extends TestCase
             $this->salesChannelRepository,
             $this->createMock(SystemConfigService::class),
             $this->eventDispatcher,
-            $this->createMock(UrlGeneratorInterface::class),
             $this->logger,
         );
-    }
-
-    public function testThrowSalesChannelNotFound(): void
-    {
-        $salesChannelId = Uuid::randomHex();
-        $exception = new SalesChannelNotFoundException($salesChannelId);
-        static::expectExceptionObject($exception);
-
-        $data = [
-            'recipients' => [],
-            'salesChannelId' => $salesChannelId,
-        ];
-
-        $this->mailService->send($data, Context::createDefaultContext());
     }
 
     public function testSendMailSuccess(): void
@@ -188,7 +171,7 @@ class MailServiceTest extends TestCase
         $beforeValidateEvent = null;
         $mailErrorEvent = null;
 
-        $this->logger->expects(static::once())->method('warning');
+        $this->logger->expects(static::once())->method('log')->with(Level::Warning);
         $this->eventDispatcher->expects(static::exactly(2))
             ->method('dispatch')
             ->willReturnCallback(function (Event $event) use (&$beforeValidateEvent, &$mailErrorEvent) {
@@ -210,15 +193,16 @@ class MailServiceTest extends TestCase
         static::assertNull($email);
         static::assertNotNull($beforeValidateEvent);
         static::assertInstanceOf(MailErrorEvent::class, $mailErrorEvent);
-        static::assertEquals(Level::Warning->value, $mailErrorEvent->getLogLevel());
+        static::assertEquals(Level::Warning, $mailErrorEvent->getLogLevel());
         static::assertNotNull($mailErrorEvent->getMessage());
 
-        $message = 'Could not render Mail-Template with error message: cannot render';
+        $message = 'Could not render Mail-Subject with error message: cannot render';
 
         static::assertSame($message, $mailErrorEvent->getMessage());
         static::assertSame('Test email', $mailErrorEvent->getTemplate());
         static::assertSame([
             'salesChannel' => $salesChannel,
+            'salesChannelId' => $salesChannelId,
         ], $mailErrorEvent->getTemplateData());
     }
 
@@ -250,7 +234,7 @@ class MailServiceTest extends TestCase
             'salesChannelId' => $salesChannelId,
         ];
 
-        $this->logger->expects(static::once())->method('error');
+        $this->logger->expects(static::once())->method('log')->with(Level::Error);
         $this->eventDispatcher->expects(static::exactly(4))->method('dispatch')->willReturnOnConsecutiveCalls(
             static::isInstanceOf(MailBeforeValidateEvent::class),
             static::isInstanceOf(MailErrorEvent::class),

@@ -3,35 +3,33 @@
 namespace Shopware\Tests\Unit\Core\Content\Flow\Dispatching\Action;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Order\OrderCollection;
+use Shopware\Core\Checkout\Order\OrderDefinition;
 use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Content\Flow\Dispatching\Action\SetOrderCustomFieldAction;
 use Shopware\Core\Content\Flow\Dispatching\StorableFlow;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\EntitySearchResult;
 use Shopware\Core\Framework\Event\OrderAware;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @covers \Shopware\Core\Content\Flow\Dispatching\Action\SetOrderCustomFieldAction
  */
+#[Package('after-sales')]
+#[CoversClass(SetOrderCustomFieldAction::class)]
 class SetOrderCustomFieldActionTest extends TestCase
 {
     private Connection&MockObject $connection;
 
     private MockObject&EntityRepository $repository;
-
-    /**
-     * @var EntitySearchResult<OrderCollection>&MockObject
-     */
-    private MockObject&EntitySearchResult $entitySearchResult;
 
     private SetOrderCustomFieldAction $action;
 
@@ -39,7 +37,6 @@ class SetOrderCustomFieldActionTest extends TestCase
     {
         $this->connection = $this->createMock(Connection::class);
         $this->repository = $this->createMock(EntityRepository::class);
-        $this->entitySearchResult = $this->createMock(EntitySearchResult::class);
 
         $this->action = new SetOrderCustomFieldAction($this->connection, $this->repository);
     }
@@ -61,26 +58,32 @@ class SetOrderCustomFieldActionTest extends TestCase
      * @param array<string, mixed> $config
      * @param array<string, mixed> $existsData
      * @param array<string, mixed> $expected
-     *
-     * @dataProvider actionExecutedProvider
      */
+    #[DataProvider('actionExecutedProvider')]
     public function testExecutedAction(array $config, array $existsData, array $expected): void
     {
+        $orderId = Uuid::randomHex();
         $order = new OrderEntity();
+        $order->setId($orderId);
+        $order->setUniqueIdentifier($orderId);
         $order->setCustomFields($existsData);
 
         $context = Context::createDefaultContext();
-        $orderId = Uuid::randomHex();
         $flow = new StorableFlow('', $context, [], [OrderAware::ORDER_ID => $orderId]);
         $flow->setConfig($config);
 
-        $this->entitySearchResult->expects(static::once())
-            ->method('first')
-            ->willReturn($order);
+        $entitySearchResult = new EntitySearchResult(
+            OrderDefinition::ENTITY_NAME,
+            1,
+            new OrderCollection([$order]),
+            null,
+            new Criteria(),
+            $context
+        );
 
         $this->repository->expects(static::once())
             ->method('search')
-            ->willReturn($this->entitySearchResult);
+            ->willReturn($entitySearchResult);
         $this->connection->expects(static::once())
             ->method('fetchOne')
             ->willReturn('custom_field_test');

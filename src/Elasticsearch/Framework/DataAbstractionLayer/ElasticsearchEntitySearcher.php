@@ -15,13 +15,16 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\MultiFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Grouping\FieldGrouping;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\IdSearchResult;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Elasticsearch\ElasticsearchException;
+use Shopware\Elasticsearch\Framework\DataAbstractionLayer\Event\ElasticsearchEntitySearcherSearchedEvent;
 use Shopware\Elasticsearch\Framework\DataAbstractionLayer\Event\ElasticsearchEntitySearcherSearchEvent;
 use Shopware\Elasticsearch\Framework\ElasticsearchHelper;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class ElasticsearchEntitySearcher implements EntitySearcherInterface
 {
+    final public const EXPLAIN_MODE = 'explain-mode';
     final public const MAX_LIMIT = 10000;
     final public const RESULT_STATE = 'loaded-by-elastic';
 
@@ -35,7 +38,8 @@ class ElasticsearchEntitySearcher implements EntitySearcherInterface
         private readonly CriteriaParser $criteriaParser,
         private readonly AbstractElasticsearchSearchHydrator $hydrator,
         private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly string $timeout = '5s'
+        private readonly string $timeout,
+        private readonly string $searchType
     ) {
     }
 
@@ -49,36 +53,53 @@ class ElasticsearchEntitySearcher implements EntitySearcherInterface
             return new IdSearchResult(0, [], $criteria, $context);
         }
 
-        $search = $this->createSearch($criteria, $definition, $context);
+        try {
+            $search = $this->createSearch($criteria, $definition, $context);
 
-        $this->eventDispatcher->dispatch(
-            new ElasticsearchEntitySearcherSearchEvent(
+            $this->eventDispatcher->dispatch(
+                new ElasticsearchEntitySearcherSearchEvent(
+                    $search,
+                    $definition,
+                    $criteria,
+                    $context
+                )
+            );
+
+            $params = [
+                'index' => $this->helper->getIndexName($definition),
+                'search_type' => $this->searchType,
+                'track_total_hits' => $criteria->getTotalCountMode() === Criteria::TOTAL_COUNT_MODE_EXACT,
+                'body' => $this->convertSearch($criteria, $definition, $context, $search),
+            ];
+
+            if ($context->hasState(self::EXPLAIN_MODE)) {
+                $params['include_named_queries_score'] = true;
+            }
+
+            $result = $this->client->search($params);
+
+            $result = $this->hydrator->hydrate($definition, $criteria, $context, $result);
+
+            $this->eventDispatcher->dispatch(new ElasticsearchEntitySearcherSearchedEvent(
+                $result,
                 $search,
                 $definition,
                 $criteria,
                 $context
-            )
-        );
+            ));
 
-        $search = $this->convertSearch($criteria, $definition, $context, $search);
+            $result->addState(self::RESULT_STATE);
 
-        try {
-            $result = $this->client->search([
-                'index' => $this->helper->getIndexName($definition, $this->helper->enabledMultilingualIndex() ? null : $context->getLanguageId()),
-                'track_total_hits' => true,
-                'body' => $search,
-            ]);
+            return $result;
         } catch (\Throwable $e) {
+            if ($e instanceof ElasticsearchException && $e->getErrorCode() === ElasticsearchException::EMPTY_QUERY) {
+                return new IdSearchResult(0, [], $criteria, $context);
+            }
+
             $this->helper->logAndThrowException($e);
 
             return $this->decorated->search($definition, $criteria, $context);
         }
-
-        $result = $this->hydrator->hydrate($definition, $criteria, $context, $result);
-
-        $result->addState(self::RESULT_STATE);
-
-        return $result;
     }
 
     private function createSearch(Criteria $criteria, EntityDefinition $definition, Context $context): Search
@@ -107,6 +128,10 @@ class ElasticsearchEntitySearcher implements EntitySearcherInterface
      */
     private function convertSearch(Criteria $criteria, EntityDefinition $definition, Context $context, Search $search): array
     {
+        if ($context->hasState(self::EXPLAIN_MODE)) {
+            $search->setExplain(true);
+        }
+
         if (!$criteria->getGroupFields()) {
             $array = $search->toArray();
             $array['timeout'] = $this->timeout;
@@ -114,9 +139,12 @@ class ElasticsearchEntitySearcher implements EntitySearcherInterface
             return $array;
         }
 
-        $aggregation = $this->buildTotalCountAggregation($criteria, $definition, $context);
+        if ($criteria->getTotalCountMode() === Criteria::TOTAL_COUNT_MODE_EXACT) {
+            $aggregation = $this->buildTotalCountAggregation($criteria, $definition, $context);
 
-        $search->addAggregation($aggregation);
+            $search->addAggregation($aggregation);
+        }
+
         $array = $search->toArray();
         $array['collapse'] = $this->parseGrouping($criteria->getGroupFields(), $definition, $context);
         $array['timeout'] = $this->timeout;
@@ -167,7 +195,7 @@ class ElasticsearchEntitySearcher implements EntitySearcherInterface
         foreach ($groupings as $grouping) {
             $accessor = $this->criteriaParser->buildAccessor($definition, $grouping->getField(), $context);
 
-            $fields[] = sprintf(
+            $fields[] = \sprintf(
                 '
                 if (doc[\'%s\'].size()==0) {
                     value = value + \'empty\';

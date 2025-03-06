@@ -18,7 +18,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class PromotionGenerator implements DemodataGeneratorInterface
 {
     private SymfonyStyle $io;
@@ -86,7 +86,7 @@ class PromotionGenerator implements DemodataGeneratorInterface
     }
 
     /**
-     * @param list<array<string, string|int>> $salesChannels
+     * @param array<array{salesChannelId: string, priority: 1}> $salesChannels
      *
      * @return array<string, mixed>
      */
@@ -132,7 +132,7 @@ class PromotionGenerator implements DemodataGeneratorInterface
     }
 
     /**
-     * @return list<array<string, string|int>>
+     * @return array<array{salesChannelId: string, priority: 1}>
      */
     private function getSalesChannels(): array
     {

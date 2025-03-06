@@ -1,52 +1,44 @@
 /**
- * @package buyers-experience
+ * @sw-package checkout
  */
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swPromotionV2List from 'src/module/sw-promotion-v2/page/sw-promotion-v2-list';
+import { mount } from '@vue/test-utils';
 import { searchRankingPoint } from 'src/app/service/search-ranking.service';
 import Criteria from 'src/core/data/criteria.data';
 
-Shopware.Component.register('sw-promotion-v2-list', swPromotionV2List);
-
-async function createWrapper(privileges = []) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-    localVue.filter('asset', key => key);
-
-    return shallowMount(await Shopware.Component.build('sw-promotion-v2-list'), {
-        localVue,
-        stubs: {
-            'sw-page': {
-                template: '<div class="sw-page"><slot name="smart-bar-actions"></slot><slot name="content"></slot></div>',
-            },
-            'sw-button': true,
-            'sw-entity-listing': true,
-            'sw-promotion-v2-empty-state-hero': true,
-            'sw-context-menu-item': true,
-        },
-        provide: {
-            acl: {
-                can: (key) => {
-                    if (!key) { return true; }
-
-                    return privileges.includes(key);
+async function createWrapper() {
+    return mount(await wrapTestComponent('sw-promotion-v2-list', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-page': {
+                    template:
+                        '<div class="sw-page"><slot name="smart-bar-actions"></slot><slot name="content"></slot></div>',
                 },
+                'sw-entity-listing': true,
+                'sw-promotion-v2-empty-state-hero': true,
+                'sw-context-menu-item': true,
+                'sw-search-bar': true,
+                'sw-language-switch': true,
+                'sw-sidebar-item': true,
+                'sw-sidebar': true,
             },
-            repositoryFactory: {
-                create: () => ({
-                    search: () => Promise.resolve([]),
-                    get: () => Promise.resolve([]),
-                    create: () => {},
-                }),
-            },
-            searchRankingService: {
-                getSearchFieldsByEntity: () => {
-                    return Promise.resolve({
-                        name: searchRankingPoint.HIGH_SEARCH_RANKING,
-                    });
+            provide: {
+                repositoryFactory: {
+                    create: () => ({
+                        search: () => Promise.resolve([]),
+                        get: () => Promise.resolve([]),
+                        create: () => {},
+                        clone: jest.fn(() => Promise.resolve({ id: 'new-promotion-id' })),
+                    }),
                 },
-                buildSearchQueriesForEntity: (searchFields, term, criteria) => {
-                    return criteria;
+                searchRankingService: {
+                    getSearchFieldsByEntity: () => {
+                        return Promise.resolve({
+                            name: searchRankingPoint.HIGH_SEARCH_RANKING,
+                        });
+                    },
+                    buildSearchQueriesForEntity: (searchFields, term, criteria) => {
+                        return criteria;
+                    },
                 },
             },
         },
@@ -55,17 +47,19 @@ async function createWrapper(privileges = []) {
 
 describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     it('should disable create button when privilege not available', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
         const smartBarButton = wrapper.find('.sw-promotion-v2-list__smart-bar-button-add');
 
         expect(smartBarButton.exists()).toBeTruthy();
-        expect(smartBarButton.attributes().disabled).toBeTruthy();
+        expect(smartBarButton.attributes('disabled')).toBeDefined();
     });
 
     it('should enable create button when privilege available', async () => {
-        const wrapper = await createWrapper([
-            'promotion.creator',
-        ]);
+        global.activeAclRoles = ['promotion.creator'];
+
+        const wrapper = await createWrapper();
         const smartBarButton = wrapper.find('.sw-promotion-v2-list__smart-bar-button-add');
 
         expect(smartBarButton.exists()).toBeTruthy();
@@ -73,6 +67,8 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should disable editing of entries when privilege not set', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
 
         await wrapper.setData({
@@ -89,10 +85,12 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should enable editing of entries when privilege is set', async () => {
-        const wrapper = await createWrapper([
+        global.activeAclRoles = [
             'promotion.viewer',
             'promotion.editor',
-        ]);
+        ];
+
+        const wrapper = await createWrapper();
 
         await wrapper.setData({
             isLoading: false,
@@ -108,11 +106,13 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should enable deletion of entries when privilege is set', async () => {
-        const wrapper = await createWrapper([
+        global.activeAclRoles = [
             'promotion.viewer',
             'promotion.editor',
             'promotion.deleter',
-        ]);
+        ];
+
+        const wrapper = await createWrapper();
 
         await wrapper.setData({
             isLoading: false,
@@ -128,6 +128,8 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should add query score to the criteria', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
         await wrapper.setData({
             term: 'foo',
@@ -151,6 +153,8 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should not get search ranking fields when term is null', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
         await wrapper.vm.$nextTick();
         wrapper.vm.searchRankingService.buildSearchQueriesForEntity = jest.fn(() => {
@@ -171,6 +175,8 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should not build query score when search ranking field is null', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
         await wrapper.setData({
             term: 'foo',
@@ -195,6 +201,8 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
     });
 
     it('should show empty state when there is not item after filling search term', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
         await wrapper.setData({
             term: 'foo',
@@ -215,5 +223,38 @@ describe('src/module/sw-promotion-v2/page/sw-promotion-v2-list', () => {
         expect(wrapper.vm.entitySearchable).toBe(false);
 
         wrapper.vm.searchRankingService.getSearchFieldsByEntity.mockRestore();
+    });
+
+    it('should duplicate promotion and navigate to the new promotion detail page', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
+        const referencePromotion = {
+            id: 'reference-promotion-id',
+            name: 'Reference Promotion',
+        };
+
+        await wrapper.vm.onDuplicatePromotion(referencePromotion);
+
+        expect(wrapper.vm.promotionRepository.clone).toHaveBeenCalledWith(
+            'reference-promotion-id',
+            {
+                overwrites: {
+                    name: 'Reference Promotion global.default.copy',
+                    code: null,
+                    useCodes: false,
+                    useIndividualCodes: false,
+                    individualCodePattern: '',
+                    individualCodes: null,
+                    active: false,
+                },
+            },
+            Shopware.Context.api,
+        );
+
+        expect(wrapper.vm.$router.push).toHaveBeenCalledWith({
+            name: 'sw.promotion.v2.detail',
+            params: { id: 'new-promotion-id' },
+        });
     });
 });

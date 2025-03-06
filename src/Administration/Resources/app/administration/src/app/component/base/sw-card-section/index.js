@@ -4,10 +4,9 @@ import './sw-card-section.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description A container component which separates the content of <code>sw-card</code> into multiple sections.
  * @status ready
  * @example-type static
@@ -31,12 +30,22 @@ Component.register('sw-card-section', {
             type: String,
             required: false,
             default: '',
-            validValues: ['top', 'right', 'bottom', 'left'],
+            validValues: [
+                'top',
+                'right',
+                'bottom',
+                'left',
+            ],
             validator(value) {
                 if (!value.length) {
                     return true;
                 }
-                return ['top', 'right', 'bottom', 'left'].includes(value);
+                return [
+                    'top',
+                    'right',
+                    'bottom',
+                    'left',
+                ].includes(value);
             },
         },
         secondary: {

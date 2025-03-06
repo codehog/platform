@@ -4,7 +4,7 @@ import './sw-media-index.scss';
 const { Context, Filter } = Shopware;
 
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
@@ -69,14 +69,7 @@ export default {
 
     watch: {
         routeFolderId() {
-            if (this.feature.isActive('VUE3')) {
-                this.term = '';
-                this.updateFolder();
-
-                return;
-            }
-
-            this.term = null;
+            this.term = '';
             this.updateFolder();
         },
     },
@@ -85,14 +78,14 @@ export default {
         this.createdComponent();
     },
 
-    destroyed() {
+    unmounted() {
         this.destroyedComponent();
     },
 
     methods: {
         createdComponent() {
             // Vue router sets the folder id to an empty string if the page is reloaded
-            if (this.feature.isActive('VUE3') && this.routeFolderId === '') {
+            if (this.routeFolderId === '') {
                 this.updateRoute(null);
 
                 return;
@@ -116,9 +109,7 @@ export default {
             }
         },
 
-        destroyedComponent() {
-            this.$root.$off('search', this.onSearch);
-        },
+        destroyedComponent() {},
 
         async onUploadsAdded() {
             await this.mediaService.runUploads(this.uploadTag);

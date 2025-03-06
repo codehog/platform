@@ -1,33 +1,24 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { createLocalVue, mount } from '@vue/test-utils';
-import 'src/app/component/app/sw-app-action-button';
-import 'src/app/component/base/sw-icon';
-import swExtensionIcon from 'src/app/asyncComponent/extension/sw-extension-icon';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-extension-icon', swExtensionIcon);
-
-async function createWrapper(action, listeners = {}) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-
-    return mount(await Shopware.Component.build('sw-app-action-button'), {
-        localVue,
-        listeners,
-        propsData: {
+async function createWrapper(action) {
+    return mount(await wrapTestComponent('sw-app-action-button', { sync: true }), {
+        props: {
             action,
         },
-        stubs: {
-            'sw-icon': await Shopware.Component.build('sw-icon'),
-            'icons-regular-external-link': {
-                template: '<span class="sw-icon sw-icon--regular-external-link"></span>',
+        global: {
+            directives: {
+                tooltip: {},
             },
-            'sw-extension-icon': await Shopware.Component.build('sw-extension-icon'),
-        },
-        provide: {
-            acl: { can: () => true },
+            stubs: {
+                'sw-extension-icon': await wrapTestComponent('sw-extension-icon'),
+            },
+            provide: {
+                acl: { can: () => true },
+            },
         },
     });
 }
@@ -49,21 +40,16 @@ const baseAction = {
 describe('sw-app-action-button', () => {
     let wrapper = null;
 
-    afterEach(() => {
-        if (wrapper) {
-            wrapper.destroy();
-            wrapper = null;
-        }
-    });
-
     it('should be a Vue.js component', async () => {
         wrapper = await createWrapper(baseAction);
 
         expect(wrapper.vm).toBeTruthy();
-        expect(wrapper.classes()).toEqual(expect.arrayContaining([
-            'sw-app-action-button',
-            'sw-context-menu-item',
-        ]));
+        expect(wrapper.classes()).toEqual(
+            expect.arrayContaining([
+                'sw-app-action-button',
+                'sw-context-menu-item',
+            ]),
+        );
     });
 
     it('is a div if action is a webaction', async () => {
@@ -74,10 +60,13 @@ describe('sw-app-action-button', () => {
 
     it('should render a icon if set', async () => {
         wrapper = await createWrapper(baseAction);
+        await flushPromises();
 
-        expect(wrapper.classes()).toEqual(expect.arrayContaining([
-            'sw-context-menu-item--icon',
-        ]));
+        expect(wrapper.classes()).toEqual(
+            expect.arrayContaining([
+                'sw-context-menu-item--icon',
+            ]),
+        );
 
         const icon = wrapper.find('img.sw-extension-icon__icon');
 
@@ -90,24 +79,23 @@ describe('sw-app-action-button', () => {
             icon: null,
         });
 
-        expect(wrapper.classes()).toEqual(expect.not.arrayContaining([
-            'sw-context-menu-item--icon',
-        ]));
+        expect(wrapper.classes()).toEqual(
+            expect.not.arrayContaining([
+                'sw-context-menu-item--icon',
+            ]),
+        );
 
         const icon = wrapper.find('img.sw-extension-icon__icon');
         expect(icon.exists()).toBe(false);
     });
 
     it('should emit call to action', async () => {
-        const actionListener = jest.fn();
-
-        wrapper = await createWrapper(baseAction, {
-            'run-app-action': actionListener,
-        });
+        wrapper = await createWrapper(baseAction);
 
         await wrapper.trigger('click');
 
-        expect(actionListener).toHaveBeenCalled();
-        expect(actionListener).toHaveBeenCalledWith(baseAction);
+        expect(wrapper.emitted('run-app-action')[0]).toStrictEqual([
+            baseAction,
+        ]);
     });
 });

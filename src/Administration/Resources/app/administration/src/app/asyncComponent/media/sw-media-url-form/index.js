@@ -3,7 +3,7 @@ import template from './sw-media-url-form.html.twig';
 /**
  * @status ready
  * @description The <u>sw-media-url-form</u> component is used to validate urls from the user.
- * @package content
+ * @sw-package discovery
  * @example-type static
  * @component-example
  * <sw-media-url-form variant="inline">
@@ -13,13 +13,24 @@ import template from './sw-media-url-form.html.twig';
 export default {
     template,
 
+    emits: [
+        'media-url-form-submit',
+        'modal-close',
+    ],
+
     props: {
         variant: {
             type: String,
             required: true,
-            validValues: ['modal', 'inline'],
+            validValues: [
+                'modal',
+                'inline',
+            ],
             validator(value) {
-                return ['modal', 'inline'].includes(value);
+                return [
+                    'modal',
+                    'inline',
+                ].includes(value);
             },
             default: 'inline',
         },

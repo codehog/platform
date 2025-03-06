@@ -5,7 +5,7 @@ const { EntityCollection } = Shopware.Data;
 
 /**
  * @private
- * @package business-ops
+ * @sw-package fundamentals@after-sales
  * @description Contains some sw-base-conditions for matching all line items.
  * This component must be a child of sw-condition-tree
  * @status prototype
@@ -21,6 +21,11 @@ Component.register('sw-condition-all-line-items-container', {
             unwrapAllLineItemsCondition: this.unwrapCondition,
         };
     },
+
+    emits: [
+        'create-before',
+        'create-after',
+    ],
 
     mixins: [
         Mixin.getByName('ruleContainer'),

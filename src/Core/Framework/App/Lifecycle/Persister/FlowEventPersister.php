@@ -12,7 +12,7 @@ use Shopware\Core\Framework\Uuid\Uuid;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class FlowEventPersister
 {
     public function __construct(
@@ -73,7 +73,7 @@ class FlowEventPersister
 
         $ids = array_map(static function (string $id): array {
             return ['id' => $id];
-        }, array_values($ids));
+        }, $ids);
 
         $this->flowEventsRepository->delete($ids, $context);
     }

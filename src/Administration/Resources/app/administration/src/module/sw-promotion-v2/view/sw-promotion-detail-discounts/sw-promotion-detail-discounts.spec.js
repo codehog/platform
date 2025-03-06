@@ -1,64 +1,55 @@
 /**
- * @package buyers-experience
+ * @sw-package checkout
  */
-import { shallowMount } from '@vue/test-utils';
-import swPromotionDetailDiscounts from 'src/module/sw-promotion-v2/view/sw-promotion-detail-discounts';
-import promotionState from 'src/module/sw-promotion-v2/page/sw-promotion-v2-detail/state';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-promotion-detail-discounts', swPromotionDetailDiscounts);
-
-async function createWrapper(privileges = []) {
-    return shallowMount(await Shopware.Component.build('sw-promotion-detail-discounts'), {
-        stubs: {
-            'sw-card': true,
-            'sw-button': true,
-        },
-        provide: {
-            acl: {
-                can: (key) => {
-                    if (!key) { return true; }
-
-                    return privileges.includes(key);
+async function createWrapper() {
+    return mount(
+        await wrapTestComponent('sw-promotion-detail-discounts', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-promotion-discount-component': true,
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            search: () => Promise.resolve([]),
+                            get: () => Promise.resolve([]),
+                            create: () => {},
+                        }),
+                    },
+                },
+                mocks: {
+                    $route: {
+                        query: '',
+                    },
                 },
             },
-            repositoryFactory: {
-                create: () => ({
-                    search: () => Promise.resolve([]),
-                    get: () => Promise.resolve([]),
-                    create: () => {},
-                }),
-            },
         },
-        mocks: {
-            $route: {
-                query: '',
-            },
-        },
-    });
+    );
 }
 
 describe('src/module/sw-promotion-v2/view/sw-promotion-detail-discounts', () => {
-    beforeAll(() => {
-        Shopware.State.registerModule('swPromotionDetail', promotionState);
-    });
-
     it('should disable adding discounts when privileges not set', async () => {
+        global.activeAclRoles = [];
+
         const wrapper = await createWrapper();
 
-        const element = wrapper.find('sw-button-stub');
-
-        expect(element.exists()).toBeTruthy();
-        expect(element.attributes().disabled).toBeTruthy();
+        expect(
+            wrapper.findByText('button', 'sw-promotion.detail.main.discounts.buttonAddDiscount').attributes('disabled'),
+        ).toBeDefined();
     });
 
     it('should enable adding discounts when privilege is set', async () => {
-        const wrapper = await createWrapper([
-            'promotion.editor',
-        ]);
+        global.activeAclRoles = ['promotion.editor'];
 
-        const element = wrapper.find('sw-button-stub');
+        const wrapper = await createWrapper();
 
-        expect(element.exists()).toBeTruthy();
-        expect(element.attributes().disabled).toBeFalsy();
+        expect(
+            wrapper.findByText('button', 'sw-promotion.detail.main.discounts.buttonAddDiscount').attributes('disabled'),
+        ).toBeUndefined();
     });
 });

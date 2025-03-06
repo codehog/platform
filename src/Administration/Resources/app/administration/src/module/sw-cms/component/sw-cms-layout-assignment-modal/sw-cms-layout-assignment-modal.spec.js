@@ -1,16 +1,9 @@
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import EntityCollection from 'src/core/data/entity-collection.data';
 import Criteria from 'src/core/data/criteria.data';
-import swCmsLayoutAssignmentModal from 'src/module/sw-cms/component/sw-cms-layout-assignment-modal';
-import 'src/app/component/base/sw-tabs';
-import 'src/app/component/base/sw-tabs-item';
-import 'src/app/component/base/sw-modal';
-import 'src/app/component/utils/sw-inherit-wrapper';
-
-Shopware.Component.register('sw-cms-layout-assignment-modal', swCmsLayoutAssignmentModal);
 
 const mockCategories = [
     {
@@ -27,6 +20,27 @@ const mockCategories = [
         name: 'Garden',
         id: 'uuid3',
         cmsPageId: null,
+    },
+];
+
+const mockExtraCategories = [
+    {
+        name: 'New Category',
+        id: 'uuid4',
+        cmsPageId: null,
+        attributes: {
+            id: 'uuid4',
+        },
+        relationships: [],
+    },
+    {
+        name: 'Another New Category',
+        id: 'uuid5',
+        cmsPageId: null,
+        attributes: {
+            id: 'uuid5',
+        },
+        relationships: [],
     },
 ];
 
@@ -69,82 +83,130 @@ const mockLandingPages = [
     },
 ];
 
-async function createWrapper(layoutType = 'product_list') {
-    return shallowMount(await Shopware.Component.build('sw-cms-layout-assignment-modal'), {
-        propsData: {
-            page: {
-                categories: new EntityCollection(null, null, null, new Criteria(1, 25), mockCategories),
-                products: new EntityCollection(null, null, null, new Criteria(1, 25), mockProducts),
-                landingPages: new EntityCollection(null, null, null, new Criteria(1, 25), mockLandingPages),
-                type: layoutType,
-                id: 'uuid007',
+const responses = global.repositoryFactoryMock.responses;
+responses.addResponse({
+    method: 'Post',
+    url: '/search/category',
+    status: 200,
+    response: {
+        data: mockExtraCategories,
+    },
+});
+
+async function createWrapper(layoutType = 'product_list', systemConfigApiServiceOverrides = {}) {
+    return mount(
+        await wrapTestComponent('sw-cms-layout-assignment-modal', {
+            sync: true,
+        }),
+        {
+            attachTo: document.body,
+            props: {
+                page: {
+                    categories: new EntityCollection(null, null, Shopware.Context.api, new Criteria(1, 25), mockCategories),
+                    products: new EntityCollection(null, null, Shopware.Context.api, new Criteria(1, 25), mockProducts),
+                    landingPages: new EntityCollection(
+                        null,
+                        null,
+                        Shopware.Context.api,
+                        new Criteria(1, 25),
+                        mockLandingPages,
+                    ),
+                    type: layoutType,
+                    id: 'uuid007',
+                },
             },
-        },
-        stubs: {
-            'sw-modal': await Shopware.Component.build('sw-modal'),
-            'sw-tabs': await Shopware.Component.build('sw-tabs'),
-            'sw-button': {
-                template: '<div class="sw-button" @click="$emit(\'click\')"></div>',
-            },
-            'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
-            'sw-category-tree-field': true,
-            'sw-inherit-wrapper': await Shopware.Component.build('sw-inherit-wrapper'),
-            'sw-entity-single-select': {
-                props: ['value'],
-                template: `
+            global: {
+                stubs: {
+                    'sw-tabs': await wrapTestComponent('sw-tabs'),
+                    'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                    'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                    'sw-category-tree-field': {
+                        template: `
+                        <div class="sw-category-tree-field-stub">
+                          <div class="sw-category-tree-field-label" @click="$emit(\'categories-load-more\')"></div>
+                        </div>
+                    `,
+                    },
+                    'sw-entity-single-select': {
+                        props: ['value'],
+                        template: `
                         <input
+                           class="sw-entity-single-select"
                            value="value"
-                           @change="$emit(\'change\', $event.target.value)"
-                           class="sw-entity-single-select" />
+                           @change="$emit(\'update:value\', this.value)"
+                        />
                       `,
+                    },
+                    'sw-multi-select': true,
+                    'sw-entity-multi-select': true,
+                    'sw-loader': true,
+                    'sw-cms-product-assignment': {
+                        template: `
+                        <div class="sw-cms-product-assignment">
+                            <slot name="content"></slot>
+                            <slot
+                                name="empty-state">
+                                <img
+                                    :src="assetFilter('/administration/static/img/empty-states/products-empty-state.svg')"
+                                    alt=""
+                                >
+                                <p>{{ $tc('sw-cms.components.cmsLayoutAssignmentModal.products.productAssignmentEmptyStateDescription') }}</p>
+                            </slot>
+                        </div>
+                    `,
+                    },
+                    'sw-inheritance-switch': true,
+                    'sw-label': true,
+                    transition: false,
+                    'router-link': true,
+                    'sw-extension-component-section': true,
+                    'sw-product-variant-info': true,
+                    'sw-help-text': true,
+                    'sw-inherit-wrapper': true,
+                },
+                provide: {
+                    systemConfigApiService: {
+                        getValues: jest.fn((domain, salesChannelId) => {
+                            if (salesChannelId === null) {
+                                return Promise.resolve({
+                                    'core.basicInformation.contactPage': 'uuid007',
+                                    'core.basicInformation.imprintPage': 'uuid2',
+                                    'core.basicInformation.revocationPage': 'uuid3',
+                                    'core.basicInformation.newsletterPage': 'uuid007',
+                                });
+                            }
+
+                            if (salesChannelId === 'storefront_id') {
+                                return Promise.resolve({
+                                    'core.basicInformation.contactPage': 'uuid007',
+                                    'core.basicInformation.imprintPage': 'uuid2',
+                                    'core.basicInformation.revocationPage': 'uuid3',
+                                });
+                            }
+
+                            if (salesChannelId === 'headless_id') {
+                                return Promise.resolve({
+                                    'core.basicInformation.contactPage': 'uuid1',
+                                    'core.basicInformation.imprintPage': 'uuid2',
+                                    'core.basicInformation.revocationPage': 'uuid3',
+                                });
+                            }
+
+                            return Promise.resolve({});
+                        }),
+                        saveValues: jest.fn(() => Promise.resolve()),
+                        batchSave: jest.fn(() => Promise.resolve()),
+                        ...systemConfigApiServiceOverrides,
+                    },
+                    shortcutService: {
+                        stopEventListener: () => {},
+                        startEventListener: () => {},
+                    },
+                },
+                languageId: 'idontcare',
             },
-            'sw-multi-select': true,
-            'sw-entity-multi-select': true,
-            'sw-loader': true,
-            'sw-icon': true,
-            'sw-cms-product-assignment': true,
-            'sw-inheritance-switch': true,
-            transition: false,
         },
-        provide: {
-            systemConfigApiService: {
-                getValues: jest.fn((domain, salesChannelId) => {
-                    if (salesChannelId === null) {
-                        return Promise.resolve({
-                            'core.basicInformation.contactPage': 'uuid007',
-                            'core.basicInformation.imprintPage': 'uuid2',
-                            'core.basicInformation.revocationPage': 'uuid3',
-                            'core.basicInformation.newsletterPage': 'uuid007',
-                        });
-                    }
-
-                    if (salesChannelId === 'storefront_id') {
-                        return Promise.resolve({
-                            'core.basicInformation.contactPage': 'uuid007',
-                            'core.basicInformation.imprintPage': 'uuid2',
-                            'core.basicInformation.revocationPage': 'uuid3',
-                        });
-                    }
-
-                    if (salesChannelId === 'headless_id') {
-                        return Promise.resolve({
-                            'core.basicInformation.contactPage': 'uuid1',
-                            'core.basicInformation.imprintPage': 'uuid2',
-                            'core.basicInformation.revocationPage': 'uuid3',
-                        });
-                    }
-
-                    return Promise.resolve({});
-                }),
-                saveValues: jest.fn(() => Promise.resolve()),
-                batchSave: jest.fn(() => Promise.resolve()),
-            },
-            shortcutService: {
-                stopEventListener: () => {},
-                startEventListener: () => {},
-            },
-        },
-    });
+    );
 }
 
 describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
@@ -175,8 +237,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
     it('should disable shop pages tab with missing system config permission', async () => {
         const wrapper = await createWrapper('page');
 
-        expect(wrapper.find('.sw-cms-layout-assignment-modal__tab-shop-pages')
-            .classes('sw-tabs-item--is-disabled')).toBeTruthy();
+        expect(
+            wrapper.find('.sw-cms-layout-assignment-modal__tab-shop-pages').classes('sw-tabs-item--is-disabled'),
+        ).toBeTruthy();
     });
 
     it('should not render tabs when type is not shop page', async () => {
@@ -193,14 +256,19 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         const wrapper = await createWrapper();
 
         expect(wrapper.vm.previousCategories).toEqual(mockCategories);
-        expect(wrapper.vm.previousCategoryIds).toEqual(expect.arrayContaining(['uuid1', 'uuid2']));
+        expect(wrapper.vm.previousCategoryIds).toEqual(
+            expect.arrayContaining([
+                'uuid1',
+                'uuid2',
+            ]),
+        );
     });
 
     it('should add categories', async () => {
         const wrapper = await createWrapper();
-
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 categories: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     ...mockCategories,
                     {
@@ -214,23 +282,23 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for main modal
-
-        expect(wrapper.vm.page.categories).toEqual(expect.arrayContaining([
-            {
-                name: 'New category',
-                id: 'uuid4',
-            },
-        ]));
+        expect(wrapper.vm.page.categories).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'New category',
+                    id: 'uuid4',
+                },
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toEqual([[true]]);
     });
 
     it('should add a category which already has a different assigned layout', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 categories: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     ...mockCategories,
                     {
@@ -250,41 +318,38 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because one new category has already an assigned layout
-        expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
-        expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-assigned-layouts')
-            .exists()).toBeTruthy();
+        expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBe(true);
+        expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-assigned-layouts').exists()).toBe(true);
+        expect(wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').exists()).toBe(true);
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
+        await flushPromises();
 
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for warning modal to close
-        await wrapper.vm.$nextTick(); // Wait for main modal to close
-
-        expect(wrapper.vm.page.categories).toEqual(expect.arrayContaining([
-            {
-                name: 'New category',
-                id: 'uuid4',
-                cmsPageId: 'totallyDifferentId',
-            },
-            {
-                name: 'Also very new category',
-                id: 'uuid4',
-                cmsPageId: null,
-            },
-        ]));
+        expect(wrapper.vm.page.categories).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'New category',
+                    id: 'uuid4',
+                    cmsPageId: 'totallyDifferentId',
+                },
+                {
+                    name: 'Also very new category',
+                    id: 'uuid4',
+                    cmsPageId: null,
+                },
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
 
     it('should remove categories and confirm', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 categories: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Computers',
@@ -300,19 +365,13 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed category
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-categories').exists()).toBeTruthy();
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
-
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for warning modal to close
-        await wrapper.vm.$nextTick(); // Wait for main modal to close
+        await flushPromises();
 
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
@@ -320,8 +379,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
     it('should remove categories but discard changes', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 categories: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Computers',
@@ -337,18 +397,12 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed category
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-categories').exists()).toBeTruthy();
 
         // Discard changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-discard').trigger('click');
-
-        // Wait for warning modal to disappear
-        await wrapper.vm.$nextTick();
 
         // Verify categories are restored to initial categories
         expect(wrapper.vm.page.categories).toEqual(expect.arrayContaining(mockCategories));
@@ -358,8 +412,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
     it('should remove categories but keep editing', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 categories: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Computers',
@@ -376,9 +431,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed category
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-categories').exists()).toBeTruthy();
@@ -387,16 +439,18 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         await wrapper.find('.sw-cms-layout-assignment-modal__action-keep-editing').trigger('click');
 
         // Verify categories are still the same modified categories
-        expect(wrapper.vm.page.categories).toEqual(expect.arrayContaining([
-            {
-                name: 'Computers',
-                id: 'uuid1',
-            },
-            {
-                name: 'Home',
-                id: 'uuid2',
-            },
-        ]));
+        expect(wrapper.vm.page.categories).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'Computers',
+                    id: 'uuid1',
+                },
+                {
+                    name: 'Home',
+                    id: 'uuid2',
+                },
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toBeUndefined();
     });
 
@@ -404,10 +458,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         global.activeAclRoles = ['system.system_config'];
 
         const wrapper = await createWrapper('page');
-
-        await wrapper.vm.$nextTick(); // Wait for shop pages to load
-        await wrapper.vm.$nextTick(); // Wait for shop pages to be converted
-
         await wrapper.setData({
             selectedShopPages: {
                 null: [
@@ -417,49 +467,50 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
                 ],
             },
         });
+        await flushPromises();
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
-
-        await wrapper.vm.$nextTick(); // Wait for shop page request
-        await wrapper.vm.$nextTick(); // Wait for isLoading to finish
 
         // Change warning should not appear when adding new shop pages
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeFalsy();
 
         expect(wrapper.vm.systemConfigApiService.batchSave).toHaveBeenCalledTimes(1);
-        expect(wrapper.vm.systemConfigApiService.batchSave).toHaveBeenCalledWith(
-            {
-                null: {
-                    'core.basicInformation.contactPage': 'uuid007',
-                    'core.basicInformation.newsletterPage': 'uuid007',
-                    'core.basicInformation.imprintPage': 'uuid007', // New shop page should be in api request
-                },
+        expect(wrapper.vm.systemConfigApiService.batchSave).toHaveBeenCalledWith({
+            null: {
+                'core.basicInformation.contactPage': 'uuid007',
+                'core.basicInformation.newsletterPage': 'uuid007',
+                'core.basicInformation.imprintPage': 'uuid007', // New shop page should be in api request
             },
-        );
+        });
 
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
 
-    it('should remove shop pages and save', async () => {
+    it('should remove shop pages and save, when data can be iterated', async () => {
         global.activeAclRoles = ['system.system_config'];
 
         const wrapper = await createWrapper('page');
-
-        await wrapper.vm.$nextTick(); // Wait for shop pages to load
-        await wrapper.vm.$nextTick(); // Wait for shop pages to be converted
-
         await wrapper.setData({
             selectedShopPages: {
                 null: [
                     'core.basicInformation.contactPage',
                 ],
+                'storefront_test-id': null,
+            },
+            previousShopPages: {
+                null: [
+                    'core.basicInformation.contactPage',
+                    'core.basicInformation.newsletterPage',
+                ],
+                'storefront_test-id': null,
             },
         });
+        await flushPromises();
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
         // Wait for warning modal
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         // Change warning should appear because of deleted shop page
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
@@ -467,24 +518,51 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
-
-        await wrapper.vm.$nextTick(); // Wait for warning modal to disappear
-        await wrapper.vm.$nextTick(); // Wait for shop page request
-        await wrapper.vm.$nextTick(); // Wait for isLoading to finish
+        await flushPromises();
 
         // Change warning should be gone
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeFalsy();
         expect(wrapper.vm.systemConfigApiService.batchSave).toHaveBeenCalledTimes(1);
-        expect(wrapper.vm.systemConfigApiService.batchSave).toHaveBeenCalledWith(
-            {
-                null: {
-                    'core.basicInformation.contactPage': 'uuid007',
-                    'core.basicInformation.newsletterPage': null, // Set removed item to null
-                },
+        expect(wrapper.vm.systemConfigApiService.batchSave).toHaveBeenCalledWith({
+            null: {
+                'core.basicInformation.contactPage': 'uuid007',
+                'core.basicInformation.newsletterPage': null, // Set removed item to null
             },
-        );
+            'storefront_test-id': {},
+        });
 
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
+    });
+
+    const checkErrorHandlingDataProvider = [
+        'saveShopPages',
+        'loadSystemConfig',
+    ];
+    it.each(checkErrorHandlingDataProvider)('should catch error, when executing %s fails', async (systemConfigFunction) => {
+        global.activeAclRoles = ['system.system_config'];
+
+        const wrapper = await createWrapper('page', {
+            batchSave: jest.fn(() => Promise.reject()),
+            getValues: jest.fn(() => Promise.reject()),
+        });
+        wrapper.vm.createNotificationError = jest.fn();
+        const notificationMock = wrapper.vm.createNotificationError;
+
+        await wrapper.vm[systemConfigFunction]();
+
+        expect(notificationMock).toHaveBeenCalled();
+    });
+
+    it('should show an empty state, when product_detail page has no products', async () => {
+        global.activeAclRoles = ['system.system_config'];
+
+        const wrapper = await createWrapper('product_detail');
+        await wrapper.setProps({
+            products: new EntityCollection('/products', 'products', null, new Criteria(1, 25), mockProducts),
+        });
+        await flushPromises();
+
+        expect(wrapper.find('.sw-cms-product-assignment__empty-state').exists()).toBeTruthy();
     });
 
     it('should remove shop pages but discard changes', async () => {
@@ -492,8 +570,7 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         const wrapper = await createWrapper('page');
 
-        await wrapper.vm.$nextTick(); // Wait for shop pages to load
-        await wrapper.vm.$nextTick(); // Wait for shop pages to be converted
+        await flushPromises();
 
         await wrapper.setData({
             selectedShopPages: {
@@ -506,18 +583,12 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of deleted shop page
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-shop-pages').exists()).toBeTruthy();
 
         // Discard changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-discard').trigger('click');
-
-        // Wait for warning modal to disappear
-        await wrapper.vm.$nextTick();
 
         // Change warning should be gone
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeFalsy();
@@ -540,10 +611,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         global.activeAclRoles = ['system.system_config'];
 
         const wrapper = await createWrapper('page');
-
-        // Wait for system config to load
-        await wrapper.vm.$nextTick();
-
         expect(wrapper.vm.selectedShopPages.null).toEqual([
             'core.basicInformation.contactPage',
             'core.basicInformation.newsletterPage',
@@ -558,9 +625,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Select shop page tab
         await wrapper.find('.sw-cms-layout-assignment-modal__tab-shop-pages').trigger('click');
 
-        // Wait for tab content to open
-        await wrapper.vm.$nextTick();
-
         // Set new sales channel id
         await wrapper.setData({
             shopPageSalesChannelId: 'storefront_id',
@@ -568,9 +632,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         // Trigger sales channel select change
         await wrapper.find('.sw-cms-layout-assignment-modal__sales-channel-select').trigger('change');
-
-        // Wait for system config to be loaded
-        await wrapper.vm.$nextTick();
 
         expect(wrapper.vm.selectedShopPages.storefront_id).toEqual([
             'core.basicInformation.contactPage',
@@ -585,9 +646,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Select shop page tab
         await wrapper.find('.sw-cms-layout-assignment-modal__tab-shop-pages').trigger('click');
 
-        // Wait for tab content to open
-        await wrapper.vm.$nextTick();
-
         // Set new sales channel id
         await wrapper.setData({
             shopPageSalesChannelId: 'headless_id',
@@ -595,9 +653,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         // Trigger sales channel select change
         await wrapper.find('.sw-cms-layout-assignment-modal__sales-channel-select').trigger('change');
-
-        // Wait for system config to be loaded
-        await wrapper.vm.$nextTick();
 
         // Value should be null for inheritance switch
         expect(wrapper.vm.selectedShopPages.headless_id).toBeNull();
@@ -611,9 +666,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         // Select shop page tab
         await wrapper.find('.sw-cms-layout-assignment-modal__tab-shop-pages').trigger('click');
-
-        // Wait for tab content to open
-        await wrapper.vm.$nextTick();
 
         // Trigger sales channel select change
         await wrapper.find('.sw-cms-layout-assignment-modal__sales-channel-select').trigger('change');
@@ -694,14 +746,20 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         const wrapper = await createWrapper('product_detail');
 
         expect(wrapper.vm.previousProducts).toEqual(mockProducts);
-        expect(wrapper.vm.previousProductIds).toEqual(expect.arrayContaining(['uuid1', 'uuid2']));
+        expect(wrapper.vm.previousProductIds).toEqual(
+            expect.arrayContaining([
+                'uuid1',
+                'uuid2',
+            ]),
+        );
     });
 
     it('should add products', async () => {
         const wrapper = await createWrapper('product_detail');
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 products: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     ...mockProducts,
                     {
@@ -715,23 +773,23 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for main modal
-
-        expect(wrapper.vm.page.products).toEqual(expect.arrayContaining([
-            {
-                name: 'New product',
-                id: 'uuid4',
-            },
-        ]));
+        expect(wrapper.vm.page.products).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'New product',
+                    id: 'uuid4',
+                },
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
 
     it('should add a product which already has a different assigned layout', async () => {
         const wrapper = await createWrapper('product_detail');
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 products: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     ...mockProducts,
                     {
@@ -751,41 +809,39 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because one new category has already an assigned layout
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
-        expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-products-assigned-layouts')
-            .exists()).toBeTruthy();
+        expect(
+            wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-products-assigned-layouts').exists(),
+        ).toBeTruthy();
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
+        await flushPromises();
 
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for warning modal to close
-        await wrapper.vm.$nextTick(); // Wait for main modal to close
-
-        expect(wrapper.vm.page.products).toEqual(expect.arrayContaining([
-            {
-                name: 'New product',
-                id: 'uuid4',
-                cmsPageId: 'differentId',
-            },
-            {
-                name: 'Also new product',
-                id: 'uuid5',
-                cmsPageId: null,
-            },
-        ]));
+        expect(wrapper.vm.page.products).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'New product',
+                    id: 'uuid4',
+                    cmsPageId: 'differentId',
+                },
+                {
+                    name: 'Also new product',
+                    id: 'uuid5',
+                    cmsPageId: null,
+                },
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
 
     it('should remove products and save the changes', async () => {
         const wrapper = await createWrapper('product_detail');
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 products: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Product 1',
@@ -800,9 +856,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         });
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
-
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
 
         // Change warning should appear because of removed category
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
@@ -810,10 +863,7 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
-
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for warning modal to close
-        await wrapper.vm.$nextTick(); // Wait for main modal to close
+        await flushPromises();
 
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
@@ -821,8 +871,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
     it('should remove products but discard changes', async () => {
         const wrapper = await createWrapper('product_detail');
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 products: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Product 1',
@@ -837,9 +888,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         });
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
-
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
 
         // Change warning should appear because of removed category
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
@@ -856,8 +904,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
     it('should remove products but keep editing', async () => {
         const wrapper = await createWrapper('product_detail');
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 products: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Product 1',
@@ -874,9 +923,6 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed category
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-products').exists()).toBeTruthy();
@@ -885,16 +931,18 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         await wrapper.find('.sw-cms-layout-assignment-modal__action-keep-editing').trigger('click');
 
         // Verify categories are still the same modified categories
-        expect(wrapper.vm.page.products).toEqual(expect.arrayContaining([
-            {
-                name: 'Product 1',
-                id: 'uuid1',
-            },
-            {
-                name: 'Product 1',
-                id: 'uuid2',
-            },
-        ]));
+        expect(wrapper.vm.page.products).toEqual(
+            expect.arrayContaining([
+                {
+                    name: 'Product 1',
+                    id: 'uuid1',
+                },
+                {
+                    name: 'Product 1',
+                    id: 'uuid2',
+                },
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toBeUndefined();
     });
 
@@ -910,8 +958,13 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         const wrapper = await createWrapper('landingpage');
 
         expect(wrapper.vm.previousLandingPages).toEqual(mockLandingPages);
-        expect(wrapper.vm.previousLandingPageIds)
-            .toEqual(expect.arrayContaining(['uuidLand1', 'uuidLand2', 'uuidLand3']));
+        expect(wrapper.vm.previousLandingPageIds).toEqual(
+            expect.arrayContaining([
+                'uuidLand1',
+                'uuidLand2',
+                'uuidLand3',
+            ]),
+        );
     });
 
     it('should add landing pages', async () => {
@@ -921,8 +974,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
             id: 'uuidLand4',
         };
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 landingPages: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     ...mockLandingPages,
                     newPage,
@@ -930,15 +984,12 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
             },
         });
 
-        // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
-
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for main modal
-
-        expect(wrapper.vm.page.landingPages).toEqual(expect.arrayContaining([
-            newPage,
-        ]));
+        expect(wrapper.vm.page.landingPages).toEqual(
+            expect.arrayContaining([
+                newPage,
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
 
@@ -957,8 +1008,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
             cmsPageId: 'totallyDifferentId',
         };
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 landingPages: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     ...mockLandingPages,
                     newPage1,
@@ -970,32 +1022,29 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because one new category has already an assigned layout
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-assigned-layouts').exists()).toBeTruthy();
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
+        await flushPromises();
 
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for warning modal to close
-        await wrapper.vm.$nextTick(); // Wait for main modal to close
-
-        expect(wrapper.vm.page.landingPages).toEqual(expect.arrayContaining([
-            newPage1,
-            newPage2,
-        ]));
+        expect(wrapper.vm.page.landingPages).toEqual(
+            expect.arrayContaining([
+                newPage1,
+                newPage2,
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
 
     it('should remove landing pages and save', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 landingPages: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Computers',
@@ -1011,19 +1060,13 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed landing page
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-landing-pages').exists()).toBeTruthy();
 
         // Confirm changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-confirm').trigger('click');
-
-        await wrapper.vm.$nextTick(); // Wait for validation
-        await wrapper.vm.$nextTick(); // Wait for warning modal to close
-        await wrapper.vm.$nextTick(); // Wait for main modal to close
+        await flushPromises();
 
         expect(wrapper.emitted('modal-close')).toStrictEqual([[true]]);
     });
@@ -1031,8 +1074,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
     it('should remove landing pages but discard changes', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 landingPages: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     {
                         name: 'Computers',
@@ -1048,18 +1092,12 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
 
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed landing page
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-landing-pages').exists()).toBeTruthy();
 
         // Discard changes
         await wrapper.find('.sw-cms-layout-assignment-modal__action-changes-discard').trigger('click');
-
-        // Wait for warning modal to disappear
-        await wrapper.vm.$nextTick();
 
         // Verify landing pages are restored to initial landing pages
         expect(wrapper.vm.page.landingPages).toEqual(expect.arrayContaining(mockLandingPages));
@@ -1077,8 +1115,9 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
             id: 'uuid2',
         };
 
-        await wrapper.setData({
+        await wrapper.setProps({
             page: {
+                ...wrapper.vm.page,
                 landingPages: new EntityCollection(null, null, null, new Criteria(1, 25), [
                     page1,
                     page2,
@@ -1089,22 +1128,33 @@ describe('module/sw-cms/component/sw-cms-layout-assignment-modal', () => {
         // Confirm
         await wrapper.find('.sw-cms-layout-assignment-modal__action-confirm').trigger('click');
 
-        // Wait for warning modal
-        await wrapper.vm.$nextTick();
-
         // Change warning should appear because of removed landing pages
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-changes-modal').exists()).toBeTruthy();
         expect(wrapper.find('.sw-cms-layout-assignment-modal__confirm-text-landing-pages').exists()).toBeTruthy();
 
         // Keep editing
         await wrapper.find('.sw-cms-layout-assignment-modal__action-keep-editing').trigger('click');
-        await flushPromises();
 
         // Verify landing pages are still the same modified landing pages
-        expect(wrapper.vm.page.landingPages).toEqual(expect.arrayContaining([
-            page1,
-            page2,
-        ]));
+        expect(wrapper.vm.page.landingPages).toEqual(
+            expect.arrayContaining([
+                page1,
+                page2,
+            ]),
+        );
         expect(wrapper.emitted('modal-close')).toBeUndefined();
+    });
+
+    it('should increment categoryIndex and update page.categories', async () => {
+        const wrapper = await createWrapper();
+
+        expect(wrapper.vm.categoryIndex).toBe(1);
+        expect(wrapper.vm.page.categories).toHaveLength(3);
+
+        await wrapper.find('.sw-category-tree-field-label').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.vm.categoryIndex).toBe(2);
+        expect(wrapper.vm.page.categories).toHaveLength(5);
     });
 });

@@ -1,14 +1,14 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-login-recovery-recovery.html.twig';
 
-const { Component, Mixin, State } = Shopware;
+const { Component, Mixin } = Shopware;
 const { mapPropertyErrors } = Component.getComponentHelper();
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-login-recovery-recovery', {
     template,
@@ -50,8 +50,7 @@ Component.register('sw-login-recovery-recovery', {
     watch: {
         hashValid(val) {
             if (val === true) {
-                this.$nextTick(() => this.$refs.swLoginRecoveryRecoveryNewPasswordField
-                    .$el.querySelector('input')?.focus());
+                this.$nextTick(() => this.$refs.swLoginRecoveryRecoveryNewPasswordField.$el.querySelector('input')?.focus());
             }
         },
     },
@@ -62,11 +61,14 @@ Component.register('sw-login-recovery-recovery', {
 
     methods: {
         createdComponent() {
-            this.userRecoveryService.checkHash(this.hash).then(() => {
-                this.hashValid = true;
-            }).catch(() => {
-                this.hashValid = false;
-            });
+            this.userRecoveryService
+                .checkHash(this.hash)
+                .then(() => {
+                    this.hashValid = true;
+                })
+                .catch(() => {
+                    this.hashValid = false;
+                });
         },
 
         validatePasswords() {
@@ -83,22 +85,21 @@ Component.register('sw-login-recovery-recovery', {
 
         updatePassword() {
             if (this.validatePasswords()) {
-                this.userRecoveryService.updateUserPassword(
-                    this.hash,
-                    this.newPassword,
-                    this.newPasswordConfirm,
-                ).then(() => {
-                    this.$router.push({ name: 'sw.login.index' });
-                }).catch((error) => {
-                    State.dispatch('error/addApiError', {
-                        expression: `user.${this.hash}.password`,
-                        error: new Shopware.Classes.ShopwareError(error.response.data.errors[0]),
-                    });
+                this.userRecoveryService
+                    .updateUserPassword(this.hash, this.newPassword, this.newPasswordConfirm)
+                    .then(() => {
+                        this.$router.push({ name: 'sw.login.index' });
+                    })
+                    .catch((error) => {
+                        Shopware.Store.get('error').addApiError({
+                            expression: `user.${this.hash}.password`,
+                            error: new Shopware.Classes.ShopwareError(error.response.data.errors[0]),
+                        });
 
-                    this.createNotificationError({
-                        message: error.message,
+                        this.createNotificationError({
+                            message: error.message,
+                        });
                     });
-                });
             }
         },
     },

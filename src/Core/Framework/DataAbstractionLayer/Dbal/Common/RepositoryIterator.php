@@ -14,7 +14,7 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @template TEntityCollection of EntityCollection
  */
-#[Package('core')]
+#[Package('framework')]
 class RepositoryIterator
 {
     private readonly Criteria $criteria;
@@ -92,7 +92,7 @@ class RepositoryIterator
             throw new \RuntimeException('Expected string as last element of ids array');
         }
 
-        $increment = $ids->getDataFieldOfId($last, 'autoIncrement');
+        $increment = $ids->getDataFieldOfId($last, 'autoIncrement') ?? 0;
         $this->criteria->setFilter('increment', new RangeFilter('autoIncrement', [RangeFilter::GT => $increment]));
 
         return $values;

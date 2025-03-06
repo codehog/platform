@@ -1,3 +1,7 @@
+/**
+ * @sw-package framework
+ */
+
 import template from './sw-shortcut-overview.html.twig';
 import './sw-shortcut-overview.scss';
 
@@ -5,10 +9,15 @@ const { Component } = Shopware;
 const utils = Shopware.Utils;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-shortcut-overview', {
     template,
+
+    emits: [
+        'shortcut-open',
+        'shortcut-close',
+    ],
 
     shortcuts: {
         '?': 'onOpenShortcutOverviewModal',
@@ -149,7 +158,6 @@ Component.register('sw-shortcut-overview', {
                         content: this.$tc('sw-shortcut-overview.keyboardShortcutGoToPlugins'),
                         privilege: 'system.plugin_maintain',
                     },
-
                 ],
 
                 specialShortcuts: [
@@ -209,10 +217,12 @@ Component.register('sw-shortcut-overview', {
     methods: {
         onOpenShortcutOverviewModal() {
             this.showShortcutOverviewModal = true;
+            this.$emit('shortcut-open');
         },
 
         onCloseShortcutOverviewModal() {
             this.showShortcutOverviewModal = false;
+            this.$emit('shortcut-close');
         },
     },
 });

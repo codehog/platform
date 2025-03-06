@@ -1,15 +1,12 @@
-import { shallowMount } from '@vue/test-utils';
-import swOrderSelectDocumentTypeModal from 'src/module/sw-order/component/sw-order-select-document-type-modal';
+import { mount } from '@vue/test-utils';
 import 'src/app/component/base/sw-button';
 import 'src/app/component/form/sw-radio-field';
 import 'src/app/component/form/field-base/sw-base-field';
 import EntityCollection from 'src/core/data/entity-collection.data';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
-
-Shopware.Component.register('sw-order-select-document-type-modal', swOrderSelectDocumentTypeModal);
 
 const orderFixture = {
     id: '1234',
@@ -83,37 +80,47 @@ const documentTypeFixture = [
 ];
 
 async function createWrapper(customData = {}) {
-    return shallowMount(await Shopware.Component.build('sw-order-select-document-type-modal'), {
-        stubs: {
-            'sw-modal': {
-                template: '<div class="sw-modal"><slot></slot><slot name="modal-footer"></slot></div>',
-            },
-            'sw-radio-field': await Shopware.Component.build('sw-radio-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-field-error': true,
-            'sw-help-text': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: (entity) => ({
-                    search: () => {
-                        if (entity === 'document_type') {
-                            return Promise.resolve(getCollection('document_type', documentTypeFixture));
-                        }
-
-                        return Promise.resolve([]);
+    return mount(
+        await wrapTestComponent('sw-order-select-document-type-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-modal': {
+                        template: '<div class="sw-modal"><slot></slot><slot name="modal-footer"></slot></div>',
                     },
-                    searchIds: () => Promise.resolve(getCollection('document', customData.documents || [])),
-                    get: () => Promise.resolve({}),
-                }),
+                    'sw-radio-field': await wrapTestComponent('sw-radio-field'),
+                    'sw-base-field': await wrapTestComponent('sw-base-field'),
+                    'sw-field-error': true,
+                    'sw-help-text': true,
+                    'router-link': true,
+                    'sw-loader': true,
+                    'sw-inheritance-switch': true,
+                    'sw-ai-copilot-badge': true,
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: (entity) => ({
+                            search: () => {
+                                if (entity === 'document_type') {
+                                    return Promise.resolve(getCollection('document_type', documentTypeFixture));
+                                }
+
+                                return Promise.resolve([]);
+                            },
+                            searchIds: () => Promise.resolve(getCollection('document', customData.documents || [])),
+                            get: () => Promise.resolve({}),
+                        }),
+                    },
+                },
+            },
+            props: {
+                order: { ...orderFixture, ...customData.order },
+                value: {},
             },
         },
-        propsData: {
-            order: { ...orderFixture, ...customData.order },
-            value: {},
-        },
-    });
+    );
 }
 
 describe('src/module/sw-order/component/sw-order-select-document-type-modal', () => {
@@ -127,31 +134,26 @@ describe('src/module/sw-order/component/sw-order-select-document-type-modal', ()
         await flushPromises();
 
         const documentTypeRadioOptions = wrapper.findAll('.sw-field__radio-option');
-        expect(documentTypeRadioOptions.wrappers).toHaveLength(4);
+        expect(documentTypeRadioOptions).toHaveLength(4);
 
         // Delivery note
-        expect(documentTypeRadioOptions.at(0).find('input')
-            .attributes().disabled).toBeUndefined();
+        expect(documentTypeRadioOptions[0].find('input').attributes().disabled).toBeUndefined();
 
         // Invoice
-        expect(documentTypeRadioOptions.at(1).find('input')
-            .attributes().disabled).toBeUndefined();
+        expect(documentTypeRadioOptions[1].find('input').attributes().disabled).toBeUndefined();
 
         // Cancellation invoice
-        expect(documentTypeRadioOptions.at(2).find('input')
-            .attributes().disabled).toBe('disabled');
+        expect(documentTypeRadioOptions[2].find('input').element.disabled).toBe(true);
 
         // Credit note
-        expect(documentTypeRadioOptions.at(3).find('input')
-            .attributes().disabled).toBe('disabled');
+        expect(documentTypeRadioOptions[3].find('input').element.disabled).toBe(true);
 
-        const helpTextStorno = documentTypeRadioOptions.at(2).find('sw-help-text-stub');
-        expect(helpTextStorno.attributes().text)
-            .toBe('sw-order.components.selectDocumentTypeModal.helpText.storno');
+        const helpTextStorno = documentTypeRadioOptions[2].findComponent('sw-help-text-stub');
+
+        expect(helpTextStorno.attributes().text).toBe('sw-order.components.selectDocumentTypeModal.helpText.storno');
 
         const helpTextCredit = documentTypeRadioOptions.at(3).find('sw-help-text-stub');
-        expect(helpTextCredit.attributes().text)
-            .toBe('sw-order.components.selectDocumentTypeModal.helpText.credit_note');
+        expect(helpTextCredit.attributes().text).toBe('sw-order.components.selectDocumentTypeModal.helpText.credit_note');
     });
 
     it('should enable cancellation invoice if there is at least one invoice exists', async () => {
@@ -159,23 +161,19 @@ describe('src/module/sw-order/component/sw-order-select-document-type-modal', ()
         await flushPromises();
 
         const documentTypeRadioOptions = wrapper.findAll('.sw-field__radio-option');
-        expect(documentTypeRadioOptions.wrappers).toHaveLength(4);
+        expect(documentTypeRadioOptions).toHaveLength(4);
 
         // Delivery note
-        expect(documentTypeRadioOptions.at(0).find('input')
-            .attributes().disabled).toBeUndefined();
+        expect(documentTypeRadioOptions.at(0).find('input').attributes().disabled).toBeUndefined();
 
         // Invoice
-        expect(documentTypeRadioOptions.at(1).find('input')
-            .attributes().disabled).toBeUndefined();
+        expect(documentTypeRadioOptions.at(1).find('input').attributes().disabled).toBeUndefined();
 
         // Cancellation invoice
-        expect(documentTypeRadioOptions.at(2).find('input')
-            .attributes().disabled).toBeUndefined();
+        expect(documentTypeRadioOptions.at(2).find('input').attributes().disabled).toBeUndefined();
 
         // Credit note
-        expect(documentTypeRadioOptions.at(3).find('input')
-            .attributes().disabled).toBe('disabled');
+        expect(documentTypeRadioOptions.at(3).find('input').element.disabled).toBe(true);
     });
 
     it('should enable credit note if there is at least one invoice exists and order has credit item', async () => {
@@ -214,11 +212,10 @@ describe('src/module/sw-order/component/sw-order-select-document-type-modal', ()
         await flushPromises();
 
         const documentTypeRadioOptions = wrapper.findAll('.sw-field__radio-option');
-        expect(documentTypeRadioOptions.wrappers).toHaveLength(4);
+        expect(documentTypeRadioOptions).toHaveLength(4);
 
-        documentTypeRadioOptions.wrappers.forEach(option => {
-            expect(option.find('input')
-                .attributes().disabled).toBeUndefined();
+        documentTypeRadioOptions.forEach((option) => {
+            expect(option.find('input').attributes().disabled).toBeUndefined();
         });
     });
 });

@@ -71,6 +71,7 @@
             <argument type="service" id="Shopware\Core\Checkout\Promotion\Gateway\PromotionGateway"/>
             <argument type="service" id="Shopware\Core\Checkout\Promotion\Cart\PromotionItemBuilder"/>
             <argument type="service" id="Shopware\Core\Framework\Util\HtmlSanitizer"/>
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
             <!-- // inject after product collector(5000) -->
             <tag name="shopware.cart.collector" priority="4900"/>
         </service>
@@ -120,6 +121,7 @@
         <!-- API CONTROLLERS -->
         <service id="Shopware\Core\Checkout\Promotion\Api\PromotionActionController" public="true">
             <argument type="service" id="Shopware\Core\Checkout\Cart\LineItem\Group\LineItemGroupServiceRegistry"/>
+            <argument type="service" id="Shopware\Core\Checkout\Promotion\Cart\Discount\Filter\FilterServiceRegistry"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
@@ -145,8 +147,8 @@
         </service>
 
         <service id="Shopware\Core\Checkout\Promotion\Cart\Discount\Filter\FilterServiceRegistry">
-            <argument type="tagged" tag="promotion.filter.sorter"/>
-            <argument type="tagged" tag="promotion.filter.picker"/>
+            <argument type="tagged_iterator" tag="promotion.filter.sorter"/>
+            <argument type="tagged_iterator" tag="promotion.filter.picker"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Promotion\Cart\Discount\Filter\Sorter\FilterSorterPriceAsc">
@@ -173,6 +175,7 @@
 
         <service id="Shopware\Core\Checkout\Promotion\Subscriber\PromotionIndividualCodeRedeemer">
             <argument type="service" id="promotion_individual_code.repository"/>
+            <argument type="service" id="order_customer.repository"/>
 
             <tag name="kernel.event_subscriber"/>
         </service>

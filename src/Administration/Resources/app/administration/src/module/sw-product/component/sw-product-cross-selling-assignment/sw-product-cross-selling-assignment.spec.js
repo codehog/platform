@@ -1,15 +1,8 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-product-variant-info';
-import 'src/app/component/data-grid/sw-data-grid';
-import swProductCrossSellingAssignment from 'src/module/sw-product/component/sw-product-cross-selling-assignment';
-
-Shopware.Component.register('sw-product-cross-selling-assignment', swProductCrossSellingAssignment);
-
-const { State } = Shopware;
+import { mount } from '@vue/test-utils';
 
 const productMock = {
     id: 'productId',
@@ -53,62 +46,59 @@ const variantProductsMock = [
 ];
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-product-cross-selling-assignment'), {
-        stubs: {
-            'sw-entity-single-select': true,
-            'sw-data-grid': await Shopware.Component.build('sw-data-grid'),
-            'sw-product-variant-info': await Shopware.Component.build('sw-product-variant-info'),
-            'sw-context-button': true,
-            'sw-data-grid-settings': true,
-            'sw-context-menu-item': true,
-            'sw-data-grid-column-position': true,
-            'sw-empty-state': true,
-        },
-        propsData: {
-            assignedProducts: assignedProductsMock,
-            crossSellingId: 'crossSellingId',
-        },
-        state: {
-            product: productMock,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: () => {
-                        return Promise.resolve(variantProductsMock);
+    return mount(
+        await wrapTestComponent('sw-product-cross-selling-assignment', {
+            sync: true,
+        }),
+        {
+            props: {
+                assignedProducts: assignedProductsMock,
+                crossSellingId: 'crossSellingId',
+            },
+            global: {
+                stubs: {
+                    'sw-entity-single-select': true,
+                    'sw-data-grid': await wrapTestComponent('sw-data-grid'),
+                    'sw-product-variant-info': await wrapTestComponent('sw-product-variant-info'),
+                    'sw-context-button': true,
+                    'sw-data-grid-settings': true,
+                    'sw-context-menu-item': true,
+                    'sw-data-grid-column-position': true,
+                    'sw-empty-state': true,
+                    'sw-select-result': true,
+                    'sw-checkbox-field': true,
+                    'sw-data-grid-column-boolean': true,
+                    'sw-data-grid-inline-edit': true,
+                    'router-link': true,
+                    'sw-data-grid-skeleton': true,
+                    'sw-highlight-text': true,
+                    'sw-provide': { template: `<slot/>`, inheritAttrs: false },
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            search: () => {
+                                return Promise.resolve(variantProductsMock);
+                            },
+                        }),
                     },
-                }),
+                },
             },
         },
-        computed: {
-            searchCriteria() {
-                return {};
-            },
-        },
-    });
+    );
 }
 
 describe('module/sw-product/component/sw-product-cross-selling-assignment', () => {
     let wrapper;
 
     beforeAll(() => {
-        State.registerModule('swProductDetail', {
-            namespaced: true,
-            state: {
-                product: productMock,
-            },
-            getters: {
-                isLoading: () => false,
-            },
-        });
+        Shopware.Store.get('swProductDetail').$reset();
+        Shopware.Store.get('swProductDetail').product = productMock;
     });
 
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
+        await flushPromises();
     });
 
     it('should fetch variants with inherited names if assignedProducts includes variants without name', async () => {
@@ -125,9 +115,5 @@ describe('module/sw-product/component/sw-product-cross-selling-assignment', () =
         expect(row2.text()).toContain('Variant Name');
         expect(row2.text()).toContain('Color');
         expect(row2.text()).toContain('Blue');
-    });
-
-    it('should return filters from filter registry', async () => {
-        expect(wrapper.vm.assetFilter).toEqual(expect.any(Function));
     });
 });

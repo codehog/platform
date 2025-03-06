@@ -1,18 +1,21 @@
 /*
- * @package inventory
+ * @sw-package inventory
  */
 
 import template from './sw-product-detail-variants.html.twig';
 import './sw-product-detail-variants.scss';
 
 const { Criteria, EntityCollection } = Shopware.Data;
-const { mapState, mapGetters } = Shopware.Component.getComponentHelper();
+const { uniqBy } = Shopware.Utils.array;
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
-    inject: ['repositoryFactory', 'acl'],
+    inject: [
+        'repositoryFactory',
+        'acl',
+    ],
 
     data() {
         return {
@@ -27,22 +30,26 @@ export default {
             showAddPropertiesModal: false,
             defaultTab: 'all',
             activeTab: 'all',
+            configSettingGroups: [],
         };
     },
 
     computed: {
-        ...mapState('swProductDetail', [
-            'product',
-            'variants',
-        ]),
+        product() {
+            return Shopware.Store.get('swProductDetail').product;
+        },
 
-        ...mapState('context', {
-            contextLanguageId: state => state.api.languageId,
-        }),
+        variants() {
+            return Shopware.Store.get('swProductDetail').variants;
+        },
 
-        ...mapGetters('swProductDetail', {
-            isStoreLoading: 'isLoading',
-        }),
+        isStoreLoading() {
+            return Shopware.Store.get('swProductDetail').isLoading;
+        },
+
+        contextLanguageId() {
+            return Shopware.Store.get('context').api.languageId;
+        },
 
         productRepository() {
             return this.repositoryFactory.create('product');
@@ -60,25 +67,6 @@ export default {
             return this.isChild && this.product?.properties?.length <= 0
                 ? this.parentProduct.properties
                 : this.product.properties;
-        },
-
-        selectedGroups() {
-            if (!this.productEntity.configuratorSettings) {
-                return [];
-            }
-
-            // get groups for selected options
-            const groupIds = this.productEntity.configuratorSettings.reduce((result, element) => {
-                if (result.indexOf(element.option.groupId) < 0) {
-                    result.push(element.option.groupId);
-                }
-
-                return result;
-            }, []);
-
-            return this.groups.filter((group) => {
-                return groupIds.indexOf(group.id) >= 0;
-            });
         },
 
         currentProductStates() {
@@ -132,8 +120,24 @@ export default {
                 this.loadOptions()
                     .then(() => {
                         return this.loadGroups();
+                    })
+                    .then(() => {
+                        return this.loadConfigSettingGroups();
                     });
             }
+        },
+
+        async loadConfigSettingGroups() {
+            const groupIds = uniqBy(this.productEntity.configuratorSettings, 'option.groupId').map(
+                (group) => group.option.groupId,
+            );
+
+            const criteria = new Criteria(1, null);
+            if (groupIds.length) {
+                criteria.addFilter(Criteria.equalsAny('id', groupIds));
+            }
+
+            this.configSettingGroups = await this.groupRepository.search(criteria);
         },
 
         loadOptions() {
@@ -230,7 +234,6 @@ export default {
                 this.productProperties.aggregations,
             );
         },
-
 
         onCancelAddPropertiesModal() {
             this.closeAddPropertiesModal();

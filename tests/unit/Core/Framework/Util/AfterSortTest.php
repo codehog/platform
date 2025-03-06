@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Util;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityCollection;
@@ -11,9 +12,8 @@ use Shopware\Core\Framework\Uuid\Uuid;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\Util\AfterSort
  */
+#[CoversClass(AfterSort::class)]
 class AfterSortTest extends TestCase
 {
     public function testSortingAfterIdWithoutData(): void
@@ -32,8 +32,9 @@ class AfterSortTest extends TestCase
 
         $afterSortCollection = new AfterSortCollection([$entity1]);
         $afterSortCollection->sortByAfter();
-
-        static::assertEquals($entity1->getId(), $afterSortCollection->first()->getId());
+        $first = $afterSortCollection->first();
+        static::assertInstanceOf(TestEntity::class, $first);
+        static::assertSame($entity1->getId(), $first->getId());
     }
 
     public function testSortingByAfterId(): void

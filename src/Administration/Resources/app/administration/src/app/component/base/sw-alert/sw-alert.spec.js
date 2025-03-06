@@ -1,76 +1,25 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-alert';
+import { mount } from '@vue/test-utils';
 
-describe('components/base/sw-alert', () => {
-    let wrapper;
+async function createWrapper(additionalOptions = {}) {
+    return mount(await wrapTestComponent('sw-alert', { sync: true }), {
+        props: {},
+        ...additionalOptions,
+    });
+}
 
-    afterEach(() => { if (wrapper) wrapper.destroy(); });
-
+describe('src/app/component/base/sw-alert', () => {
     it('should be a Vue.js component', async () => {
-        wrapper = shallowMount(await Shopware.Component.build('sw-alert'), {
-            stubs: ['sw-icon'],
-        });
+        const wrapper = await createWrapper();
         expect(wrapper.vm).toBeTruthy();
     });
 
-    it('should render correctly', async () => {
-        const title = 'Alert title';
-        const message = '<p>Alert message</p>';
+    it('should render the mt-banner', async () => {
+        const wrapper = await createWrapper();
 
-        wrapper = shallowMount(await Shopware.Component.build('sw-alert'), {
-            stubs: ['sw-icon'],
-            propsData: {
-                title,
-            },
-            slots: {
-                default: message,
-            },
-        });
-
-        expect(wrapper.element).toMatchSnapshot();
-    });
-
-    it('should use custom icon', async () => {
-        wrapper = shallowMount(await Shopware.Component.build('sw-alert'), {
-            stubs: ['sw-icon'],
-            propsData: {
-                icon: 'your-icon-here',
-            },
-        });
-
-        expect(wrapper.element).toMatchSnapshot();
-    });
-
-    it.each([
-        ['info', 'default', true],
-        ['warning', 'default', true],
-        ['error', 'default', true],
-        ['success', 'default', true],
-        ['info', 'notification', true],
-        ['warning', 'notification', true],
-        ['error', 'notification', true],
-        ['success', 'notification', true],
-        ['info', 'system', false],
-        ['warning', 'system', false],
-        ['error', 'system', false],
-        ['success', 'system', false],
-        ['neutral', 'default', true],
-        ['neutral', 'notification', true],
-        ['neutral', 'system', false],
-    ])('applies variant class %s to %s is %s', async (variant, appearance, applied) => {
-        wrapper = shallowMount(await Shopware.Component.build('sw-alert'), {
-            stubs: ['sw-icon'],
-            propsData: {
-                appearance: appearance,
-                variant: variant,
-            },
-        });
-
-        expect(wrapper.classes(`sw-alert--${variant}`)).toBe(applied);
+        expect(wrapper.html()).toContain('mt-banner');
     });
 });
-

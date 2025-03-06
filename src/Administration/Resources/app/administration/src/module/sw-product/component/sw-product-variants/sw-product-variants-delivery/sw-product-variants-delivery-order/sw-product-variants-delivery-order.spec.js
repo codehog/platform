@@ -1,61 +1,76 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swProductVariantsDeliveryOrder from 'src/module/sw-product/component/sw-product-variants/sw-product-variants-delivery/sw-product-variants-delivery-order';
-
-Shopware.Component.register('sw-product-variants-delivery-order', swProductVariantsDeliveryOrder);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-product-variants-delivery-order'), {
-        localVue,
-        propsData: {
-            product: {
-                configuratorSettings: [],
-                variantListingConfig: {
-                    displayParent: null,
-                    configuratorGroupConfig: [],
-                    mainVariantId: null,
+    return mount(
+        await wrapTestComponent('sw-product-variants-delivery-order', {
+            sync: true,
+        }),
+        {
+            props: {
+                product: {
+                    configuratorSettings: [],
+                    variantListingConfig: {
+                        displayParent: null,
+                        configuratorGroupConfig: [],
+                        mainVariantId: null,
+                    },
+                },
+                selectedGroups: [
+                    {
+                        name: 'textile',
+                        description: null,
+                        displayType: 'text',
+                        sortingType: 'alphanumeric',
+                        filterable: true,
+                        visibleOnProductDetailPage: true,
+                        position: 1,
+                        customFields: null,
+                        translated: {
+                            name: 'TranslatedTextile',
+                            description: null,
+                            position: 1,
+                            customFields: [],
+                        },
+                        apiAlias: null,
+                        id: '0ccea31f2d774b06bb6459c64cd334ce',
+                    },
+                    {
+                        name: 'color',
+                        description: null,
+                        displayType: 'text',
+                        sortingType: 'alphanumeric',
+                        filterable: true,
+                        visibleOnProductDetailPage: true,
+                        position: 1,
+                        customFields: null,
+                        translated: {
+                            name: 'TranslatedColor',
+                            description: null,
+                            position: 1,
+                            customFields: [],
+                        },
+                        apiAlias: null,
+                        id: 'e6cea31f2d774b06ab6459c64cd3345h',
+                    },
+                ],
+            },
+            global: {
+                provide: {
+                    repositoryFactory: {},
+                    mediaService: {},
+                },
+                stubs: {
+                    'sw-loader': true,
+                    'sw-tree': true,
+                    'sw-tree-item': true,
                 },
             },
-            selectedGroups: [{
-                name: 'textile',
-                description: null,
-                displayType: 'text',
-                sortingType: 'alphanumeric',
-                filterable: true,
-                visibleOnProductDetailPage: true,
-                position: 1,
-                customFields: null,
-                translated: { name: 'TranslatedTextile', description: null, position: 1, customFields: [] },
-                apiAlias: null,
-                id: '0ccea31f2d774b06bb6459c64cd334ce',
-            }, {
-                name: 'color',
-                description: null,
-                displayType: 'text',
-                sortingType: 'alphanumeric',
-                filterable: true,
-                visibleOnProductDetailPage: true,
-                position: 1,
-                customFields: null,
-                translated: { name: 'TranslatedColor', description: null, position: 1, customFields: [] },
-                apiAlias: null,
-                id: 'e6cea31f2d774b06ab6459c64cd3345h',
-            }],
         },
-        provide: {
-            repositoryFactory: {},
-            mediaService: {},
-        },
-        stubs: {
-            'sw-loader': true,
-            'sw-tree': true,
-        },
-    });
+    );
 }
 
 // eslint-disable-next-line max-len
@@ -70,7 +85,7 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         const wrapper = await createWrapper();
         await wrapper.vm.$nextTick();
 
-        const textileGroup = wrapper.vm.orderObjects.find(group => {
+        const textileGroup = wrapper.vm.orderObjects.find((group) => {
             return group.id === '0ccea31f2d774b06bb6459c64cd334ce';
         });
 

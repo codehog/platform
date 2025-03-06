@@ -2,13 +2,14 @@
 
 namespace Shopware\Tests\Unit\Storefront\Controller;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Category\CategoryEntity;
 use Shopware\Core\Content\Category\SalesChannel\CategoryRoute;
 use Shopware\Core\Content\Category\SalesChannel\CategoryRouteResponse;
+use Shopware\Core\Content\Cms\CmsException;
 use Shopware\Core\Content\Cms\CmsPageEntity;
-use Shopware\Core\Content\Cms\Exception\PageNotFoundException;
 use Shopware\Core\Content\Cms\SalesChannel\CmsRoute;
 use Shopware\Core\Content\Cms\SalesChannel\CmsRouteResponse;
 use Shopware\Core\Content\Product\SalesChannel\Detail\ProductDetailRoute;
@@ -16,29 +17,25 @@ use Shopware\Core\Content\Product\SalesChannel\FindVariant\FindProductVariantRou
 use Shopware\Core\Content\Product\SalesChannel\Listing\ProductListingResult;
 use Shopware\Core\Content\Product\SalesChannel\Listing\ProductListingRoute;
 use Shopware\Core\Content\Product\SalesChannel\Listing\ProductListingRouteResponse;
+use Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewLoader;
 use Shopware\Core\Content\Product\SalesChannel\SalesChannelProductEntity;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\AggregationResult\AggregationResultCollection;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\AggregationResult\Metric\CountResult;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\AggregationResult\Metric\SumResult;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Routing\Exception\MissingRequestParameterException;
 use Shopware\Core\Framework\Routing\RoutingException;
-use Shopware\Core\Framework\Script\Execution\Hook;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Storefront\Controller\CmsController;
-use Shopware\Storefront\Page\Product\Review\ProductReviewLoader;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Controller\CmsController
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
+#[CoversClass(CmsController::class)]
 class CmsControllerTest extends TestCase
 {
     private MockObject&CmsRoute $cmsRouteMock;
@@ -87,13 +84,21 @@ class CmsControllerTest extends TestCase
         static::assertEquals($cmsRouteResponse->getCmsPage(), $this->controller->renderStorefrontParameters['cmsPage']);
     }
 
+    public function testPageFullReturn(): void
+    {
+        $cmsRouteResponse = new CmsRouteResponse(new CmsPageEntity());
+        $this->cmsRouteMock->method('load')->willReturn($cmsRouteResponse);
+
+        $ids = new IdsCollection();
+
+        $this->controller->pageFull($ids->get('page'), new Request(), $this->createMock(SalesChannelContext::class));
+
+        static::assertEquals($cmsRouteResponse->getCmsPage(), $this->controller->renderStorefrontParameters['page']['cmsPage']);
+    }
+
     public function testCategoryNoId(): void
     {
-        if (Feature::isActive('v6.6.0.0')) {
-            $this->expectException(RoutingException::class);
-        } else {
-            $this->expectException(MissingRequestParameterException::class);
-        }
+        $this->expectException(RoutingException::class);
         $this->expectExceptionMessage('Parameter "navigationId" is missing.');
 
         $this->controller->category(null, new Request(), $this->createMock(SalesChannelContext::class));
@@ -119,11 +124,11 @@ class CmsControllerTest extends TestCase
         $categoryRouteResponse = new CategoryRouteResponse($categoryEntity);
         $this->categoryRouteMock->method('load')->willReturn($categoryRouteResponse);
 
-        $ids = new IdsCollection();
+        $navigationId = (new IdsCollection())->get('category');
+        $this->expectException(CmsException::class);
+        $this->expectExceptionMessage(\sprintf('Page with ID "navigationId: %s" was not found.', $navigationId));
 
-        static::expectException(PageNotFoundException::class);
-
-        $this->controller->category($ids->get('category'), new Request(), $this->createMock(SalesChannelContext::class));
+        $this->controller->category($navigationId, new Request(), $this->createMock(SalesChannelContext::class));
     }
 
     public function testFilterReturn(): void
@@ -185,6 +190,26 @@ class CmsControllerTest extends TestCase
             ]
         );
     }
+
+    public function testSwitchBuyBoxVariantWithInvalidJsonOptions(): void
+    {
+        $ids = new IdsCollection();
+
+        $request = new Request(
+            [
+                'elementId' => $ids->get('element'),
+                'options' => 'invalidJsonString',
+            ]
+        );
+
+        $response = $this->controller->switchBuyBoxVariant(
+            $ids->get('product'),
+            $request,
+            $this->createMock(SalesChannelContext::class)
+        );
+
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
+    }
 }
 
 /**
@@ -192,26 +217,5 @@ class CmsControllerTest extends TestCase
  */
 class CmsControllerTestClass extends CmsController
 {
-    public string $renderStorefrontView;
-
-    /**
-     * @var array<array-key, mixed>
-     */
-    public array $renderStorefrontParameters;
-
-    /**
-     * @param array<array-key, mixed> $parameters
-     */
-    protected function renderStorefront(string $view, array $parameters = []): Response
-    {
-        $this->renderStorefrontView = $view;
-        $this->renderStorefrontParameters = $parameters;
-
-        return new Response();
-    }
-
-    protected function hook(Hook $hook): void
-    {
-        // nothing
-    }
+    use StorefrontControllerMockTrait;
 }

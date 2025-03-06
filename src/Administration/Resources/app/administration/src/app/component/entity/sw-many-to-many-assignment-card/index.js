@@ -6,10 +6,9 @@ const { debounce, get } = Shopware.Utils;
 const { Criteria, EntityCollection } = Shopware.Data;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @example-type code-only
  * @component-example
@@ -22,6 +21,7 @@ const { Criteria, EntityCollection } = Shopware.Data;
  */
 Component.register('sw-many-to-many-assignment-card', {
     template,
+
     inheritAttrs: false,
 
     inject: [
@@ -29,10 +29,10 @@ Component.register('sw-many-to-many-assignment-card', {
         'feature',
     ],
 
-    model: {
-        prop: 'entityCollection',
-        event: 'change',
-    },
+    emits: [
+        'update:entityCollection',
+        'paginate',
+    ],
 
     props: {
         columns: {
@@ -59,15 +59,14 @@ Component.register('sw-many-to-many-assignment-card', {
         criteria: {
             type: Object,
             required: false,
-            default() {
-                return new Criteria(1, this.resultLimit);
+            default(props) {
+                return new Criteria(1, props.resultLimit);
             },
         },
 
         highlightSearchTerm: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -132,26 +131,29 @@ Component.register('sw-many-to-many-assignment-card', {
         },
 
         assignmentRepository() {
-            return this.repositoryFactory.create(
-                this.entityCollection.entity,
-                this.entityCollection.source,
-            );
+            return this.repositoryFactory.create(this.entityCollection.entity, this.entityCollection.source);
         },
 
         searchRepository() {
-            return this.repositoryFactory.create(
-                this.entityCollection.entity,
-            );
+            return this.repositoryFactory.create(this.entityCollection.entity);
         },
 
         page: {
-            get() { return this.gridCriteria.page; },
-            set(page) { this.gridCriteria.page = page; },
+            get() {
+                return this.gridCriteria.page;
+            },
+            set(page) {
+                this.gridCriteria.page = page;
+            },
         },
 
         limit: {
-            get() { return this.gridCriteria.limit; },
-            set(limit) { this.gridCriteria.page = limit; },
+            get() {
+                return this.gridCriteria.limit;
+            },
+            set(limit) {
+                this.gridCriteria.page = limit;
+            },
         },
 
         total() {
@@ -286,13 +288,8 @@ Component.register('sw-many-to-many-assignment-card', {
                 this.selectedIds = newCollection.getIds();
                 this.gridData = newCollection;
 
-                if (this.feature.isActive('VUE3')) {
-                    this.$emit('update:entityCollection', newCollection);
+                this.$emit('update:entityCollection', newCollection);
 
-                    return;
-                }
-
-                this.$emit('change', newCollection);
                 return;
             }
 
@@ -310,13 +307,8 @@ Component.register('sw-many-to-many-assignment-card', {
                 this.selectedIds = newCollection.getIds();
                 this.gridData = newCollection;
 
-                if (this.feature.isActive('VUE3')) {
-                    this.$emit('update:entityCollection', newCollection);
+                this.$emit('update:entityCollection', newCollection);
 
-                    return Promise.resolve();
-                }
-
-                this.$emit('change', newCollection);
                 return Promise.resolve();
             }
 
@@ -389,10 +381,7 @@ Component.register('sw-many-to-many-assignment-card', {
 
                 criteria.filters = [
                     ...this.criteria.filters,
-                    Criteria.multi(
-                        'OR',
-                        containsFilter,
-                    ),
+                    Criteria.multi('OR', containsFilter),
                 ];
                 criteria.term = null;
             }

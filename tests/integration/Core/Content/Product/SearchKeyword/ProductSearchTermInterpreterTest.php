@@ -3,6 +3,8 @@
 namespace Shopware\Tests\Integration\Core\Content\Product\SearchKeyword;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\SearchKeyword\ProductSearchTermInterpreter;
 use Shopware\Core\Content\Product\SearchKeyword\ProductSearchTermInterpreterInterface;
@@ -19,9 +21,8 @@ use Shopware\Core\Framework\Uuid\Uuid;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SearchKeyword\ProductSearchTermInterpreter
  */
+#[CoversClass(ProductSearchTermInterpreter::class)]
 class ProductSearchTermInterpreterTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -36,20 +37,19 @@ class ProductSearchTermInterpreterTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->connection = $this->getContainer()->get(Connection::class);
-        $this->interpreter = $this->getContainer()->get(ProductSearchTermInterpreter::class);
+        $this->connection = static::getContainer()->get(Connection::class);
+        $this->interpreter = static::getContainer()->get(ProductSearchTermInterpreter::class);
 
-        $this->productSearchConfigRepository = $this->getContainer()->get('product_search_config.repository');
+        $this->productSearchConfigRepository = static::getContainer()->get('product_search_config.repository');
         $this->productSearchConfigId = $this->getProductSearchConfigId();
 
         $this->setupKeywords();
     }
 
     /**
-     * @dataProvider cases
-     *
      * @param list<string> $expected
      */
+    #[DataProvider('cases')]
     public function testMatching(string $term, array $expected): void
     {
         $context = Context::createDefaultContext();
@@ -58,16 +58,24 @@ class ProductSearchTermInterpreterTest extends TestCase
 
         $keywords = array_map(fn (SearchTerm $term) => $term->getTerm(), $matches->getTerms());
 
-        sort($expected);
-        sort($keywords);
-        static::assertEquals($expected, $keywords);
+        static::assertEqualsCanonicalizing($expected, $keywords);
+    }
+
+    public function testNumericInputIsNotMatchingWithInfixPlaceholders(): void
+    {
+        $context = Context::createDefaultContext();
+
+        $matches = $this->interpreter->interpret('1000', $context);
+
+        $keywords = array_map(fn (SearchTerm $term) => $term->getTerm(), $matches->getTerms());
+
+        static::assertNotContains('10100', $keywords);
     }
 
     /**
-     * @dataProvider casesWithTokenFilter
-     *
      * @param list<string> $expected
      */
+    #[DataProvider('casesWithTokenFilter')]
     public function testMatchingWithTokenFilter(string $term, array $expected): void
     {
         $context = Context::createDefaultContext();
@@ -76,16 +84,13 @@ class ProductSearchTermInterpreterTest extends TestCase
 
         $keywords = array_map(fn (SearchTerm $term) => $term->getTerm(), $matches->getTerms());
 
-        sort($expected);
-        sort($keywords);
-        static::assertEquals($expected, $keywords);
+        static::assertEqualsCanonicalizing($expected, $keywords);
     }
 
     /**
-     * @dataProvider caseWithFetchingTokenTerms
-     *
      * @param list<list<string>> $expected
      */
+    #[DataProvider('caseWithFetchingTokenTerms')]
     public function testMatchingTokenTerms(string $term, array $expected): void
     {
         $context = Context::createDefaultContext();
@@ -94,16 +99,11 @@ class ProductSearchTermInterpreterTest extends TestCase
 
         static::assertEquals(\count($expected), \count($tokenTerms));
         foreach ($tokenTerms as $index => $tokenTerm) {
-            sort($expected[$index]);
-            sort($tokenTerm);
-
-            static::assertEquals($expected[$index], $tokenTerm);
+            static::assertEqualsCanonicalizing($expected[$index], $tokenTerm);
         }
     }
 
-    /**
-     * @dataProvider caseWithMatchingBooleanCause
-     */
+    #[DataProvider('caseWithMatchingBooleanCause')]
     public function testMatchingBooleanClause(bool $andLogic, string $expected): void
     {
         $context = Context::createDefaultContext();
@@ -119,9 +119,7 @@ class ProductSearchTermInterpreterTest extends TestCase
         static::assertEquals($expected, $booleanClause);
     }
 
-    /**
-     * @dataProvider caseWithMatchingSearchPatternTermLength
-     */
+    #[DataProvider('caseWithMatchingSearchPatternTermLength')]
     public function testMatchingSearchPatternTermLength(bool $andLogic, string $words): void
     {
         $context = Context::createDefaultContext();
@@ -146,6 +144,20 @@ class ProductSearchTermInterpreterTest extends TestCase
     }
 
     /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('termScoring')]
+    public function testTermScoring(string $term, array $expected): void
+    {
+        $context = Context::createDefaultContext();
+
+        $matches = $this->interpreter->interpret($term, $context);
+        $terms = array_map(fn (SearchTerm $term) => $term->getTerm(), $matches->getTerms());
+
+        static::assertEquals($expected, \array_slice($terms, 0, \count($expected)));
+    }
+
+    /**
      * @return array<array{0: string, 1: list<string>}>
      */
     public static function cases(): array
@@ -165,7 +177,11 @@ class ProductSearchTermInterpreterTest extends TestCase
             ],
             [
                 '1000',
-                ['100', '10000', '10001', '10002', '10007'],
+                ['10000', '10001', '10002', '10007'],
+            ],
+            [
+                '9000',
+                ['SW-9000'],
             ],
             'test it uses only first 8 keywords' => [
                 '10',
@@ -194,7 +210,7 @@ class ProductSearchTermInterpreterTest extends TestCase
             ],
             [
                 '1000',
-                ['100', '10000', '10001', '10002', '10007'],
+                ['10000', '10001', '10002', '10007'],
             ],
             [
                 '1',
@@ -229,7 +245,7 @@ class ProductSearchTermInterpreterTest extends TestCase
                 'Büronetz 1000',
                 [
                     ['büronetzwerk'],
-                    ['100', '10000', '10001', '10002', '10007'],
+                    ['10000', '10001', '10002', '10007'],
                 ],
             ],
             [
@@ -270,7 +286,7 @@ class ProductSearchTermInterpreterTest extends TestCase
                 '³²¼¼³¬½{¬]Büronetz³²¼¼³¬½{¬] ³²¼¼³¬½{¬]1000³²¼¼³¬½{¬]',
                 [
                     ['büronetzwerk'],
-                    ['100', '10000', '10001', '10002', '10007'],
+                    ['10000', '10001', '10002', '10007'],
                 ],
             ],
             [
@@ -285,14 +301,14 @@ class ProductSearchTermInterpreterTest extends TestCase
                 '(๑★ .̫ ★๑)Büronet（★￣∀￣★） (̂ ˃̥̥̥ ˑ̫ ˂̥̥̥ )̂1000(*＾v＾*)',
                 [
                     ['büronetzwerk'],
-                    ['100', '10000', '10001', '10002', '10007'],
+                    ['10000', '10001', '10002', '10007'],
                 ],
             ],
             [
                 '‰€€Büronet¥Æ ‡‡1000††',
                 [
                     ['büronetzwerk'],
-                    ['100', '10000', '10001', '10002', '10007'],
+                    ['10000', '10001', '10002', '10007'],
                 ],
             ],
         ];
@@ -364,6 +380,39 @@ class ProductSearchTermInterpreterTest extends TestCase
         ];
     }
 
+    /**
+     * @return array<array{0: string, 1: list<string>}>
+     */
+    public static function termScoring(): array
+    {
+        return [
+            [
+                'Sessel',
+                [
+                    'Sessel',
+                ],
+            ],
+            [
+                'Gelber Sessel',
+                [
+                    'Gelber Sessel',
+                    'Gelber Camping Sessel',
+                    'Klappbarer gelber Camping Sessel',
+                    'Klappbarer gelber Sessel',
+                ],
+            ],
+            [
+                'Klappbarer Camping Sessel',
+                [
+                    'Klappbarer Camping Sessel',
+                    'Klappbarer blauer Camping Sessel',
+                    'Klappbarer gelber Camping Sessel',
+                    'Klappbarer roter Camping Sessel',
+                ],
+            ],
+        ];
+    }
+
     private function setupKeywords(): void
     {
         $keywords = [
@@ -402,6 +451,8 @@ class ProductSearchTermInterpreterTest extends TestCase
             'netzwerkspieler',
             'schwarzweiß',
             'netzwerkprotokolle',
+            'SW-9000',
+            '10100',
             '10000',
             '10001',
             '10002',
@@ -417,6 +468,21 @@ class ProductSearchTermInterpreterTest extends TestCase
             'against',
             'betweencoffee',
             'betweenbike',
+            'Sessel',
+            'Roter Camping Sessel',
+            'Klappbarer roter Sessel',
+            'Roter Sessel',
+            'Klappbarer roter Camping Sessel',
+            'Gelber Camping Sessel',
+            'Klappbarer gelber Sessel',
+            'Gelber Sessel',
+            'Klappbarer gelber Camping Sessel',
+            'Blauer Camping Sessel',
+            'Klappbarer blauer Sessel',
+            'Blauer Sessel',
+            'Klappbarer blauer Camping Sessel',
+            'Camping Sessel',
+            'Klappbarer Camping Sessel',
         ];
 
         $languageId = Uuid::fromHexToBytes(Defaults::LANGUAGE_SYSTEM);

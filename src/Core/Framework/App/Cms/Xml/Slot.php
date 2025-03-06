@@ -8,26 +8,16 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @internal
  */
-#[Package('content')]
+#[Package('discovery')]
 class Slot extends XmlElement
 {
     protected string $name;
 
     protected string $type;
 
+    protected int $position;
+
     protected Config $config;
-
-    private function __construct(array $data)
-    {
-        foreach ($data as $property => $value) {
-            $this->$property = $value;
-        }
-    }
-
-    public static function fromXml(\DOMElement $element): self
-    {
-        return new self(self::parseSlot($element));
-    }
 
     public function toArray(string $defaultLocale): array
     {
@@ -47,22 +37,29 @@ class Slot extends XmlElement
         return $this->type;
     }
 
+    public function getPosition(): int
+    {
+        return $this->position;
+    }
+
     public function getConfig(): Config
     {
         return $this->config;
     }
 
-    private static function parseSlot(\DOMElement $element): array
+    protected static function parse(\DOMElement $element): array
     {
         $name = $element->getAttribute('name');
         $type = $element->getAttribute('type');
-        /** @var \DOMElement $config */
+        $position = (int) $element->getAttribute('position');
         $config = $element->getElementsByTagName('config')->item(0);
+        \assert($config !== null);
         $config = Config::fromXml($config);
 
         return [
             'name' => $name,
             'type' => $type,
+            'position' => $position,
             'config' => $config,
         ];
     }

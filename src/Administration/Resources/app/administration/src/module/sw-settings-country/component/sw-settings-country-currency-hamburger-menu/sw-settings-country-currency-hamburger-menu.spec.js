@@ -1,67 +1,66 @@
 /**
- * @package buyers-experience
+ * @sw-package fundamentals@discovery
  */
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swSettingsCountryCurrencyHamburgerMenu from 'src/module/sw-settings-country/component/sw-settings-country-currency-hamburger-menu';
-import 'src/app/component/context-menu/sw-context-button';
-import 'src/app/component/context-menu/sw-context-menu';
-import 'src/app/component/base/sw-button';
-
-Shopware.Component.register('sw-settings-country-currency-hamburger-menu', swSettingsCountryCurrencyHamburgerMenu);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(privileges = []) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
+    return mount(
+        await wrapTestComponent('sw-settings-country-currency-hamburger-menu', {
+            sync: true,
+        }),
+        {
+            props: {
+                isLoading: false,
+                options: [{}],
+            },
+            global: {
+                renderStubDefaultSlot: true,
+                directives: {
+                    tooltip: {},
+                },
+                provide: {
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
 
-    return shallowMount(await Shopware.Component.build('sw-settings-country-currency-hamburger-menu'), {
-        localVue,
+                            return privileges.includes(identifier);
+                        },
+                    },
+                    feature: {
+                        isActive: () => true,
+                    },
+                },
 
-        propsData: {
-            isLoading: false,
-            options: [{}],
-        },
-
-        provide: {
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) { return true; }
-
-                    return privileges.includes(identifier);
+                stubs: {
+                    'sw-context-button': await wrapTestComponent('sw-context-button'),
+                    'sw-context-menu': await wrapTestComponent('sw-context-menu'),
+                    'sw-popover': true,
+                    'mt-checkbox': {
+                        template: '<div class="checkbox"></div>',
+                    },
+                    'router-link': true,
+                    'sw-loader': true,
                 },
             },
-            feature: {
-                isActive: () => true,
-            },
         },
-
-        stubs: {
-            'sw-context-button': await Shopware.Component.build('sw-context-button'),
-            'sw-context-menu': await Shopware.Component.build('sw-context-menu'),
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-popover': true,
-            'sw-icon': {
-                template: '<div></div>',
-            },
-            'sw-checkbox-field': {
-                template: '<div class="checkbox"></div>',
-            },
-        },
-    });
+    );
 }
 
 describe('module/sw-settings-country/component/sw-settings-country-currency-hamburger-menu', () => {
     it('should be a Vue.JS component', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
         expect(wrapper.vm).toBeTruthy();
     });
 
     it('should able to show hamburger menu', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         await wrapper.find('.sw-settings-country-currency-hamburger-menu__button').trigger('click');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
         const hamburgerButton = wrapper.find('.sw-settings-country-currency-hamburger-menu__wrapper');
         expect(hamburgerButton.isVisible()).toBeTruthy();
 
@@ -73,10 +72,10 @@ describe('module/sw-settings-country/component/sw-settings-country-currency-hamb
         const wrapper = await createWrapper([
             'country.editor',
         ]);
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         await wrapper.find('.sw-settings-country-currency-hamburger-menu__button').trigger('click');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
         const hamburgerButton = wrapper.find('.sw-settings-country-currency-hamburger-menu__wrapper');
         expect(hamburgerButton.isVisible()).toBeTruthy();
 
@@ -89,15 +88,15 @@ describe('module/sw-settings-country/component/sw-settings-country-currency-hamb
         const wrapper = await createWrapper([
             'country.viewer',
         ]);
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         await wrapper.find('.sw-settings-country-currency-hamburger-menu__button').trigger('click');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
         const hamburgerButton = wrapper.find('.sw-settings-country-currency-hamburger-menu__wrapper');
         expect(hamburgerButton.isVisible()).toBeTruthy();
 
         const hamburgerItem = wrapper.findAll('.sw-settings-country-currency-hamburger-menu__item');
         expect(hamburgerItem).toHaveLength(wrapper.props().options.length);
-        expect(hamburgerItem.at(0).find('.checkbox').attributes().disabled).toBe('disabled');
+        expect(hamburgerItem.at(0).find('.checkbox').attributes().disabled).toBe('true');
     });
 });

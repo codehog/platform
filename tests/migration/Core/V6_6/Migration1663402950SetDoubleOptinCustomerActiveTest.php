@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Migration\Core\V6_6;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Test\TestCaseBase\KernelLifecycleManager;
@@ -13,9 +14,8 @@ use Shopware\Tests\Migration\MigrationTestTrait;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Migration\V6_6\Migration1663402950SetDoubleOptinCustomerActive
  */
+#[CoversClass(Migration1663402950SetDoubleOptinCustomerActive::class)]
 class Migration1663402950SetDoubleOptinCustomerActiveTest extends TestCase
 {
     use MigrationTestTrait;
@@ -52,10 +52,9 @@ class Migration1663402950SetDoubleOptinCustomerActiveTest extends TestCase
         $customerAddressId = Uuid::randomBytes();
         $now = new \DateTimeImmutable();
 
-        return $this->connection->insert('customer', [
+        $data = [
             'id' => $customerId,
             'customer_group_id' => Uuid::fromHexToBytes(TestDefaults::FALLBACK_CUSTOMER_GROUP),
-            'default_payment_method_id' => $this->connection->fetchOne('SELECT id FROM `payment_method` WHERE `active` = 1'),
             'sales_channel_id' => Uuid::fromHexToBytes(TestDefaults::SALES_CHANNEL),
             'language_id' => Uuid::fromHexToBytes(Defaults::LANGUAGE_SYSTEM),
             'default_billing_address_id' => $customerAddressId,
@@ -69,7 +68,9 @@ class Migration1663402950SetDoubleOptinCustomerActiveTest extends TestCase
             'double_opt_in_email_sent_date' => $now->format('Y-m-d H:i:s'),
             'guest' => 0,
             'created_at' => $now->format('Y-m-d H:i:s'),
-        ]);
+        ];
+
+        return $this->connection->insert('customer', $data);
     }
 
     private function checkCustomerIsActive(string $customerId): bool

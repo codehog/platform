@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Subscriber;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Customer\CustomerEvents;
@@ -13,12 +14,9 @@ use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenEvent;
 use Shopware\Core\Framework\Uuid\Uuid;
 
 /**
- * @package customer-order
- *
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Customer\Subscriber\CustomerSalutationSubscriber
  */
+#[CoversClass(CustomerSalutationSubscriber::class)]
 class CustomerSalutationSubscriberTest extends TestCase
 {
     private MockObject&Connection $connection;
@@ -58,7 +56,7 @@ class CustomerSalutationSubscriberTest extends TestCase
             [],
         );
 
-        $this->connection->expects(static::never())->method('executeUpdate');
+        $this->connection->expects(static::never())->method('executeStatement');
 
         $this->salutationSubscriber->setDefaultSalutation($event);
     }
@@ -78,7 +76,7 @@ class CustomerSalutationSubscriberTest extends TestCase
 
         $this->connection->expects(static::once())
             ->method('executeStatement')
-            ->willReturnCallback(function ($sql, $params) use ($customerId): void {
+            ->willReturnCallback(function ($sql, $params) use ($customerId): int {
                 static::assertSame($params, [
                     'id' => Uuid::fromHexToBytes($customerId),
                     'notSpecified' => 'not_specified',
@@ -94,6 +92,8 @@ class CustomerSalutationSubscriberTest extends TestCase
                 )
                 WHERE `id` = :id AND `salutation_id` is NULL
             ', $sql);
+
+                return 1;
             });
 
         $this->salutationSubscriber->setDefaultSalutation($event);

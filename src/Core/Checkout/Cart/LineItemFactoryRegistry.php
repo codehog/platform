@@ -18,7 +18,7 @@ use Symfony\Component\Validator\Constraints\Type;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
- * @final tag:v6.6.0
+ * @final
  */
 #[Package('checkout')]
 class LineItemFactoryRegistry
@@ -85,9 +85,13 @@ class LineItemFactoryRegistry
         $handler = $this->getHandler($data['type'] ?? '');
 
         if (isset($data['quantity'])) {
+            $beforeUpdateQuantity = $lineItem->getQuantity();
+
             $lineItem->setQuantity($data['quantity']);
 
-            $this->eventDispatcher->dispatch(new BeforeLineItemQuantityChangedEvent($lineItem, $cart, $context));
+            $event = new BeforeLineItemQuantityChangedEvent($lineItem, $cart, $context, $beforeUpdateQuantity);
+
+            $this->eventDispatcher->dispatch($event);
         }
 
         $lineItem->markModified();

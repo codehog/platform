@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Storefront\Page\Checkout\Finish;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
@@ -12,6 +13,7 @@ use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Order\OrderException;
 use Shopware\Core\Checkout\Order\SalesChannel\OrderRoute;
 use Shopware\Core\Checkout\Order\SalesChannel\OrderRouteResponse;
+use Shopware\Core\Framework\Adapter\Translation\AbstractTranslator;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityCollection;
 use Shopware\Core\Framework\DataAbstractionLayer\Pricing\CashRoundingConfig;
@@ -30,9 +32,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Page\Checkout\Finish\CheckoutFinishPageLoader
  */
+#[CoversClass(CheckoutFinishPageLoader::class)]
 class CheckoutFinishPageLoaderTest extends TestCase
 {
     public function testRobotsMetaNotSetIfGiven(): void
@@ -45,24 +46,17 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader->method('load')
             ->willReturn($page);
 
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->getOrderRouteWithValidOrder($orderId),
-        );
-
         $request = new Request([], [], [
             'orderId' => $orderId,
             'changedPayment' => false,
             'paymentFailed' => false,
         ]);
 
-        $page = $checkoutFinishPageLoader->load(
+        $page = $this->createLoader($pageLoader, $this->getOrderRouteWithValidOrder($orderId))->load(
             $request,
             $this->getContextWithDummyCustomer(),
         );
 
-        static::assertInstanceOf(CheckoutFinishPage::class, $page);
         static::assertNull($page->getMetaInformation());
     }
 
@@ -77,24 +71,16 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader->method('load')
             ->willReturn($page);
 
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->getOrderRouteWithValidOrder($orderId),
-        );
-
         $request = new Request([], [], [
             'orderId' => $orderId,
             'changedPayment' => false,
             'paymentFailed' => false,
         ]);
 
-        $page = $checkoutFinishPageLoader->load(
+        $page = $this->createLoader($pageLoader, $this->getOrderRouteWithValidOrder($orderId))->load(
             $request,
             $this->getContextWithDummyCustomer(),
         );
-
-        static::assertInstanceOf(CheckoutFinishPage::class, $page);
         static::assertNotNull($page->getMetaInformation());
         static::assertSame('noindex,follow', $page->getMetaInformation()->getRobots());
     }
@@ -107,24 +93,16 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader->method('load')
             ->willReturn(new Page());
 
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->getOrderRouteWithValidOrder($orderId),
-        );
-
         $request = new Request([], [], [
             'orderId' => $orderId,
             'changedPayment' => false,
             'paymentFailed' => false,
         ]);
 
-        $page = $checkoutFinishPageLoader->load(
+        $this->createLoader($pageLoader, $this->getOrderRouteWithValidOrder($orderId))->load(
             $request,
             $this->getContextWithDummyCustomer(),
         );
-
-        static::assertInstanceOf(CheckoutFinishPage::class, $page);
     }
 
     public function testItemRoundingIsSetInContext(): void
@@ -135,12 +113,6 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader = $this->createMock(GenericPageLoader::class);
         $pageLoader->method('load')
             ->willReturn(new Page());
-
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->getOrderRouteWithValidOrder($orderId, $itemRounding),
-        );
 
         $request = new Request([], [], [
             'orderId' => $orderId,
@@ -155,12 +127,10 @@ class CheckoutFinishPageLoaderTest extends TestCase
                 static::assertSame($itemRounding, $givenItemRounding);
             });
 
-        $page = $checkoutFinishPageLoader->load(
+        $this->createLoader($pageLoader, $this->getOrderRouteWithValidOrder($orderId, $itemRounding))->load(
             $request,
             $salesChannelContext,
         );
-
-        static::assertInstanceOf(CheckoutFinishPage::class, $page);
     }
 
     public function testTotalRoundingIsSetInContext(): void
@@ -171,12 +141,6 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader = $this->createMock(GenericPageLoader::class);
         $pageLoader->method('load')
             ->willReturn(new Page());
-
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->getOrderRouteWithValidOrder($orderId, null, $totalRounding),
-        );
 
         $request = new Request([], [], [
             'orderId' => $orderId,
@@ -191,12 +155,10 @@ class CheckoutFinishPageLoaderTest extends TestCase
                 static::assertSame($totalRounding, $givenItemRounding);
             });
 
-        $page = $checkoutFinishPageLoader->load(
+        $this->createLoader($pageLoader, $this->getOrderRouteWithValidOrder($orderId, null, $totalRounding))->load(
             $request,
             $salesChannelContext,
         );
-
-        static::assertInstanceOf(CheckoutFinishPage::class, $page);
     }
 
     public function testNoCustomerLoggedInException(): void
@@ -205,15 +167,9 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader->method('load')
             ->willReturn(new Page());
 
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->createMock(OrderRoute::class),
-        );
+        $this->expectException(CartException::class);
 
-        static::expectException(CartException::class);
-
-        $checkoutFinishPageLoader->load(
+        $this->createLoader($pageLoader, $this->createMock(OrderRoute::class))->load(
             new Request(),
             $this->createMock(SalesChannelContext::class),
         );
@@ -225,15 +181,9 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader->method('load')
             ->willReturn(new Page());
 
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->createMock(OrderRoute::class),
-        );
+        $this->expectException(RoutingException::class);
 
-        static::expectException(RoutingException::class);
-
-        $checkoutFinishPageLoader->load(
+        $this->createLoader($pageLoader, $this->createMock(OrderRoute::class))->load(
             new Request(),
             $this->getContextWithDummyCustomer(),
         );
@@ -247,18 +197,12 @@ class CheckoutFinishPageLoaderTest extends TestCase
         $pageLoader->method('load')
             ->willReturn(new Page());
 
-        $checkoutFinishPageLoader = new CheckoutFinishPageLoader(
-            $this->createMock(EventDispatcher::class),
-            $pageLoader,
-            $this->getOrderRouteWithValidOrder($orderId),
-        );
-
         $request = new Request([], [], [
             'orderId' => 'invalid-order-id',
         ]);
 
         try {
-            $checkoutFinishPageLoader->load(
+            $this->createLoader($pageLoader, $this->getOrderRouteWithValidOrder($orderId))->load(
                 $request,
                 $this->getContextWithDummyCustomer(),
             );
@@ -266,6 +210,16 @@ class CheckoutFinishPageLoaderTest extends TestCase
         } catch (\Exception) {
             static::fail('Not an expected Exception');
         }
+    }
+
+    private function createLoader(GenericPageLoader $pageLoader, OrderRoute $getOrderRouteWithValidOrder): CheckoutFinishPageLoader
+    {
+        return new CheckoutFinishPageLoader(
+            $this->createMock(EventDispatcher::class),
+            $pageLoader,
+            $getOrderRouteWithValidOrder,
+            $this->createMock(AbstractTranslator::class)
+        );
     }
 
     /**

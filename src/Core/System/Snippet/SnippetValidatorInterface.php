@@ -4,7 +4,7 @@ namespace Shopware\Core\System\Snippet;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('system-settings')]
+#[Package('discovery')]
 interface SnippetValidatorInterface
 {
     public function validate(): array;

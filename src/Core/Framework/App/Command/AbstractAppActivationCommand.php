@@ -14,9 +14,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * @internal only for use by the app-system, will be considered internal from v6.4.0 onward
+ * @internal only for use by the app-system
  */
-#[Package('core')]
+#[Package('framework')]
 abstract class AbstractAppActivationCommand extends Command
 {
     protected EntityRepository $appRepo;
@@ -35,7 +35,7 @@ abstract class AbstractAppActivationCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new ShopwareStyle($input, $output);
-        $context = Context::createDefaultContext();
+        $context = Context::createCLIContext();
 
         $appName = $input->getArgument('name');
 
@@ -52,7 +52,7 @@ abstract class AbstractAppActivationCommand extends Command
 
         $this->runAction($id, $context);
 
-        $io->success(sprintf('App %sd successfully.', $this->action));
+        $io->success(\sprintf('App %sd successfully.', $this->action));
 
         return self::SUCCESS;
     }

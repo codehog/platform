@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\System\SystemConfig\Api;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Routing\RoutingException;
@@ -10,15 +12,13 @@ use Shopware\Core\System\SystemConfig\Api\SystemConfigController;
 use Shopware\Core\System\SystemConfig\Service\ConfigurationService;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Shopware\Core\System\SystemConfig\Validation\SystemConfigValidator;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\System\SystemConfig\Api\SystemConfigController
  */
+#[CoversClass(SystemConfigController::class)]
 class SystemConfigControllerTest extends TestCase
 {
     public function testCheckConfigurationEmptyDomain(): void
@@ -212,7 +212,7 @@ class SystemConfigControllerTest extends TestCase
 
         $result = $systemConfigController->batchSaveConfiguration($request, $context);
 
-        static::assertInstanceOf(JsonResponse::class, $result);
+        static::assertSame('{}', $result->getContent());
     }
 
     public function testBatchSaveConfigurationFailure(): void
@@ -241,9 +241,7 @@ class SystemConfigControllerTest extends TestCase
         $systemConfigController->batchSaveConfiguration($request, $context);
     }
 
-    /**
-     * @dataProvider inheritRequestDataProvider
-     */
+    #[DataProvider('inheritRequestDataProvider')]
     public function testInheritFlag(Request $request, bool $expectedFlag): void
     {
         $systemConfigService = static::createMock(SystemConfigService::class);

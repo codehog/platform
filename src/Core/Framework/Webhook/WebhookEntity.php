@@ -7,39 +7,26 @@ use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 class WebhookEntity extends Entity
 {
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $name;
+    protected string $name;
 
-    /**
-     * @var string
-     */
-    protected $eventName;
+    protected string $eventName;
 
-    /**
-     * @var string
-     */
-    protected $url;
+    protected string $url;
 
-    /**
-     * @var string|null
-     */
-    protected $appId;
+    protected bool $onlyLiveVersion;
+
+    protected ?string $appId = null;
 
     protected bool $active;
 
     protected int $errorCount;
 
-    /**
-     * @var AppEntity|null
-     */
-    protected $app;
+    protected ?AppEntity $app = null;
 
     public function getName(): string
     {
@@ -69,6 +56,16 @@ class WebhookEntity extends Entity
     public function setUrl(string $url): void
     {
         $this->url = $url;
+    }
+
+    public function getOnlyLiveVersion(): bool
+    {
+        return $this->onlyLiveVersion;
+    }
+
+    public function setOnlyLiveVersion(bool $onlyLiveVersion): void
+    {
+        $this->onlyLiveVersion = $onlyLiveVersion;
     }
 
     public function getAppId(): ?string

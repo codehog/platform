@@ -8,38 +8,20 @@ use Shopware\Core\Checkout\Promotion\PromotionCollection;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Storefront\Page\Page;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class AccountEditOrderPage extends Page
 {
-    /**
-     * @var OrderEntity
-     */
-    protected $order;
+    protected OrderEntity $order;
 
-    /**
-     * @var PaymentMethodCollection
-     */
-    protected $paymentMethods;
+    protected PaymentMethodCollection $paymentMethods;
 
-    /**
-     * @var PromotionCollection
-     */
-    protected $activePromotions;
+    protected PromotionCollection $activePromotions;
 
-    /**
-     * @var string|null
-     */
-    protected $deepLinkCode;
+    protected ?string $deepLinkCode = null;
 
-    /**
-     * @var bool
-     */
-    protected $paymentChangeable = true;
+    protected bool $paymentChangeable = true;
 
-    /**
-     * @var string|null
-     */
-    protected $errorCode;
+    protected ?string $errorCode = null;
 
     public function getOrder(): OrderEntity
     {

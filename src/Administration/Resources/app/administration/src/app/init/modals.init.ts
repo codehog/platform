@@ -1,21 +1,23 @@
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 export default function initializeModal(): void {
     // eslint-disable-next-line @typescript-eslint/require-await
     Shopware.ExtensionAPI.handle('uiModalOpen', async (modalConfig, { _event_ }) => {
-        const extension = Object.values(Shopware.State.get('extensions'))
-            .find(ext => ext.baseUrl.startsWith(_event_.origin));
+        const extension = Object.values(Shopware.Store.get('extensions').extensionsState).find((ext) =>
+            ext.baseUrl.startsWith(_event_.origin),
+        );
 
         if (!extension) {
             throw new Error(`Extension with the origin "${_event_.origin}" not found.`);
         }
 
-        Shopware.State.commit('modals/openModal', {
+        Shopware.Store.get('modals').openModal({
             closable: true,
             showHeader: true,
+            showFooter: true,
             variant: 'default',
             baseUrl: extension.baseUrl,
             ...modalConfig,
@@ -23,6 +25,6 @@ export default function initializeModal(): void {
     });
 
     Shopware.ExtensionAPI.handle('uiModalClose', ({ locationId }) => {
-        Shopware.State.commit('modals/closeModal', locationId);
+        Shopware.Store.get('modals').closeModal(locationId);
     });
 }

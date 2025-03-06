@@ -2,19 +2,19 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\App\TaxProvider\Response;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTax;
 use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTaxCollection;
 use Shopware\Core\Framework\App\TaxProvider\Response\TaxProviderResponse;
-use Shopware\Core\Framework\Test\IdsCollection;
+use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 
 /**
- * @package checkout
- *
  * @internal
- *
- * @covers \Shopware\Core\Framework\App\TaxProvider\Response\TaxProviderResponse
  */
+#[Package('checkout')]
+#[CoversClass(TaxProviderResponse::class)]
 class TaxProviderResponseTest extends TestCase
 {
     private IdsCollection $ids;

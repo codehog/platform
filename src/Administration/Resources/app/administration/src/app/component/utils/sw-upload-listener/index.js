@@ -1,3 +1,7 @@
+/**
+ * @sw-package framework
+ */
+
 import { UploadEvents } from 'src/core/service/api/media.api.service';
 
 const { Component, Mixin, Context } = Shopware;
@@ -42,7 +46,10 @@ function isIllegalUrlException(error) {
 Component.register('sw-upload-listener', {
     template: '<div style="display: none"></div>',
 
-    inject: ['repositoryFactory', 'mediaService'],
+    inject: [
+        'repositoryFactory',
+        'mediaService',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -85,7 +92,7 @@ Component.register('sw-upload-listener', {
         this.createdComponent();
     },
 
-    destroyed() {
+    unmounted() {
         this.destroyedComponent();
     },
 
@@ -120,8 +127,10 @@ Component.register('sw-upload-listener', {
             }
 
             if (action === UploadEvents.UPLOAD_FAILED) {
-                if (payload.successAmount + payload.failureAmount === payload.totalAmount &&
-                    payload.totalAmount !== payload.failureAmount) {
+                if (
+                    payload.successAmount + payload.failureAmount === payload.totalAmount &&
+                    payload.totalAmount !== payload.failureAmount
+                ) {
                     this.updateSuccessNotification(uploadTag, payload);
                 }
                 if (isDuplicationException(payload.error)) {
@@ -167,25 +176,23 @@ Component.register('sw-upload-listener', {
             }
 
             if (this.notificationId !== null) {
-                Shopware.State.dispatch('notification/updateNotification', {
+                Shopware.Store.get('notification').updateNotification({
                     uuid: this.notificationId,
                     ...notification,
-                }).then(() => {
-                    if (payload.successAmount + payload.failureAmount === payload.totalAmount) {
-                        this.notificationId = null;
-                    }
                 });
+                if (payload.successAmount + payload.failureAmount === payload.totalAmount) {
+                    this.notificationId = null;
+                }
                 return;
             }
 
-            Shopware.State.dispatch('notification/createNotification', {
+            const newNotificationId = Shopware.Store.get('notification').createNotification({
                 variant: 'success',
                 ...notification,
-            }).then((newNotificationId) => {
-                if (payload.successAmount + payload.failureAmount < payload.totalAmount) {
-                    this.notificationId = newNotificationId;
-                }
             });
+            if (payload.successAmount + payload.failureAmount < payload.totalAmount) {
+                this.notificationId = newNotificationId;
+            }
         },
 
         showErrorNotification(payload) {
@@ -194,17 +201,16 @@ Component.register('sw-upload-listener', {
                     title: this.$root.$tc('global.default.error'),
                     message: this.$root.$tc(
                         'global.sw-media-upload.notification.illegalFilename.message',
+                        {
+                            fileName: payload.fileName,
+                        },
                         0,
-                        { fileName: payload.fileName },
                     ),
                 });
             } else if (isIllegalUrlException(payload.error)) {
                 this.createNotificationError({
                     title: this.$root.$tc('global.sw-media-upload.notification.illegalFileUrl.title'),
-                    message: this.$root.$tc(
-                        'global.sw-media-upload.notification.illegalFileUrl.message',
-                        0,
-                    ),
+                    message: this.$root.$tc('global.sw-media-upload.notification.illegalFileUrl.message', 0),
                 });
             } else {
                 this.createNotificationError({

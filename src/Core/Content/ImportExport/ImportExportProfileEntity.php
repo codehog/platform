@@ -3,11 +3,12 @@
 namespace Shopware\Core\Content\ImportExport;
 
 use Shopware\Core\Content\ImportExport\Aggregate\ImportExportLog\ImportExportLogCollection;
+use Shopware\Core\Content\ImportExport\Processing\Mapping\Mapping;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
 class ImportExportProfileEntity extends Entity
 {
     use EntityIdTrait;
@@ -16,79 +17,49 @@ class ImportExportProfileEntity extends Entity
     final public const TYPE_EXPORT = 'export';
     final public const TYPE_IMPORT_EXPORT = 'import-export';
 
-    /**
-     * @var string|null
-     */
-    protected $name;
+    protected string $technicalName;
+
+    protected string $label;
+
+    protected bool $systemDefault;
+
+    protected string $sourceEntity;
+
+    protected string $fileType;
+
+    protected ?string $delimiter = null;
+
+    protected ?string $enclosure = null;
+
+    protected string $type;
 
     /**
-     * @var string
+     * @var list<array{key: string, mappedKey: string}>|array<Mapping>|null
      */
-    protected $label;
+    protected ?array $mapping = null;
 
     /**
-     * @var bool
+     * @var array<string, mixed>|null
      */
-    protected $systemDefault;
+    protected ?array $updateBy = [];
+
+    protected ?ImportExportLogCollection $importExportLogs = null;
 
     /**
-     * @var string
+     * @var array<string, mixed>
      */
-    protected $sourceEntity;
+    protected array $config;
 
-    /**
-     * @var string
-     */
-    protected $fileType;
+    protected ?ImportExportProfileTranslationCollection $translations = null;
 
-    /**
-     * @var string|null
-     */
-    protected $delimiter;
-
-    /**
-     * @var string|null
-     */
-    protected $enclosure;
-
-    /**
-     * @var string
-     */
-    protected $type;
-
-    /**
-     * @var array|null
-     */
-    protected $mapping;
-
-    /**
-     * @var array|null
-     */
-    protected $updateBy;
-
-    /**
-     * @var ImportExportLogCollection|null
-     */
-    protected $importExportLogs;
-
-    /**
-     * @var array
-     */
-    protected $config;
-
-    /**
-     * @var ImportExportProfileTranslationCollection|null
-     */
-    protected $translations;
-
-    public function getName(): ?string
+    public function getTechnicalName(): string
     {
-        return $this->name;
+        return $this->technicalName;
     }
 
-    public function setName(string $name): void
+    public function setTechnicalName(string $technicalName): void
     {
-        $this->name = $name;
+        $this->technicalName = $technicalName;
     }
 
     public function getLabel(): string
@@ -151,21 +122,33 @@ class ImportExportProfileEntity extends Entity
         $this->enclosure = $enclosure;
     }
 
+    /**
+     * @return list<array{key: string, mappedKey: string}>|array<Mapping>|null
+     */
     public function getMapping(): ?array
     {
         return $this->mapping;
     }
 
+    /**
+     * @param list<array{key: string, mappedKey: string}>|array<Mapping> $mapping
+     */
     public function setMapping(array $mapping): void
     {
         $this->mapping = $mapping;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getUpdateBy(): ?array
     {
         return $this->updateBy;
     }
 
+    /**
+     * @param array<string, mixed>|null $updateBy
+     */
     public function setUpdateBy(?array $updateBy): void
     {
         $this->updateBy = $updateBy;
@@ -181,11 +164,17 @@ class ImportExportProfileEntity extends Entity
         $this->importExportLogs = $importExportLogs;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getConfig(): array
     {
         return $this->config;
     }
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function setConfig(array $config): void
     {
         $this->config = $config;

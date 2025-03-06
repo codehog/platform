@@ -1,32 +1,33 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-empty-state';
+import { mount } from '@vue/test-utils';
 
 describe('components/base/sw-empty-state', () => {
     let wrapper;
 
     beforeEach(async () => {
-        wrapper = shallowMount(await Shopware.Component.build('sw-empty-state'), {
-            stubs: {
-                'sw-icon': true,
+        wrapper = mount(await wrapTestComponent('sw-empty-state'), {
+            global: {
+                mocks: {
+                    $route: {
+                        meta: {
+                            $module: {
+                                icon: 'regular-content',
+                                description: 'Foo bar',
+                            },
+                        },
+                    },
+                },
             },
-            mocks: {
-                $route: { meta: { $module: { icon: 'default-symbol-content', description: 'Foo bar' } } },
-            },
-            propsData: {
+            props: {
                 title: 'Oh no, nothing was found.',
             },
             slots: {
-                actions: '<button class="sw-button">Primary action</button>',
+                actions: '<button class="button">Primary action</button>',
             },
         });
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
     });
 
     it('should be a Vue.js component', async () => {
@@ -62,6 +63,6 @@ describe('components/base/sw-empty-state', () => {
     });
 
     it('should be render a button element when using the actions slot', async () => {
-        expect(wrapper.find('.sw-button').text()).toBe('Primary action');
+        expect(wrapper.find('.button').text()).toBe('Primary action');
     });
 });

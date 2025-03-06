@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Installer;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\DevOps\Environment\EnvironmentHelper;
 use Shopware\Core\Framework\Test\TestCaseBase\EnvTestBehaviour;
@@ -13,21 +14,22 @@ use Symfony\Bundle\TwigBundle\TwigBundle;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Installer\InstallerKernel
  */
+#[CoversClass(InstallerKernel::class)]
 class InstallerKernelTest extends TestCase
 {
     use EnvTestBehaviour;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->setEnvVars(['COMPOSER_HOME' => null]);
+    }
+
     public function testItCorrectlyConfiguresTheContainer(): void
     {
-        $this->setEnvVars(['COMPOSER_HOME' => null]);
-
         $kernel = new InstallerKernel('test', false);
-
         $kernel->boot();
-
         static::assertTrue($kernel->getContainer()->hasParameter('kernel.shopware_version'));
 
         // the default revision changes per commit, if it is set we expect that it is correct
@@ -41,7 +43,12 @@ class InstallerKernelTest extends TestCase
             ],
             $kernel->getContainer()->getParameter('kernel.bundles')
         );
+    }
 
+    public function testItCorrectlyConfiguresProjectDir(): void
+    {
+        $kernel = new InstallerKernel('test', false);
+        $kernel->boot();
         $projectDir = (new TestBootstrapper())->getProjectDir();
 
         static::assertSame($projectDir, $kernel->getContainer()->getParameter('kernel.project_dir'));

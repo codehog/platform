@@ -7,7 +7,7 @@ use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Tax\Aggregate\TaxRule\TaxRuleEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class ZipCodeRuleTypeFilter extends AbstractTaxRuleTypeFilter
 {
     final public const TECHNICAL_NAME = 'zip_code';
@@ -22,7 +22,7 @@ class ZipCodeRuleTypeFilter extends AbstractTaxRuleTypeFilter
 
         $shippingZipCode = $this->getZipCode($shippingLocation);
 
-        $zipCode = $taxRuleEntity->getData()['zipCode'];
+        $zipCode = $taxRuleEntity->getData()['zipCode'] ?? null;
 
         if ($shippingZipCode !== $zipCode) {
             return false;
@@ -46,6 +46,6 @@ class ZipCodeRuleTypeFilter extends AbstractTaxRuleTypeFilter
 
     private function getZipCode(ShippingLocation $shippingLocation): ?string
     {
-        return $shippingLocation->getAddress() !== null ? $shippingLocation->getAddress()->getZipcode() : null;
+        return $shippingLocation->getAddress()?->getZipcode();
     }
 }

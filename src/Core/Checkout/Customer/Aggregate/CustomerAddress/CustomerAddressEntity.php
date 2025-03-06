@@ -11,7 +11,7 @@ use Shopware\Core\System\Country\Aggregate\CountryState\CountryStateEntity;
 use Shopware\Core\System\Country\CountryEntity;
 use Shopware\Core\System\Salutation\SalutationEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerAddressEntity extends Entity
 {
     use EntityCustomFieldsTrait;
@@ -54,6 +54,8 @@ class CustomerAddressEntity extends Entity
     protected ?SalutationEntity $salutation = null;
 
     protected ?CustomerEntity $customer = null;
+
+    protected ?string $hash = null;
 
     public function getCustomerId(): string
     {
@@ -243,5 +245,15 @@ class CustomerAddressEntity extends Entity
     public function setCustomer(CustomerEntity $customer): void
     {
         $this->customer = $customer;
+    }
+
+    public function getHash(): ?string
+    {
+        return $this->hash;
+    }
+
+    public function setHash(string $hash): void
+    {
+        $this->hash = $hash;
     }
 }

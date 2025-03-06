@@ -7,14 +7,13 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\CustomFields;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\Field;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\JsonField;
-use Shopware\Core\Framework\DataAbstractionLayer\Field\StorageAware;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\CustomField\CustomFieldService;
 
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class CustomFieldsAccessorBuilder extends JsonFieldAccessorBuilder
 {
     /**
@@ -29,7 +28,6 @@ class CustomFieldsAccessorBuilder extends JsonFieldAccessorBuilder
 
     public function buildAccessor(string $root, Field $field, Context $context, string $accessor): ?string
     {
-        /** @var StorageAware $field */
         if (!$field instanceof CustomFields) {
             return null;
         }

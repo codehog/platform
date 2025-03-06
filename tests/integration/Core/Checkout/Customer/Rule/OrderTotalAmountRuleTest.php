@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\CustomerCollection;
@@ -9,6 +10,8 @@ use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Checkout\Customer\Rule\OrderTotalAmountRule;
 use Shopware\Core\Checkout\Order\OrderCollection;
 use Shopware\Core\Checkout\Order\OrderEntity;
+use Shopware\Core\Content\Rule\Aggregate\RuleCondition\RuleConditionCollection;
+use Shopware\Core\Content\Rule\RuleCollection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -23,21 +26,28 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\StateMachine\Aggregation\StateMachineTransition\StateMachineTransitionActions;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
+use Shopware\Core\Test\Integration\Traits\OrderFixture;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
  * @internal
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
 class OrderTotalAmountRuleTest extends TestCase
 {
     use DatabaseTransactionBehaviour;
     use KernelTestBehaviour;
     use OrderFixture;
 
+    /**
+     * @var EntityRepository<RuleCollection>
+     */
     private EntityRepository $ruleRepository;
 
+    /**
+     * @var EntityRepository<RuleConditionCollection>
+     */
     private EntityRepository $conditionRepository;
 
     private Context $context;
@@ -46,10 +56,10 @@ class OrderTotalAmountRuleTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->ruleRepository = $this->getContainer()->get('rule.repository');
-        $this->conditionRepository = $this->getContainer()->get('rule_condition.repository');
+        $this->ruleRepository = static::getContainer()->get('rule.repository');
+        $this->conditionRepository = static::getContainer()->get('rule_condition.repository');
         $this->context = Context::createDefaultContext();
-        $this->stateMachineRegistry = $this->getContainer()->get(StateMachineRegistry::class);
+        $this->stateMachineRegistry = static::getContainer()->get(StateMachineRegistry::class);
     }
 
     public function testValidateWithMissingValues(): void
@@ -122,7 +132,7 @@ class OrderTotalAmountRuleTest extends TestCase
         $ruleId = Uuid::randomHex();
         $this->ruleRepository->create(
             [['id' => $ruleId, 'name' => 'Demo rule', 'priority' => 1]],
-            Context::createDefaultContext()
+            $this->context
         );
 
         $id = Uuid::randomHex();
@@ -139,6 +149,8 @@ class OrderTotalAmountRuleTest extends TestCase
         ], $this->context);
 
         static::assertNotNull($this->conditionRepository->search(new Criteria([$id]), $this->context)->get($id));
+        $this->ruleRepository->delete([['id' => $ruleId]], $this->context);
+        $this->conditionRepository->delete([['id' => $id]], $this->context);
     }
 
     public function testRuleDoesNotMatchWithWrongScope(): void
@@ -146,17 +158,17 @@ class OrderTotalAmountRuleTest extends TestCase
         $rule = new OrderTotalAmountRule();
         $rule->assign(['amount' => 2, 'operator' => Rule::OPERATOR_LT]);
 
-        $result = $rule->match($this->getMockForAbstractClass(RuleScope::class));
+        $result = $rule->match($this->createMock(RuleScope::class));
 
         static::assertFalse($result);
     }
 
     public function testCustomerMetaFieldSubscriberWithCompletedOrder(): void
     {
-        /** @var EntityRepository $orderRepository */
-        $orderRepository = $this->getContainer()->get('order.repository');
-        /** @var EntityRepository $customerRepository */
-        $customerRepository = $this->getContainer()->get('customer.repository');
+        /** @var EntityRepository<OrderCollection> $orderRepository */
+        $orderRepository = static::getContainer()->get('order.repository');
+        /** @var EntityRepository<CustomerCollection> $customerRepository */
+        $customerRepository = static::getContainer()->get('customer.repository');
         $defaultContext = Context::createDefaultContext();
         $orderId = Uuid::randomHex();
         $orderData = $this->getOrderData($orderId, $defaultContext);
@@ -216,10 +228,10 @@ class OrderTotalAmountRuleTest extends TestCase
 
     public function testCustomerMetaFieldSubscriberWithDeletedOrder(): void
     {
-        /** @var EntityRepository $orderRepository */
-        $orderRepository = $this->getContainer()->get('order.repository');
-        /** @var EntityRepository $customerRepository */
-        $customerRepository = $this->getContainer()->get('customer.repository');
+        /** @var EntityRepository<OrderCollection> $orderRepository */
+        $orderRepository = static::getContainer()->get('order.repository');
+        /** @var EntityRepository<CustomerCollection> $customerRepository */
+        $customerRepository = static::getContainer()->get('customer.repository');
         $defaultContext = Context::createDefaultContext();
         $orderId = Uuid::randomHex();
         $orderData = $this->getOrderData($orderId, $defaultContext);
@@ -271,9 +283,7 @@ class OrderTotalAmountRuleTest extends TestCase
         static::assertSame(0, (int) $result->first()->getOrderTotalAmount());
     }
 
-    /**
-     * @dataProvider getMatchValues
-     */
+    #[DataProvider('getMatchValues')]
     public function testRuleMatching(string $operator, bool $isMatching, ?float $orderAmount, float $ruleOrderAmount, bool $noCustomer = false): void
     {
         $rule = new OrderTotalAmountRule();

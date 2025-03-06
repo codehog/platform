@@ -2,9 +2,10 @@ import template from './sw-media-folder-item.html.twig';
 import './sw-media-folder-item.scss';
 
 const { Application, Mixin, Context } = Shopware;
+const { warn } = Shopware.Utils.debug;
 
 /**
- * @package content
+ * @sw-package discovery
  */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
@@ -13,6 +14,14 @@ export default {
     inheritAttrs: false,
 
     inject: ['repositoryFactory'],
+
+    emits: [
+        'media-folder-remove',
+        'media-folder-changed',
+        'media-folder-delete',
+        'media-folder-dissolve',
+        'media-folder-move',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -95,11 +104,12 @@ export default {
         async getIconConfigFromFolder() {
             const { mediaFolder } = this;
 
-            if (mediaFolder.defaultFolderId === this.lastDefaultFolderId) {
+            if (!mediaFolder.defaultFolderId || mediaFolder.defaultFolderId === this.lastDefaultFolderId) {
                 return;
             }
 
             this.lastDefaultFolderId = mediaFolder.defaultFolderId;
+
             const defaultFolder = await this.mediaDefaultFolderRepository.get(mediaFolder.defaultFolderId, Context.api);
 
             if (!defaultFolder) {
@@ -107,8 +117,14 @@ export default {
             }
 
             const module = this.moduleFactory.getModuleByEntityName(defaultFolder.entity);
-            this.iconConfig.name = module.manifest.icon;
-            this.iconConfig.color = module.manifest.color;
+
+            if (!module) {
+                warn('Missing module for default folder entity', defaultFolder.entity);
+                return;
+            }
+
+            this.iconConfig.name = module.manifest?.icon ?? '';
+            this.iconConfig.color = module.manifest?.color ?? '#000000';
         },
 
         async onChangeName(updatedName, item, endInlineEdit) {
@@ -136,12 +152,9 @@ export default {
 
         onBlur(event, item, endInlineEdit) {
             const input = event.target.value;
-            if (input !== item.name) {
-                return;
-            }
 
-            if (!input || !input.trim()) {
-                this.rejectRenaming(item, 'empty-name', endInlineEdit);
+            if (input !== item.name) {
+                this.onChangeName(input, item, endInlineEdit);
                 return;
             }
 

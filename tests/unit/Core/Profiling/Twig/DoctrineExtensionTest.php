@@ -2,14 +2,14 @@
 
 namespace Shopware\Tests\Unit\Core\Profiling\Twig;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Profiling\Twig\DoctrineExtension;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Profiling\Twig\DoctrineExtension
  */
+#[CoversClass(DoctrineExtension::class)]
 class DoctrineExtensionTest extends TestCase
 {
     public function testReplaceQueryParametersWithPostgresCasting(): void
@@ -110,7 +110,7 @@ class DoctrineExtensionTest extends TestCase
         $extension = new DoctrineExtension();
         static::assertSame(
             1,
-            substr_count($extension->formatSQL('CREATE DATABASE 📚;', true), '<pre class=')
+            substr_count($extension->formatSql('CREATE DATABASE 📚;', true), '<pre class=')
         );
     }
 }

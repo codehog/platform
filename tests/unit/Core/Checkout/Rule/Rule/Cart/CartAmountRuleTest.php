@@ -2,20 +2,24 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Rule\Rule\Cart;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Rule\CartAmountRule;
 use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
+use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Rule\Exception\UnsupportedOperatorException;
+use Shopware\Core\Framework\Rule\RuleComparison;
+use Shopware\Core\Framework\Rule\RuleConfig;
+use Shopware\Core\Framework\Rule\RuleException;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\Generator;
+use Shopware\Core\Test\Generator;
 
 /**
- * @covers \Shopware\Core\Checkout\Cart\Rule\CartAmountRule
- *
  * @internal
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(CartAmountRule::class)]
 class CartAmountRuleTest extends TestCase
 {
     public function testRuleWithExactAmountMatch(): void
@@ -138,12 +142,10 @@ class CartAmountRuleTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider unsupportedOperators
-     */
+    #[DataProvider('unsupportedOperators')]
     public function testUnsupportedOperators(string $operator): void
     {
-        $this->expectException(UnsupportedOperatorException::class);
+        $this->expectExceptionObject(RuleException::unsupportedOperator($operator, RuleComparison::class));
 
         $rule = (new CartAmountRule())->assign(['amount' => 100, 'operator' => $operator]);
 
@@ -164,5 +166,32 @@ class CartAmountRuleTest extends TestCase
             ['random'],
             [''],
         ];
+    }
+
+    public function testMatchShouldReturnFalseScopeIsNotCartRuleScope(): void
+    {
+        $ruleScope = new CheckoutRuleScope($this->createMock(SalesChannelContext::class));
+        $cartAmountRule = new CartAmountRule();
+
+        static::assertFalse($cartAmountRule->match($ruleScope));
+    }
+
+    public function testGetConstraints(): void
+    {
+        $result = (new CartAmountRule())->getConstraints();
+
+        static::assertArrayHasKey('amount', $result);
+        static::assertIsArray($result['amount']);
+
+        static::assertArrayHasKey('operator', $result);
+        static::assertIsArray($result['operator']);
+    }
+
+    public function testGetConfig(): void
+    {
+        $data = (new CartAmountRule())->getConfig()->getData();
+
+        static::assertSame(RuleConfig::OPERATOR_SET_NUMBER, $data['operatorSet']['operators']);
+        static::assertSame('amount', $data['fields']['amount']['name']);
     }
 }

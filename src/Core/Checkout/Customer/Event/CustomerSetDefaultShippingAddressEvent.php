@@ -15,7 +15,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Contracts\EventDispatcher\Event;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerSetDefaultShippingAddressEvent extends Event implements SalesChannelAware, ShopwareSalesChannelEvent, FlowEventAware
 {
     final public const EVENT_NAME = 'checkout.customer.default.shipping.address.event';
@@ -49,7 +49,7 @@ class CustomerSetDefaultShippingAddressEvent extends Event implements SalesChann
 
     public function getSalesChannelId(): string
     {
-        return $this->salesChannelContext->getSalesChannel()->getId();
+        return $this->salesChannelContext->getSalesChannelId();
     }
 
     public static function getAvailableData(): EventDataCollection

@@ -1,122 +1,116 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
-import swCustomFieldTypeBase from 'src/module/sw-settings-custom-field/component/sw-custom-field-type-base';
-import swCustomFieldTypeSelect from 'src/module/sw-settings-custom-field/component/sw-custom-field-type-select';
-import 'src/app/component/form/sw-checkbox-field';
-import 'src/app/component/form/sw-switch-field';
-
-Shopware.Component.register('sw-custom-field-type-base', swCustomFieldTypeBase);
-Shopware.Component.extend('sw-custom-field-type-select', 'sw-custom-field-type-base', swCustomFieldTypeSelect);
-
-let currentCustomField = {};
-
-async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-custom-field-type-select'), {
-        mocks: {
-            $i18n: {
-                fallbackLocale: 'en-GB',
+const currentCustomField = {
+    name: 'technical_test',
+    type: 'select',
+    config: {
+        label: { 'en-GB': null },
+        options: [
+            {
+                label: { 'en-GB': 'translated-label-1' },
+                value: 'label-with-translated-value',
             },
-        },
-        propsData: {
-            currentCustomField,
-            set: {
-                name: 'technical_test',
-                config: { label: { 'en-GB': 'test_label' } },
-                active: true,
-                global: false,
-                position: 1,
-                appId: null,
+            {
+                label: {},
+                value: 'label-without-translated-value',
+            },
+            {
+                label: [],
+                value: 'label-with-incorrect-value',
+            },
+        ],
+        helpText: { 'en-GB': null },
+        placeholder: { 'en-GB': null },
+        componentName: 'sw-single-select',
+        customFieldType: 'select',
+        customFieldPosition: 1,
+    },
+    active: true,
+    customFieldSetId: 'd2667dfae415440592a0944fbea2d3ce',
+    id: '8e1ab96faf374836a4d68febc8d4f1e1',
+    productSearchConfigFields: [],
+};
+
+const defaultProps = {
+    currentCustomField,
+    set: {
+        name: 'technical_test',
+        config: { label: { 'en-GB': 'test_label' } },
+        active: true,
+        global: false,
+        position: 1,
+        appId: null,
+        createdAt: '2021-06-30T08:02:28.996+00:00',
+        updatedAt: null,
+        apiAlias: null,
+        id: 'd2667dfae415440592a0944fbea2d3ce',
+        customFields: [],
+        relations: [
+            {
+                customFieldSetId: 'd2667dfae415440592a0944fbea2d3ce',
+                entityName: 'product',
                 createdAt: '2021-06-30T08:02:28.996+00:00',
                 updatedAt: null,
                 apiAlias: null,
-                id: 'd2667dfae415440592a0944fbea2d3ce',
-                customFields: [],
-                relations: [{
-                    customFieldSetId: 'd2667dfae415440592a0944fbea2d3ce',
-                    entityName: 'product',
-                    createdAt: '2021-06-30T08:02:28.996+00:00',
-                    updatedAt: null,
-                    apiAlias: null,
-                    id: '559b6ae735b04e199505fd4c5ac5f22c',
-                }],
-                products: [],
+                id: '559b6ae735b04e199505fd4c5ac5f22c',
             },
-        },
-        stubs: {
-            'sw-custom-field-translated-labels': true,
-            'sw-switch-field': await Shopware.Component.build('sw-switch-field'),
-            'sw-text-field': {
-                props: {
-                    value: {
-                        type: String,
-                        default: '',
-                    },
+        ],
+        products: [],
+    },
+};
+
+async function createWrapper(props = defaultProps) {
+    return mount(await wrapTestComponent('sw-custom-field-type-select', { sync: true }), {
+        props,
+        global: {
+            renderStubDefaultSlot: true,
+            mocks: {
+                $i18n: {
+                    fallbackLocale: 'en-GB',
                 },
-                template: '<input type="text" :value="value" @input="event => $emit(\'input\', event.target.value)" />',
             },
-            'sw-base-field': true,
-            'sw-field': true,
-            'sw-field-error': true,
-            'sw-button': true,
-            'sw-container': true,
+            stubs: {
+                'sw-custom-field-translated-labels': true,
+
+                'sw-text-field': await wrapTestComponent('sw-text-field'),
+                'sw-text-field-deprecated': await wrapTestComponent('sw-text-field-deprecated', { sync: true }),
+                'sw-base-field': await wrapTestComponent('sw-base-field'),
+                'sw-block-field': await wrapTestComponent('sw-block-field'),
+                'sw-field-error': true,
+                'sw-container': await wrapTestComponent('sw-container'),
+                'sw-contextual-field': await wrapTestComponent('sw-contextual-field'),
+                'router-link': true,
+                'sw-loader': true,
+                'sw-field-copyable': true,
+                'sw-inheritance-switch': true,
+                'sw-ai-copilot-badge': true,
+                'sw-help-text': true,
+            },
         },
     });
 }
 
 describe('src/module/sw-settings-custom-field/component/sw-custom-field-type-select', () => {
-    beforeEach(async () => {
-        currentCustomField = {
-            name: 'technical_test',
-            type: 'select',
-            config: {
-                label: { 'en-GB': null },
-                options: [
-                    {
-                        label: { 'en-GB': 'translated-label-1' },
-                        value: 'label-with-translated-value',
-                    },
-                    {
-                        label: {},
-                        value: 'label-without-translated-value',
-                    },
-                    {
-                        label: [],
-                        value: 'label-with-incorrect-value',
-                    },
-                ],
-                helpText: { 'en-GB': null },
-                placeholder: { 'en-GB': null },
-                componentName: 'sw-single-select',
-                customFieldType: 'select',
-                customFieldPosition: 1,
-            },
-            active: true,
-            customFieldSetId: 'd2667dfae415440592a0944fbea2d3ce',
-            id: '8e1ab96faf374836a4d68febc8d4f1e1',
-            productSearchConfigFields: [],
-        };
-    });
-
-    it('should be a Vue.js component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should allow saving of labels for options', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
-        const labelInputs = wrapper.findAll('.sw-custom-field-type-select__option-label');
+        const labelInputs = wrapper.findAll('.sw-custom-field-type-select__option-label input');
+        expect(labelInputs[0].element.value).toBe('translated-label-1');
+        expect(labelInputs[1].element.value).toBe('');
+        expect(labelInputs[2].element.value).toBe('');
 
-        expect(labelInputs.at(0).props('value')).toBe('translated-label-1');
-        expect(labelInputs.at(1).props('value')).toBe('');
-        expect(labelInputs.at(2).props('value')).toBe('');
+        // eslint-disable-next-line no-restricted-syntax
+        for (const labelInput of labelInputs) {
+            const index = labelInputs.indexOf(labelInput);
+            // eslint-disable-next-line no-await-in-loop
+            await labelInput.setValue(`label-${index}`);
+        }
 
-        // eslint-disable-next-line sw-test-rules/await-async-functions
-        labelInputs.wrappers.forEach((labelInput, index) => labelInput.setValue(`label-${index}`));
+        await flushPromises();
 
         expect(wrapper.vm.currentCustomField.config).toEqual({
             componentName: 'sw-single-select',
@@ -152,5 +146,34 @@ describe('src/module/sw-settings-custom-field/component/sw-custom-field-type-sel
                 'en-GB': null,
             },
         });
+    });
+
+    it('should allow adding new options', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
+        const addButton = wrapper.find('.sw-custom-field-type-select__button-add');
+        expect(wrapper.vm.currentCustomField.config.options).toHaveLength(3);
+
+        await addButton.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.vm.currentCustomField.config.options).toHaveLength(4);
+    });
+
+    it('should only allow valid component names', async () => {
+        const wrapper = await createWrapper({
+            ...defaultProps,
+            currentCustomField: {
+                ...currentCustomField,
+                config: {
+                    ...currentCustomField.config,
+                    componentName: 'foo',
+                },
+            },
+        });
+        await flushPromises();
+
+        expect(wrapper.vm.currentCustomField.config.componentName).toBe('sw-single-select');
     });
 });

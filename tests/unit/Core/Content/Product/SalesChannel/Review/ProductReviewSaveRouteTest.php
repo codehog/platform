@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Content\Product\SalesChannel\Review;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
@@ -13,18 +14,16 @@ use Shopware\Core\Framework\Event\EventData\MailRecipientStruct;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\DataValidator;
-use Shopware\Core\System\SalesChannel\NoContentResponse;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SalesChannel\SalesChannelEntity;
-use Shopware\Tests\Unit\Common\Stubs\SystemConfigService\StaticSystemConfigService;
+use Shopware\Core\Test\Stub\SystemConfigService\StaticSystemConfigService;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewSaveRoute
  */
+#[CoversClass(ProductReviewSaveRoute::class)]
 class ProductReviewSaveRouteTest extends TestCase
 {
     private MockObject&EntityRepository $repository;
@@ -79,8 +78,9 @@ class ProductReviewSaveRouteTest extends TestCase
         $salesChannel->setId('test');
 
         $salesChannelContext->expects(static::once())->method('getCustomer')->willReturn($customer);
-        $salesChannelContext->expects(static::exactly(4))->method('getSalesChannel')->willReturn($salesChannel);
-        $salesChannelContext->expects(static::exactly(4))->method('getContext')->willReturn($context);
+        $salesChannelContext->expects(static::exactly(3))->method('getSalesChannelId')->willReturn($salesChannel->getId());
+        $salesChannelContext->expects(static::exactly(1))->method('getLanguageId')->willReturn($context->getLanguageId());
+        $salesChannelContext->expects(static::exactly(3))->method('getContext')->willReturn($context);
 
         $this->validator->expects(static::once())->method('getViolations')->willReturn(new ConstraintViolationList());
 
@@ -106,7 +106,7 @@ class ProductReviewSaveRouteTest extends TestCase
         $event = new ReviewFormEvent(
             $context,
             $salesChannel->getId(),
-            new MailRecipientStruct(['noreply@example.com' => 'noreply@example.com']),
+            new MailRecipientStruct(['foo@example.com' => 'Max Mustermann']),
             new RequestDataBag([
                 'title' => 'foo',
                 'content' => 'bar',
@@ -127,9 +127,6 @@ class ProductReviewSaveRouteTest extends TestCase
             ->method('dispatch')
             ->with($event, ReviewFormEvent::EVENT_NAME);
 
-        static::assertInstanceOf(
-            NoContentResponse::class,
-            $this->route->save($productId, $data, $salesChannelContext)
-        );
+        $this->route->save($productId, $data, $salesChannelContext);
     }
 }

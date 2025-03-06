@@ -14,18 +14,19 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Process\Process;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class InstallController extends AbstractController
 {
     public function __construct(
         private readonly RecoveryManager $recoveryManager,
         private readonly StreamedCommandResponseGenerator $streamedCommandResponseGenerator,
-        private readonly ReleaseInfoProvider $releaseInfoProvider
+        private readonly ReleaseInfoProvider $releaseInfoProvider,
+        private readonly ProjectComposerJsonUpdater $projectComposerJsonUpdater
     ) {
     }
 
@@ -54,20 +55,25 @@ class InstallController extends AbstractController
         $fs->mkdir($folder . '/custom/plugins');
         $fs->mkdir($folder . '/custom/static-plugins');
 
-        ProjectComposerJsonUpdater::update(
+        $this->projectComposerJsonUpdater->update(
             $folder . '/composer.json',
             $shopwareVersion
         );
 
         $finish = function (Process $process) use ($request): void {
-            echo json_encode([
+            $data = [
                 'success' => $process->isSuccessful(),
-                'newLocation' => $request->getBasePath() . '/public/',
-            ]);
+            ];
+
+            if ($process->isSuccessful()) {
+                $data['newLocation'] = $request->getBasePath() . '/public/';
+            }
+
+            echo json_encode($data);
         };
 
         return $this->streamedCommandResponseGenerator->run([
-            $this->recoveryManager->getPhpBinary($request),
+            $this->recoveryManager->getPHPBinary($request),
             '-dmemory_limit=1G',
             $this->recoveryManager->getBinary(),
             'install',

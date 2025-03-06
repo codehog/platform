@@ -2,11 +2,14 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Delivery\Struct\ShippingLocation;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
 use Shopware\Core\Checkout\Customer\Rule\ShippingZipCodeRule;
+use Shopware\Core\Content\Rule\Aggregate\RuleCondition\RuleConditionCollection;
+use Shopware\Core\Content\Rule\RuleCollection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -25,14 +28,20 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 /**
  * @internal
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
 class ShippingZipCodeRuleTest extends TestCase
 {
     use DatabaseTransactionBehaviour;
     use KernelTestBehaviour;
 
+    /**
+     * @var EntityRepository<RuleCollection>
+     */
     private EntityRepository $ruleRepository;
 
+    /**
+     * @var EntityRepository<RuleConditionCollection>
+     */
     private EntityRepository $conditionRepository;
 
     private Context $context;
@@ -41,8 +50,8 @@ class ShippingZipCodeRuleTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->ruleRepository = $this->getContainer()->get('rule.repository');
-        $this->conditionRepository = $this->getContainer()->get('rule_condition.repository');
+        $this->ruleRepository = static::getContainer()->get('rule.repository');
+        $this->conditionRepository = static::getContainer()->get('rule_condition.repository');
         $this->context = Context::createDefaultContext();
         $this->rule = new ShippingZipCodeRule();
     }
@@ -50,7 +59,7 @@ class ShippingZipCodeRuleTest extends TestCase
     public function testValidateWithMissingZipCodes(): void
     {
         // reset from previous tests
-        $this->getContainer()->get(ShippingZipCodeRule::class)->assign(['operator' => Rule::OPERATOR_EQ, 'zipCodes' => null]);
+        static::getContainer()->get(ShippingZipCodeRule::class)->assign(['operator' => Rule::OPERATOR_EQ, 'zipCodes' => null]);
 
         $conditionId = Uuid::randomHex();
 
@@ -150,7 +159,7 @@ class ShippingZipCodeRuleTest extends TestCase
         $ruleId = Uuid::randomHex();
         $this->ruleRepository->create(
             [['id' => $ruleId, 'name' => 'Demo rule', 'priority' => 1]],
-            Context::createDefaultContext()
+            $this->context
         );
 
         try {
@@ -172,9 +181,11 @@ class ShippingZipCodeRuleTest extends TestCase
             static::assertSame('The property "zipCodes" is not allowed.', $exceptions[0]['detail']);
         }
 
+        $id = Uuid::randomHex();
         // should not throw an exception
         $this->conditionRepository->create([
             [
+                'id' => $id,
                 'type' => (new ShippingZipCodeRule())->getName(),
                 'ruleId' => $ruleId,
                 'value' => [
@@ -182,6 +193,9 @@ class ShippingZipCodeRuleTest extends TestCase
                 ],
             ],
         ], $this->context);
+
+        $this->ruleRepository->delete([['id' => $ruleId]], $this->context);
+        $this->conditionRepository->delete([['id' => $id]], $this->context);
     }
 
     public function testIfRuleIsConsistent(): void
@@ -189,7 +203,7 @@ class ShippingZipCodeRuleTest extends TestCase
         $ruleId = Uuid::randomHex();
         $this->ruleRepository->create(
             [['id' => $ruleId, 'name' => 'Demo rule', 'priority' => 1]],
-            Context::createDefaultContext()
+            $this->context
         );
 
         $id = Uuid::randomHex();
@@ -206,6 +220,8 @@ class ShippingZipCodeRuleTest extends TestCase
         ], $this->context);
 
         static::assertNotNull($this->conditionRepository->search(new Criteria([$id]), $this->context)->get($id));
+        $this->ruleRepository->delete([['id' => $ruleId]], $this->context);
+        $this->conditionRepository->delete([['id' => $id]], $this->context);
     }
 
     public function testValidateWithInvalidGreaterThanCondition(): void
@@ -236,7 +252,7 @@ class ShippingZipCodeRuleTest extends TestCase
         $ruleId = Uuid::randomHex();
         $this->ruleRepository->create(
             [['id' => $ruleId, 'name' => 'Demo rule', 'priority' => 1]],
-            Context::createDefaultContext()
+            $this->context
         );
 
         $id = Uuid::randomHex();
@@ -253,6 +269,8 @@ class ShippingZipCodeRuleTest extends TestCase
         ], $this->context);
 
         static::assertNotNull($this->conditionRepository->search(new Criteria([$id]), $this->context)->get($id));
+        $this->ruleRepository->delete([['id' => $ruleId]], $this->context);
+        $this->conditionRepository->delete([['id' => $id]], $this->context);
     }
 
     public function testConstraints(): void
@@ -281,9 +299,7 @@ class ShippingZipCodeRuleTest extends TestCase
         static::assertEquals(new ArrayOfType('string'), $zipCodes[1]);
     }
 
-    /**
-     * @dataProvider getMatchValuesNumeric
-     */
+    #[DataProvider('getMatchValuesNumeric')]
     public function testRuleMatchingNumeric(string $operator, bool $isMatching, string $zipCode): void
     {
         $zipCodes = ['90210', '81985'];
@@ -322,9 +338,7 @@ class ShippingZipCodeRuleTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider getMatchValuesAlphanumeric
-     */
+    #[DataProvider('getMatchValuesAlphanumeric')]
     public function testRuleMatchingAlphanumeric(
         string $operator,
         bool $isMatching,

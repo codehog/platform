@@ -1,15 +1,7 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
-import { shallowMount } from '@vue/test-utils';
-import swSettingsIndex from 'src/module/sw-settings/page/sw-settings-index';
-import swSettingsItem from 'src/module/sw-settings/component/sw-settings-item';
-import 'src/app/component/base/sw-card';
-import 'src/app/component/base/sw-tabs';
-import 'src/app/component/base/sw-tabs-item';
-
-Shopware.Component.register('sw-settings-index', swSettingsIndex);
-Shopware.Component.register('sw-settings-item', swSettingsItem);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(
     privileges = [
@@ -26,7 +18,7 @@ async function createWrapper(
         {
             group: 'system',
             to: 'sw.settings.store.index',
-            icon: 'default-device-laptop',
+            icon: 'regular-laptop',
             id: 'sw-settings-store',
             name: 'settings-store',
             label: 'c',
@@ -35,7 +27,7 @@ async function createWrapper(
         {
             group: 'system',
             to: 'sw.settings.user.list',
-            icon: 'default-avatar-single',
+            icon: 'regular-user',
             id: 'sw-settings-user',
             name: 'settings-user',
             label: 'a',
@@ -44,7 +36,7 @@ async function createWrapper(
         {
             group: 'system',
             to: 'sw.settings.foo.list',
-            icon: 'default-avatar-single',
+            icon: 'regular-user',
             id: 'sw-settings-foo',
             name: 'settings-foo',
             label: 'b',
@@ -53,7 +45,7 @@ async function createWrapper(
         {
             group: 'shop',
             to: 'sw.settings.snippet.index',
-            icon: 'default-object-globe',
+            icon: 'regular-globe',
             id: 'sw-settings-snippet',
             name: 'settings-snippet',
             label: 'h',
@@ -62,7 +54,7 @@ async function createWrapper(
         {
             group: 'shop',
             to: 'sw.settings.listing.index',
-            icon: 'default-symbol-products',
+            icon: 'regular-products',
             id: 'sw-settings-listing',
             name: 'settings-listing',
             label: 's',
@@ -85,7 +77,7 @@ async function createWrapper(
                     id: Shopware.Utils.createId(),
                 },
             },
-            icon: 'default-object-books',
+            icon: 'regular-books',
             id: 'sw-extension-books',
             name: 'settings-app-book',
             label: {
@@ -101,7 +93,7 @@ async function createWrapper(
                     id: Shopware.Utils.createId(),
                 },
             },
-            icon: 'default-object-books',
+            icon: 'regular-books',
             id: 'sw-extension-briefcase',
             name: 'settings-app-briefcase',
             label: {
@@ -112,54 +104,59 @@ async function createWrapper(
     ];
 
     settingsItemsMock.forEach((settingsItem) => {
-        Shopware.State.commit('settingsItems/addItem', settingsItem);
+        Shopware.Store.get('settingsItems').addItem(settingsItem);
     });
 
-    return shallowMount(await Shopware.Component.build('sw-settings-index'), {
-        mocks: {
-            $tc: (path) => {
-                if (typeof path !== 'string') {
-                    return `${path}`;
-                }
-                return path;
-            },
-        },
-        stubs: {
-            'sw-page': {
-                template: '<div><slot name="content"></slot></div>',
-            },
-            'sw-card-view': {
-                template: '<div class="sw-card-view"><slot></slot></div>',
-            },
-            'sw-tabs': await Shopware.Component.build('sw-tabs'),
-            'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
-            'sw-card': {
-                template: '<div class="sw-card"><slot></slot></div>',
-            },
-            'sw-settings-item': await Shopware.Component.build('sw-settings-item'),
-            'router-link': {
-                template: '<a><slot></slot></a>',
-            },
-            'sw-icon': {
-                template: '<span></span>',
-            },
-            'sw-extension-component-section': true,
-        },
-        provide: {
-            acl: {
-                can: (key) => {
-                    if (!key) return true;
+    return mount(
+        await wrapTestComponent('sw-settings-index', {
+            sync: true,
+        }),
+        {
+            global: {
+                mocks: {
+                    $tc: (path) => {
+                        if (typeof path !== 'string') {
+                            return `${path}`;
+                        }
+                        return path;
+                    },
+                },
+                stubs: {
+                    'sw-page': {
+                        template: '<div><slot name="content"></slot></div>',
+                    },
+                    'sw-card-view': {
+                        template: '<div class="sw-card-view"><slot></slot></div>',
+                    },
+                    'sw-tabs': await wrapTestComponent('sw-tabs'),
+                    'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                    'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                    'mt-card': {
+                        template: '<div class="mt-card"><slot></slot></div>',
+                    },
+                    'sw-settings-item': await wrapTestComponent('sw-settings-item'),
+                    'router-link': {
+                        template: '<a><slot></slot></a>',
+                    },
+                    'sw-extension-component-section': true,
+                },
+                provide: {
+                    acl: {
+                        can: (key) => {
+                            if (!key) return true;
 
-                    return privileges.includes(key);
+                            return privileges.includes(key);
+                        },
+                    },
                 },
             },
         },
-    });
+    );
 }
 
 describe('module/sw-settings/page/sw-settings-index', () => {
     beforeEach(async () => {
-        Shopware.State.get('settingsItems').settingsGroups = {};
+        Shopware.Store.get('settingsItems').settingsGroups = {};
     });
 
     it('should be a Vue.js component', async () => {
@@ -176,87 +173,97 @@ describe('module/sw-settings/page/sw-settings-index', () => {
         const wrapper = await createWrapper();
         const settingsGroups = Object.entries(wrapper.vm.settingsGroups);
 
-        settingsGroups.forEach(([, settingsItems]) => {
-            settingsItems.forEach((settingsItem, index) => {
-                let elementsSorted = true;
+        settingsGroups.forEach(
+            ([
+                ,
+                settingsItems,
+            ]) => {
+                settingsItems.forEach((settingsItem, index) => {
+                    let elementsSorted = true;
 
-                if (index < settingsItems.length - 1 && typeof settingsItems[index].label === 'string') {
-                    elementsSorted = (
-                        settingsItems[index].label.localeCompare(settingsItems[index + 1].label) === -1
-                    );
-                }
+                    if (index < settingsItems.length - 1 && typeof settingsItems[index].label === 'string') {
+                        elementsSorted = settingsItems[index].label.localeCompare(settingsItems[index + 1].label) === -1;
+                    }
 
-                expect(elementsSorted).toBe(true);
-            });
-        });
-    });
-
-    it('should render correctly', async () => {
-        const wrapper = await createWrapper();
-        expect(wrapper.element).toMatchSnapshot();
+                    expect(elementsSorted).toBe(true);
+                });
+            },
+        );
     });
 
     it('should render settings items in alphabetical order', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
         const settingsGroups = Object.entries(wrapper.vm.settingsGroups);
 
-        settingsGroups.forEach(([settingsGroup, settingsItems]) => {
-            const settingsGroupWrapper = wrapper.find(`#sw-settings__content-grid-${settingsGroup}`);
-            const settingsItemsWrappers = settingsGroupWrapper.findAll('.sw-settings-item');
+        settingsGroups.forEach(
+            ([
+                settingsGroup,
+                settingsItems,
+            ]) => {
+                const settingsGroupWrapper = wrapper.find(`#sw-settings__content-group-${settingsGroup}`);
+                const settingsItemsWrappers = settingsGroupWrapper.findAll('.sw-settings-item');
 
-            // check, that all settings items were rendered
-            expect(settingsItemsWrappers).toHaveLength(settingsItems.length);
+                // check, that all settings items were rendered
+                expect(settingsItemsWrappers).toHaveLength(settingsItems.length);
 
-            // check, that settings items were rendered in alphabetical order
-            settingsItemsWrappers.wrappers.forEach((settingsItemsWrapper, index) => {
-                expect(settingsItemsWrapper.attributes().id).toEqual(settingsItems[index].id);
-            });
-        });
+                // check, that settings items were rendered in alphabetical order
+                settingsItemsWrappers.forEach((settingsItemsWrapper, index) => {
+                    expect(settingsItemsWrapper.attributes().id).toEqual(settingsItems[index].id);
+                });
+            },
+        );
     });
 
     it('should render settings items in alphabetical order with updated items', async () => {
         const settingsItemToAdd = {
             group: 'shop',
             to: 'sw.bar.index',
-            icon: 'bar',
+            icon: 'regular-storefront',
             id: 'sw-settings-bar',
             name: 'settings-bar',
             label: 'b',
         };
 
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
+        Shopware.Store.get('settingsItems').addItem(settingsItemToAdd);
 
         const wrapper = await createWrapper();
+        await flushPromises();
         const settingsGroups = Object.entries(wrapper.vm.settingsGroups);
 
-        settingsGroups.forEach(([settingsGroup, settingsItems]) => {
-            const settingsGroupWrapper = wrapper.find(`#sw-settings__content-grid-${settingsGroup}`);
-            const settingsItemsWrappers = settingsGroupWrapper.findAll('.sw-settings-item');
+        settingsGroups.forEach(
+            ([
+                settingsGroup,
+                settingsItems,
+            ]) => {
+                const settingsGroupWrapper = wrapper.find(`#sw-settings__content-group-${settingsGroup}`);
+                const settingsItemsWrappers = settingsGroupWrapper.findAll('.sw-settings-item');
 
-            expect(settingsItemsWrappers).toHaveLength(settingsItems.length);
+                expect(settingsItemsWrappers).toHaveLength(settingsItems.length);
 
-            settingsItemsWrappers.wrappers.forEach((settingsItemsWrapper, index) => {
-                expect(settingsItemsWrapper.attributes().id).toEqual(settingsItems[index].id);
-            });
-        });
+                settingsItemsWrappers.forEach((settingsItemsWrapper, index) => {
+                    expect(settingsItemsWrapper.attributes().id).toEqual(settingsItems[index].id);
+                });
+            },
+        );
     });
 
     it('should add the setting to the settingsGroups in store', async () => {
         const settingsItemToAdd = {
             group: 'shop',
             to: 'sw.bar.index',
-            icon: 'bar',
+            icon: 'regular-storefront',
             id: 'sw-settings-bar',
             name: 'settings-bar',
             label: 'b',
         };
 
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
+        Shopware.Store.get('settingsItems').addItem(settingsItemToAdd);
 
         const wrapper = await createWrapper();
 
         const settingsGroups = wrapper.vm.settingsGroups.shop;
-        const barSetting = settingsGroups.find(setting => setting.id === 'sw-settings-bar');
+        const barSetting = settingsGroups.find((setting) => setting.id === 'sw-settings-bar');
 
         expect(barSetting).toBeDefined();
     });
@@ -266,18 +273,18 @@ describe('module/sw-settings/page/sw-settings-index', () => {
             privilege: 'system.foo_bar',
             group: 'shop',
             to: 'sw.bar.index',
-            icon: 'bar',
+            icon: 'regular-storefront',
             id: 'sw-settings-bar',
             name: 'settings-bar',
             label: 'b',
         };
 
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
+        Shopware.Store.get('settingsItems').addItem(settingsItemToAdd);
 
         const wrapper = await createWrapper('system.foo_bar');
 
         const settingsGroups = wrapper.vm.settingsGroups.shop;
-        const barSetting = settingsGroups.find(setting => setting.id === 'sw-settings-bar');
+        const barSetting = settingsGroups.find((setting) => setting.id === 'sw-settings-bar');
 
         expect(barSetting).toBeDefined();
     });
@@ -287,98 +294,60 @@ describe('module/sw-settings/page/sw-settings-index', () => {
             privilege: 'system.foo_bar',
             group: 'shop',
             to: 'sw.bar.index',
-            icon: 'bar',
+            icon: 'regular-storefront',
             id: 'sw-settings-bar',
             name: 'settings-bar',
             label: 'b',
         };
 
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
+        Shopware.Store.get('settingsItems').addItem(settingsItemToAdd);
 
         const wrapper = await createWrapper();
 
         const settingsGroups = wrapper.vm.settingsGroups.shop;
-        const barSetting = settingsGroups.find(setting => setting.id === 'sw-settings-bar');
+        const barSetting = settingsGroups.find((setting) => setting.id === 'sw-settings-bar');
 
         expect(barSetting).toBeUndefined();
     });
 
-    it('should hide icon background when backgroundEnabled is false', async () => {
+    it('should correctly resolve dynamic group functions and add the item', async () => {
         const settingsItemToAdd = {
-            group: 'shop',
-            to: 'sw.bar.index',
-            icon: 'bar',
-            id: 'settings-background-disabled',
-            name: 'settings-background-disabled',
-            label: 'b',
-            backgroundEnabled: false,
+            group: () => 'dynamicGroup',
+            to: 'sw.dynamic.index',
+            icon: 'regular-storefront',
+            id: 'sw-dynamic-setting',
+            name: 'settings-dynamic',
+            label: 'Dynamic Setting',
         };
 
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
+        Shopware.Store.get('settingsItems').addItem(settingsItemToAdd);
 
         const wrapper = await createWrapper();
+        await flushPromises();
 
-        const settingsGroups = Object.entries(wrapper.vm.settingsGroups);
-
-        settingsGroups.forEach(([settingsGroup, settingsItems]) => {
-            const settingsGroupWrapper = wrapper.find(`#sw-settings__content-grid-${settingsGroup}`);
-            const settingsItemsWrappers = settingsGroupWrapper.findAll('.sw-settings-item');
-
-            settingsItemsWrappers.wrappers.forEach((settingsItemsWrapper, index) => {
-                const iconClasses = settingsItemsWrapper.find('.sw-settings-item__icon').attributes().class;
-
-                if (settingsItems[index].backgroundEnabled === false) {
-                    // eslint-disable-next-line jest/no-conditional-expect
-                    expect(iconClasses).not.toContain('background--enabled');
-                } else {
-                    // eslint-disable-next-line jest/no-conditional-expect
-                    expect(iconClasses).toContain('background--enabled');
-                }
-            });
-        });
+        const dynamicGroup = wrapper.vm.settingsGroups.dynamicGroup;
+        expect(dynamicGroup).toBeDefined();
+        expect(dynamicGroup).toHaveLength(1);
+        expect(dynamicGroup[0]).toEqual(settingsItemToAdd);
     });
 
-    it('should not hide the tab when user has access to any settings inside the tab', async () => {
+    it('should display settings items based on user privileges', async () => {
         const settingsItemToAdd = {
             privilege: 'system.foo_bar',
             group: 'shop',
             to: 'sw.bar.index',
-            icon: 'bar',
+            icon: 'regular-storefront',
             id: 'sw-settings-bar',
             name: 'settings-bar',
-            label: 'b',
+            label: 'Bar Setting',
         };
 
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
+        Shopware.Store.get('settingsItems').addItem(settingsItemToAdd);
 
-        const wrapper = await createWrapper('system.foo_bar');
+        const wrapper = await createWrapper(['system.foo_bar']);
+        const shopGroup = wrapper.vm.settingsGroups.shop;
 
-        const systemTab = wrapper.find('.sw-settings__tab-system');
-        const shopTab = wrapper.find('.sw-settings__tab-shop');
-
-        expect(systemTab.exists()).toBe(false);
-        expect(shopTab.exists()).toBe(true);
-    });
-
-    it('should hide the tab when user has no access to any settings inside the tab', async () => {
-        const settingsItemToAdd = {
-            privilege: 'system.foo_bar',
-            group: 'system',
-            to: 'sw.bar.index',
-            icon: 'bar',
-            id: 'sw-settings-bar',
-            name: 'settings-bar',
-            label: 'b',
-        };
-
-        Shopware.State.commit('settingsItems/addItem', settingsItemToAdd);
-
-        const wrapper = await createWrapper('system.foo_bar');
-
-        const systemTab = wrapper.find('.sw-settings__tab-system');
-        const shopTab = wrapper.find('.sw-settings__tab-shop');
-
-        expect(systemTab.exists()).toBe(true);
-        expect(shopTab.exists()).toBe(false);
+        const barSetting = shopGroup.find((setting) => setting.id === 'sw-settings-bar');
+        expect(barSetting).toBeDefined();
     });
 });

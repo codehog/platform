@@ -1,62 +1,70 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swOrderCreateAddressModal from 'src/module/sw-order/component/sw-order-create-address-modal';
-import 'src/app/component/base/sw-modal';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/base/sw-container';
-import 'src/app/component/base/sw-card';
+import { mount } from '@vue/test-utils';
+import findByText from '../../../../../test/_helper_/find-by-text';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
-
-Shopware.Component.register('sw-order-create-address-modal', swOrderCreateAddressModal);
-
-const { Classes: { ShopwareError } } = Shopware;
+const {
+    Classes: { ShopwareError },
+} = Shopware;
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-order-create-address-modal'), {
-        localVue,
-        stubs: {
-            'sw-modal': await Shopware.Component.build('sw-modal'),
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-container': await Shopware.Component.build('sw-container'),
-            'sw-customer-address-form': true,
-            'sw-customer-address-form-options': true,
-            'sw-card': await Shopware.Component.build('sw-card'),
-            'sw-ignore-class': true,
-            'sw-extension-component-section': true,
-            'sw-card-filter': true,
-            'sw-empty-state': true,
-            'sw-address': true,
-            'sw-icon': true,
-            'sw-loader': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: () => {
-                        return Promise.resolve();
+    return mount(
+        await wrapTestComponent('sw-order-create-address-modal', {
+            sync: true,
+        }),
+        {
+            attachTo: document.body,
+            global: {
+                stubs: {
+                    'sw-modal': {
+                        template: '<div class="sw-modal"><slot></slot><slot name="modal-footer"></slot></div>',
                     },
-                }),
+                    'sw-container': await wrapTestComponent('sw-container'),
+                    'sw-customer-address-form': await wrapTestComponent('sw-customer-address-form'),
+                    'sw-customer-address-form-options': await wrapTestComponent('sw-customer-address-form-options'),
+                    'sw-ignore-class': true,
+                    'sw-extension-component-section': await wrapTestComponent('sw-extension-component-section'),
+                    'sw-card-filter': await wrapTestComponent('sw-card-filter'),
+                    'sw-empty-state': true,
+                    'sw-address': await wrapTestComponent('sw-address'),
+                    'sw-loader': true,
+                    'sw-ai-copilot-badge': true,
+                    'sw-context-button': true,
+                    'sw-tabs-item': true,
+                    'sw-tabs': true,
+                    'sw-iframe-renderer': true,
+                    'router-link': true,
+                    'sw-simple-search-field': true,
+                    'sw-text-field': true,
+                    'sw-entity-single-select': true,
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            search: () => {
+                                return Promise.resolve();
+                            },
+                        }),
+                    },
+                    shortcutService: {
+                        stopEventListener: () => {},
+                        startEventListener: () => {},
+                    },
+                },
             },
-            shortcutService: {
-                stopEventListener: () => {},
-                startEventListener: () => {},
+            props: {
+                customer: {
+                    id: 'id',
+                    company: null,
+                },
+                address: {},
+                addAddressModalTitle: '',
+                editAddressModalTitle: '',
+                cart: {},
             },
         },
-        propsData: {
-            customer: {
-                id: 'id',
-                company: null,
-            },
-            address: {},
-            addAddressModalTitle: '',
-            editAddressModalTitle: '',
-            cart: {},
-        },
-    });
+    );
 }
 
 describe('src/module/sw-order/component/sw-order-create-address-modal', () => {
@@ -66,26 +74,29 @@ describe('src/module/sw-order/component/sw-order-create-address-modal', () => {
         wrapper = await createWrapper();
     });
 
-    afterEach(() => {
-        wrapper.destroy();
+    it('should be a Vue.js component', async () => {
+        expect(wrapper.vm).toBeTruthy();
     });
 
     it('should dispatch error with invalid company field', async () => {
         await wrapper.setData({
-            addresses: [{ id: '12345', isNew: () => {} }, { id: '02', isNew: () => {} }],
+            addresses: [
+                { id: '12345', isNew: () => {} },
+                { id: '02', isNew: () => {} },
+            ],
         });
 
-        const btn = wrapper.findAll('.sw-order-create-address-modal__edit-btn').at(0);
+        const btn = wrapper.findAll('.sw-order-create-address-modal__edit-btn')[0];
         await btn.trigger('click');
 
-        const swModalEditAddress = wrapper.findAll('.sw-modal').at(1);
+        const swModalEditAddress = wrapper.findAll('.sw-modal')[0];
 
-        expect(Shopware.State.get('error').api.customer_address).toBeUndefined();
+        expect(Shopware.Store.get('error').api.customer_address).toBeUndefined();
 
         // submit form
-        await swModalEditAddress.find('.sw-button--primary').trigger('click');
+        await findByText(swModalEditAddress, 'button', 'sw-customer.detailAddresses.buttonSaveAndSelect').trigger('click');
 
-        expect(Shopware.State.get('error').api).toHaveProperty('customer_address.12345.company');
-        expect(Shopware.State.get('error').api.customer_address['12345'].company).toBeInstanceOf(ShopwareError);
+        expect(Shopware.Store.get('error').api).toHaveProperty('customer_address.12345.company');
+        expect(Shopware.Store.get('error').api.customer_address['12345'].company).toBeInstanceOf(ShopwareError);
     });
 });

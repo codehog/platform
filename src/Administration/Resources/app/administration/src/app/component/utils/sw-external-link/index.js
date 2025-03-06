@@ -4,10 +4,9 @@ import './sw-external-link.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description Link to another website outside the admin, that opens in a new browser tab
  * @status ready
  * @example-type dynamic
@@ -22,6 +21,8 @@ Component.register('sw-external-link', {
     template,
 
     inheritAttrs: false,
+
+    emits: ['click'],
 
     props: {
         small: {

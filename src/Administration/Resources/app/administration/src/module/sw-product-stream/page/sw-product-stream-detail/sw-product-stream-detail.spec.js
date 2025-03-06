@@ -1,11 +1,8 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { shallowMount } from '@vue/test-utils';
-import swProductStreamDetail from 'src/module/sw-product-stream/page/sw-product-stream-detail';
-
-Shopware.Component.register('sw-product-stream-detail', swProductStreamDetail);
+import { mount } from '@vue/test-utils';
 
 const responses = global.repositoryFactoryMock.responses;
 
@@ -28,11 +25,15 @@ responses.addResponse({
                 },
                 relationships: {
                     customFields: {
-                        data: [{
-                            type: 'custom_field',
-                            id: 'custom_field_id1',
-                        }],
-                        links: { related: 'http://host/api/custom-field-set/custom_field_set_id1/custom-fields' },
+                        data: [
+                            {
+                                type: 'custom_field',
+                                id: 'custom_field_id1',
+                            },
+                        ],
+                        links: {
+                            related: 'http://host/api/custom-field-set/custom_field_set_id1/custom-fields',
+                        },
                     },
                 },
             },
@@ -57,10 +58,10 @@ responses.addResponse({
                     customFieldSetId: 'custom_field_set_id1',
                 },
                 relationships: {
-                    customFieldSet: {
-                    },
+                    customFieldSet: {},
                 },
-            }, {
+            },
+            {
                 id: 'custom_field_set_relation_id1',
                 type: 'custom_field_set_relation',
                 attributes: {
@@ -70,42 +71,45 @@ responses.addResponse({
                 relationships: {
                     customFieldSet: {},
                 },
-            }],
+            },
+        ],
     },
 });
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-product-stream-detail'), {
-        stubs: {
-            'sw-page': {
-                template: `
+    return mount(await wrapTestComponent('sw-product-stream-detail', { sync: true }), {
+        props: {
+            productStreamId: null,
+        },
+        global: {
+            stubs: {
+                'sw-page': {
+                    template: `
     <div>
         <slot name="smart-bar-actions"></slot>
         <slot name="content"></slot>
     </div>`,
+                },
+                'sw-button-group': true,
+                'sw-button-process': true,
+                'sw-context-button': true,
+                'sw-context-menu-item': true,
+                'sw-card-view': true,
+                'sw-skeleton': true,
+                'sw-language-info': true,
+                'sw-text-field': true,
+                'sw-textarea-field': true,
+                'sw-condition-tree': true,
+                'sw-language-switch': true,
+                'sw-product-stream-modal-preview': true,
+                'sw-custom-field-set-renderer': true,
             },
-            'sw-button': true,
-            'sw-button-group': true,
-            'sw-button-process': true,
-            'sw-context-button': true,
-            'sw-icon': true,
-            'sw-context-menu-item': true,
-            'sw-card-view': true,
-            'sw-skeleton': true,
-            'sw-card': true,
-            'sw-language-info': true,
-            'sw-text-field': true,
-            'sw-textarea-field': true,
-            'sw-condition-tree': true,
-        },
-        provide: {
-            customFieldDataProviderService: {
-                getCustomFieldSets: () => Promise.resolve({}),
+            provide: {
+                customFieldDataProviderService: {
+                    getCustomFieldSets: () => Promise.resolve({}),
+                },
+                productStreamConditionService: {},
             },
-            productStreamConditionService: {},
-        },
-        propsData: {
-            productStreamId: null,
         },
     });
 }
@@ -115,8 +119,6 @@ describe('src/module/sw-product-stream/page/sw-product-stream-detail', () => {
         const wrapper = await createWrapper();
 
         expect(wrapper.vm).toBeTruthy();
-
-        wrapper.destroy();
     });
 
     it('should fetch custom product custom fields and add them to the condition select list', async () => {
@@ -126,7 +128,5 @@ describe('src/module/sw-product-stream/page/sw-product-stream-detail', () => {
 
         const relatedCustomFields = wrapper.vm.productCustomFields;
         expect(relatedCustomFields).toHaveProperty('custom_field_1');
-
-        wrapper.destroy();
     });
 });

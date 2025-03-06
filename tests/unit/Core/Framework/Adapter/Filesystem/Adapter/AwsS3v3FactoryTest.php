@@ -2,18 +2,17 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Adapter\Filesystem\Adapter;
 
-use AsyncAws\SimpleS3\SimpleS3Client;
-use League\Flysystem\AsyncAwsS3\AsyncAwsS3Adapter;
+use AsyncAws\S3\S3Client;
 use League\Flysystem\AsyncAwsS3\PortableVisibilityConverter;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\Adapter\Filesystem\Adapter\AsyncAwsS3WriteBatchAdapter;
 use Shopware\Core\Framework\Adapter\Filesystem\Adapter\AwsS3v3Factory;
-use Shopware\Core\Framework\Adapter\Filesystem\Adapter\DecoratedAsyncS3Adapter;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Adapter\Filesystem\Adapter\AwsS3v3Factory
  */
+#[CoversClass(AwsS3v3Factory::class)]
 class AwsS3v3FactoryTest extends TestCase
 {
     public function testGetType(): void
@@ -38,7 +37,7 @@ class AwsS3v3FactoryTest extends TestCase
             ],
         ];
 
-        $client = new SimpleS3Client([
+        $client = new S3Client([
             'region' => 'local',
             'endpoint' => 'http://localhost:9000',
             'pathStyleEndpoint' => '1',
@@ -47,12 +46,37 @@ class AwsS3v3FactoryTest extends TestCase
         ]);
 
         static::assertEquals(
-            new DecoratedAsyncS3Adapter(
-                new AsyncAwsS3Adapter($client, 'private', 'foobar', new PortableVisibilityConverter()),
-                'private',
-                $client,
-                'foobar'
-            ),
+            new AsyncAwsS3WriteBatchAdapter($client, 'private', 'foobar', new PortableVisibilityConverter()),
+            (new AwsS3v3Factory())->create($config)
+        );
+    }
+
+    public function testCreateEmptyEndpointIsNotConsidered(): void
+    {
+        $config = [
+            'bucket' => 'private',
+            'endpoint' => '',
+            'use_path_style_endpoint' => true,
+            'region' => 'local',
+            'root' => 'foobar',
+            'credentials' => [
+                'key' => 'foo',
+                'secret' => 'bar',
+            ],
+            'options' => [
+                'visibility' => 'private',
+            ],
+        ];
+
+        $client = new S3Client([
+            'region' => 'local',
+            'pathStyleEndpoint' => '1',
+            'accessKeyId' => 'foo',
+            'accessKeySecret' => 'bar',
+        ]);
+
+        static::assertEquals(
+            new AsyncAwsS3WriteBatchAdapter($client, 'private', 'foobar', new PortableVisibilityConverter()),
             (new AwsS3v3Factory())->create($config)
         );
     }

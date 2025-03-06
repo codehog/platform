@@ -1,10 +1,8 @@
-import { shallowMount } from '@vue/test-utils';
-import swFlowRuleModal from 'src/module/sw-flow/component/modals/sw-flow-rule-modal';
-import 'src/app/component/base/sw-tabs';
-import 'src/app/component/base/sw-tabs-item';
-import flowState from 'src/module/sw-flow/state/flow.state';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-flow-rule-modal', swFlowRuleModal);
+/**
+ * @sw-package after-sales
+ */
 
 function createRuleMock(isNew) {
     return {
@@ -19,70 +17,76 @@ function createRuleMock(isNew) {
 }
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-flow-rule-modal'), {
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
+    return mount(
+        await wrapTestComponent('sw-flow-rule-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                provide: {
+                    repositoryFactory: {
                         create: () => {
-                            return createRuleMock(true);
+                            return {
+                                create: () => {
+                                    return createRuleMock(true);
+                                },
+                                get: () => Promise.resolve(createRuleMock(false)),
+                                save: () => Promise.resolve(),
+                                search: () => Promise.resolve([]),
+                            };
                         },
-                        get: () => Promise.resolve(createRuleMock(false)),
-                        save: () => Promise.resolve(),
-                        search: () => Promise.resolve([]),
-                    };
+                    },
+
+                    ruleConditionDataProviderService: {
+                        getModuleTypes: () => [],
+                        addScriptConditions: () => {},
+                        getAwarenessConfigurationByAssignmentName: () => ({}),
+                    },
+
+                    ruleConditionsConfigApiService: {
+                        load: () => Promise.resolve(),
+                    },
                 },
-            },
 
-            ruleConditionDataProviderService: {
-                getModuleTypes: () => [],
-                addScriptConditions: () => {},
-                getAwarenessConfigurationByAssignmentName: () => ({}),
-            },
-
-            ruleConditionsConfigApiService: {
-                load: () => Promise.resolve(),
-            },
-        },
-
-        propsData: {
-            sequence: {},
-        },
-
-        stubs: {
-            'sw-tabs': await Shopware.Component.build('sw-tabs'),
-            'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
-            'sw-modal': {
-                template: `
+                stubs: {
+                    'sw-tabs': await wrapTestComponent('sw-tabs'),
+                    'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                    'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                    'sw-container': await wrapTestComponent('sw-container'),
+                    'sw-multi-select': await wrapTestComponent('sw-multi-select'),
+                    'sw-textarea-field': await wrapTestComponent('sw-textarea-field'),
+                    'sw-text-field': await wrapTestComponent('sw-text-field'),
+                    'sw-text-field-deprecated': await wrapTestComponent('sw-text-field-deprecated', { sync: true }),
+                    'sw-modal': {
+                        template: `
                     <div class="sw-modal">
                       <slot name="modal-header"></slot>
                       <slot></slot>
                       <slot name="modal-footer"></slot>
                     </div>
                 `,
+                    },
+                    'sw-button-process': {
+                        template: '<button @click="$emit(\'click\', $event)"><slot></slot></button>',
+                    },
+                    'sw-condition-tree': true,
+                    'sw-extension-component-section': true,
+                    'router-link': true,
+                    'sw-select-selection-list': true,
+                    'sw-highlight-text': true,
+                    'sw-select-result': true,
+                    'sw-select-result-list': true,
+                    'sw-select-base': true,
+                    'sw-field-copyable': true,
+                    'sw-contextual-field': true,
+                    'sw-textarea-field-deprecated': true,
+                },
             },
-            'sw-button': {
-                template: '<button @click="$emit(\'click\', $event)"><slot></slot></button>',
-            },
-            'sw-button-process': {
-                template: '<button @click="$emit(\'click\', $event)"><slot></slot></button>',
-            },
-            'sw-icon': true,
-            'sw-condition-tree': true,
-            'sw-container': true,
-            'sw-multi-select': true,
-            'sw-textarea-field': true,
-            'sw-number-field': true,
-            'sw-text-field': true,
         },
-    });
+    );
 }
 
 describe('module/sw-flow/component/sw-flow-rule-modal', () => {
-    beforeAll(() => {
-        Shopware.State.registerModule('swFlowState', flowState);
-    });
-
     it('should show element correctly', async () => {
         const wrapper = await createWrapper();
         await flushPromises();
@@ -101,7 +105,7 @@ describe('module/sw-flow/component/sw-flow-rule-modal', () => {
         await detailHeaderTab.trigger('click');
         await flushPromises();
 
-        fieldClasses.forEach(elementClass => {
+        fieldClasses.forEach((elementClass) => {
             expect(wrapper.find(elementClass).exists()).toBe(true);
         });
     });

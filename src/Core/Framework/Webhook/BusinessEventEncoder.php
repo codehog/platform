@@ -16,9 +16,9 @@ use Shopware\Core\Framework\Event\FlowEventAware;
 use Shopware\Core\Framework\Log\Package;
 
 /**
- * @deprecated tag:v6.6.0 - Will be internal - reason:visibility-change
+ * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class BusinessEventEncoder
 {
     /**
@@ -123,12 +123,12 @@ class BusinessEventEncoder
     private function getProperty(string $propertyName, $object)
     {
         if (\is_object($object)) {
-            $getter = 'get' . ucfirst($propertyName);
+            $getter = 'get' . $propertyName;
             if (method_exists($object, $getter)) {
                 return $object->$getter(); /* @phpstan-ignore-line */
             }
 
-            $isser = 'is' . ucfirst($propertyName);
+            $isser = 'is' . $propertyName;
             if (method_exists($object, $isser)) {
                 return $object->$isser(); /* @phpstan-ignore-line */
             }
@@ -139,7 +139,7 @@ class BusinessEventEncoder
         }
 
         throw new \RuntimeException(
-            sprintf(
+            \sprintf(
                 'Invalid available DataMapping, could not get property "%s" on instance of %s',
                 $propertyName,
                 \is_object($object) ? $object::class : 'array'
@@ -151,7 +151,7 @@ class BusinessEventEncoder
      * @param array<string, mixed> $dataType
      * @param Entity|EntityCollection<Entity> $property
      *
-     * @return array<string, mixed>
+     * @return ($property is Entity ? array<string, mixed> : list<array<string, mixed>>)
      */
     private function encodeEntity(array $dataType, Entity|EntityCollection $property): array
     {

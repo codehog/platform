@@ -1,13 +1,22 @@
+/**
+ * @sw-package framework
+ */
+
 import template from './sw-bulk-edit-modal.html.twig';
 import './sw-bulk-edit-modal.scss';
 
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-bulk-edit-modal', {
     template,
+
+    emits: [
+        'modal-close',
+        'edit-items',
+    ],
 
     props: {
         selection: {
@@ -22,7 +31,12 @@ Component.register('sw-bulk-edit-modal', {
             type: Array,
             required: false,
             default() {
-                return [200, 300, 400, 500];
+                return [
+                    200,
+                    300,
+                    400,
+                    500,
+                ];
             },
         },
 
@@ -49,6 +63,12 @@ Component.register('sw-bulk-edit-modal', {
 
         paginateRecords() {
             return this.records.slice((this.page - 1) * this.limit, this.page * this.limit);
+        },
+
+        getSlots() {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+
+            return this.$slots;
         },
     },
 
@@ -78,7 +98,7 @@ Component.register('sw-bulk-edit-modal', {
             this.$emit('modal-close');
 
             if (this.itemCount > 0) {
-                Shopware.State.commit('shopwareApps/setSelectedIds', Object.keys(this.bulkEditSelection));
+                Shopware.Store.get('shopwareApps').selectedIds = Object.keys(this.bulkEditSelection);
                 this.$emit('edit-items');
             }
         },

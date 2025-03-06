@@ -2,14 +2,18 @@
 
 namespace Shopware\Core\Content\Test\Media;
 
+use PHPUnit\Framework\Attributes\Before;
 use Shopware\Core\Content\Media\MediaEntity;
 use Shopware\Core\Content\Media\MediaType\BinaryType;
 use Shopware\Core\Content\Media\MediaType\DocumentType;
 use Shopware\Core\Content\Media\MediaType\ImageType;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Uuid\Uuid;
-use Shopware\Core\System\Test\EntityFixturesBase;
+use Shopware\Core\Test\Integration\Traits\EntityFixturesBase;
 
+/**
+ * @internal
+ */
 trait MediaFixtures
 {
     use EntityFixturesBase;
@@ -17,11 +21,9 @@ trait MediaFixtures
     /**
      * @var array<string, array<string, mixed>>
      */
-    public $mediaFixtures;
+    public array $mediaFixtures;
 
-    /**
-     * @before
-     */
+    #[Before]
     public function initializeMediaFixtures(): void
     {
         $thumbnailSize150Id = Uuid::randomHex();
@@ -43,6 +45,7 @@ trait MediaFixtures
                 'mimeType' => 'image/png',
                 'fileExtension' => 'png',
                 'fileName' => 'pngFileWithExtension',
+                'path' => 'media/_test/pngFileWithExtension.png',
                 'fileSize' => 1024,
                 'mediaType' => new ImageType(),
                 'uploadedAt' => new \DateTime('2011-01-01T15:03:01.012345Z'),
@@ -52,6 +55,7 @@ trait MediaFixtures
                 'mimeType' => 'plain/txt',
                 'fileExtension' => 'txt',
                 'fileName' => 'textFileWithExtension',
+                'path' => 'media/_test/textFileWithExtension.txt',
                 'fileSize' => 1024,
                 'mediaType' => new BinaryType(),
                 'uploadedAt' => new \DateTime('2011-01-01T15:03:01.012345Z'),
@@ -127,6 +131,7 @@ trait MediaFixtures
                 'fileExtension' => 'png',
                 'fileName' => 'pngFileWithExtensionAndFolder',
                 'fileSize' => 1024,
+                'path' => 'media/_test/pngFileWithExtensionAndFolder.png',
                 'mediaType' => new ImageType(),
                 'uploadedAt' => new \DateTime('2011-01-01T15:03:01.012345Z'),
                 'mediaFolder' => [
@@ -204,6 +209,7 @@ trait MediaFixtures
                 'fileExtension' => 'png',
                 'fileName' => 'pngFileWithExtensionAndFolder',
                 'fileSize' => 1024,
+                'path' => 'media/_test/pngFileWithExtensionAndFolder.png',
                 'mediaType' => new ImageType(),
                 'uploadedAt' => new \DateTime('2011-01-01T15:03:01.012345Z'),
                 'mediaFolder' => [

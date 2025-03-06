@@ -2,28 +2,25 @@
 
 namespace Shopware\Core\Framework\Routing;
 
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\HttpException;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Routing\Exception\InvalidRequestParameterException;
-use Shopware\Core\Framework\Routing\Exception\LanguageNotFoundException;
-use Shopware\Core\Framework\Routing\Exception\MissingRequestParameterException;
+use Shopware\Core\Framework\Routing\Exception\CustomerNotLoggedInRoutingException;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('core')]
+#[Package('framework')]
 class RoutingException extends HttpException
 {
     public const MISSING_REQUEST_PARAMETER_CODE = 'FRAMEWORK__MISSING_REQUEST_PARAMETER';
     public const INVALID_REQUEST_PARAMETER_CODE = 'FRAMEWORK__INVALID_REQUEST_PARAMETER';
     public const APP_INTEGRATION_NOT_FOUND = 'FRAMEWORK__APP_INTEGRATION_NOT_FOUND';
     public const LANGUAGE_NOT_FOUND = 'FRAMEWORK__LANGUAGE_NOT_FOUND';
+    public const SALES_CHANNEL_MAINTENANCE_MODE = 'FRAMEWORK__ROUTING_SALES_CHANNEL_MAINTENANCE';
+
+    public const CUSTOMER_NOT_LOGGED_IN_CODE = 'FRAMEWORK__ROUTING_CUSTOMER_NOT_LOGGED_IN';
+    public const ACCESS_DENIED_FOR_XML_HTTP_REQUEST = 'FRAMEWORK__ACCESS_DENIED_FOR_XML_HTTP_REQUEST';
 
     public static function invalidRequestParameter(string $name): self
     {
-        if (!Feature::isActive('v6.6.0.0')) {
-            return new InvalidRequestParameterException($name);
-        }
-
         return new self(
             Response::HTTP_BAD_REQUEST,
             self::INVALID_REQUEST_PARAMETER_CODE,
@@ -34,10 +31,6 @@ class RoutingException extends HttpException
 
     public static function missingRequestParameter(string $name, string $path = ''): self
     {
-        if (!Feature::isActive('v6.6.0.0')) {
-            return new MissingRequestParameterException($name, $path);
-        }
-
         return new self(
             Response::HTTP_BAD_REQUEST,
             self::MISSING_REQUEST_PARAMETER_CODE,
@@ -48,25 +41,39 @@ class RoutingException extends HttpException
 
     public static function languageNotFound(?string $languageId): self
     {
-        if (!Feature::isActive('v6.6.0.0')) {
-            return new LanguageNotFoundException($languageId);
-        }
-
         return new self(
             Response::HTTP_PRECONDITION_FAILED,
             self::LANGUAGE_NOT_FOUND,
-            'The language "{{ languageId }}" was not found.',
-            ['languageId' => $languageId]
+            self::$couldNotFindMessage,
+            ['entity' => 'language', 'field' => 'id', 'value' => $languageId]
         );
     }
 
     public static function appIntegrationNotFound(string $integrationId): self
     {
         return new self(
-            Response::HTTP_INTERNAL_SERVER_ERROR,
+            Response::HTTP_BAD_REQUEST,
             self::APP_INTEGRATION_NOT_FOUND,
-            'App integration "{{ integrationId }}" not found.',
-            ['integrationId' => $integrationId],
+            self::$couldNotFindMessage,
+            ['entity' => 'app integration', 'field' => 'id', 'value' => $integrationId]
+        );
+    }
+
+    public static function customerNotLoggedIn(): CustomerNotLoggedInRoutingException
+    {
+        return new CustomerNotLoggedInRoutingException(
+            Response::HTTP_FORBIDDEN,
+            self::CUSTOMER_NOT_LOGGED_IN_CODE,
+            'Customer is not logged in.'
+        );
+    }
+
+    public static function accessDeniedForXmlHttpRequest(): self
+    {
+        return new self(
+            Response::HTTP_FORBIDDEN,
+            self::ACCESS_DENIED_FOR_XML_HTTP_REQUEST,
+            'PageController can\'t be requested via XmlHttpRequest.'
         );
     }
 }

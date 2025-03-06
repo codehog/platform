@@ -4,12 +4,18 @@ import './sw-text-editor-toolbar-button.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
+ * @deprecated tag:v6.8.0 - Will be removed, use mt-text-editor instead.
  *
  * @private
  */
 Component.register('sw-text-editor-toolbar-button', {
     template,
+
+    emits: [
+        'button-click',
+        'menu-toggle',
+    ],
 
     props: {
         buttonConfig: {
@@ -64,9 +70,9 @@ Component.register('sw-text-editor-toolbar-button', {
                 return null;
             }
 
-            return button.children || button.type === 'link' || button.type === 'table' || button.type === 'foreColor' ?
-                this.onToggleMenu(event, button) :
-                this.handleButtonClick(button);
+            return button.children || button.type === 'link' || button.type === 'table' || button.type === 'foreColor'
+                ? this.onToggleMenu(event, button)
+                : this.handleButtonClick(button);
         },
 
         childActive(child) {
@@ -85,7 +91,14 @@ Component.register('sw-text-editor-toolbar-button', {
         },
 
         onToggleMenu(event, button) {
-            if (!['link', 'table', 'foreColor'].includes(button.type) && !button.children) {
+            if (
+                ![
+                    'link',
+                    'table',
+                    'foreColor',
+                ].includes(button.type) &&
+                !button.children
+            ) {
                 return;
             }
 

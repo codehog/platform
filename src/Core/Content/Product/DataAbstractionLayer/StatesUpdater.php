@@ -13,7 +13,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class StatesUpdater
 {
     /**
@@ -48,7 +48,7 @@ class StatesUpdater
         $products = $this->connection->fetchAllAssociative(
             $sql,
             $params,
-            ['ids' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY]
         );
 
         $updates = [];

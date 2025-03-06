@@ -4,7 +4,7 @@ namespace Shopware\Core\Framework\Increment;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 abstract class AbstractIncrementer
 {
     protected string $poolName;
@@ -13,11 +13,6 @@ abstract class AbstractIncrementer
      * @var array<string, mixed>
      */
     protected array $config;
-
-    /**
-     * @deprecated tag:v6.6.0 - Will be removed. Incrementer are designed with the adapter pattern. Adapter are not designed to be decorated.
-     */
-    abstract public function getDecorated(): self;
 
     abstract public function decrement(string $cluster, string $key): void;
 

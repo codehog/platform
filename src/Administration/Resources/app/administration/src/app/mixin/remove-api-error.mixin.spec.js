@@ -1,27 +1,32 @@
+/**
+ * @sw-package framework
+ */
 import 'src/app/mixin/remove-api-error.mixin';
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
-async function createWrapper() {
-    return shallowMount({
-        template: `
+async function createWrapper(attrs = {}) {
+    return mount(
+        {
+            template: `
             <div class="sw-mock">
               <slot></slot>
             </div>
         `,
-        mixins: [
-            Shopware.Mixin.getByName('remove-api-error'),
-        ],
-        data() {
-            return {
-                name: 'sw-mock-field',
-                value: 'initial-value',
-            };
+            mixins: [
+                Shopware.Mixin.getByName('remove-api-error'),
+            ],
+            data() {
+                return {
+                    name: 'sw-mock-field',
+                    value: 'initial-value',
+                };
+            },
         },
-    }, {
-        stubs: {},
-        mocks: {},
-        attachTo: document.body,
-    });
+        {
+            attachTo: document.body,
+            attrs,
+        },
+    );
 }
 
 describe('src/app/mixin/remove-api-error.mixin.ts', () => {
@@ -44,7 +49,7 @@ describe('src/app/mixin/remove-api-error.mixin.ts', () => {
 
     afterEach(async () => {
         if (wrapper) {
-            await wrapper.destroy();
+            await wrapper.unmount();
         }
 
         await flushPromises();
@@ -54,16 +59,18 @@ describe('src/app/mixin/remove-api-error.mixin.ts', () => {
         expect(wrapper.vm).toBeTruthy();
     });
 
-    it('should dispatch removeApiError on value change', async () => {
-        // add mock for dispatch
-        Object.defineProperty(Shopware.State, 'dispatch', {
-            value: jest.fn(),
+    it('should call  removeApiError on value change', async () => {
+        await wrapper.unmount();
+        wrapper = await createWrapper({
+            error: {
+                selfLink: 'self.link',
+            },
         });
+        await flushPromises();
 
-        // mock error attrs value
-        wrapper.vm.$attrs.error = {
-            selfLink: 'self.link',
-        };
+        // add mock for removeApiError
+        const errorStore = Shopware.Store.get('error');
+        jest.spyOn(errorStore, 'removeApiError');
 
         // change value to trigger watcher
         wrapper.vm.value = 'new-value';
@@ -71,8 +78,6 @@ describe('src/app/mixin/remove-api-error.mixin.ts', () => {
         await flushPromises();
 
         // expect dispatch to have been called with removeApiError
-        expect(Shopware.State.dispatch).toHaveBeenCalledWith('error/removeApiError', {
-            expression: 'self.link',
-        });
+        expect(Shopware.Store.get('error').removeApiError).toHaveBeenCalledWith('self.link');
     });
 });

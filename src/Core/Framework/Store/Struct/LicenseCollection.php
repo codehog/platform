@@ -10,13 +10,10 @@ use Shopware\Core\Framework\Struct\Collection;
  *
  * @extends Collection<LicenseStruct>
  */
-#[Package('merchant-services')]
+#[Package('checkout')]
 class LicenseCollection extends Collection
 {
-    /**
-     * @var int
-     */
-    protected $total = 0;
+    protected int $total = 0;
 
     public function getTotal(): int
     {

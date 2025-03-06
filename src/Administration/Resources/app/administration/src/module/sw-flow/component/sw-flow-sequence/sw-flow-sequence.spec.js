@@ -1,5 +1,8 @@
-import { shallowMount } from '@vue/test-utils';
-import swFlowSequence from 'src/module/sw-flow/component/sw-flow-sequence';
+import { mount } from '@vue/test-utils';
+
+/**
+ * @sw-package after-sales
+ */
 
 const sequenceFixture = {
     id: '1',
@@ -12,20 +15,21 @@ const sequenceFixture = {
 };
 
 async function createWrapper(propsData = {}) {
-    return shallowMount(await Shopware.Component.build('sw-flow-sequence'), {
-        stubs: {
-            'sw-flow-sequence-selector': true,
-            'sw-flow-sequence-action': true,
-            'sw-flow-sequence-condition': true,
+    return mount(await wrapTestComponent('sw-flow-sequence', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-flow-sequence': await wrapTestComponent('sw-flow-sequence', { sync: true }),
+                'sw-flow-sequence-selector': true,
+                'sw-flow-sequence-action': true,
+                'sw-flow-sequence-condition': true,
+            },
         },
-        propsData: {
+        props: {
             sequence: sequenceFixture,
             ...propsData,
         },
     });
 }
-
-Shopware.Component.register('sw-flow-sequence', swFlowSequence);
 
 describe('src/module/sw-flow/component/sw-flow-sequence', () => {
     it('should show sequence selector type correctly', async () => {
@@ -35,7 +39,7 @@ describe('src/module/sw-flow/component/sw-flow-sequence', () => {
         const condition = wrapper.find('sw-flow-sequence-condition-stub');
 
         expect(selector.exists()).toBeTruthy();
-        expect(action.exists()).toBeFalsy();
+        expect(action.attributes('style')).toBe('display: none;');
         expect(condition.exists()).toBeFalsy();
     });
 
@@ -52,7 +56,7 @@ describe('src/module/sw-flow/component/sw-flow-sequence', () => {
         const condition = wrapper.find('sw-flow-sequence-condition-stub');
 
         expect(selector.exists()).toBeFalsy();
-        expect(action.exists()).toBeFalsy();
+        expect(action.attributes('style')).toBe('display: none;');
         expect(condition.exists()).toBeTruthy();
     });
 
@@ -69,7 +73,7 @@ describe('src/module/sw-flow/component/sw-flow-sequence', () => {
         const condition = wrapper.find('sw-flow-sequence-condition-stub');
 
         expect(selector.exists()).toBeFalsy();
-        expect(action.exists()).toBeTruthy();
+        expect(action.attributes('style')).not.toBe('display: none;');
         expect(condition.exists()).toBeFalsy();
     });
 

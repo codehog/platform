@@ -4,12 +4,19 @@ import './sw-data-grid-settings.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  */
 Component.register('sw-data-grid-settings', {
     template,
+
+    emits: [
+        'change-compact-mode',
+        'change-preview-images',
+        'change-column-visibility',
+        'change-column-order',
+    ],
 
     props: {
         columns: {
@@ -73,10 +80,12 @@ Component.register('sw-data-grid-settings', {
 
     methods: {
         onChangeCompactMode(value) {
+            this.currentCompact = value;
             this.$emit('change-compact-mode', value);
         },
 
         onChangePreviews(value) {
+            this.currentPreviews = value;
             this.$emit('change-preview-images', value);
         },
 
@@ -84,11 +93,15 @@ Component.register('sw-data-grid-settings', {
             this.$emit('change-column-visibility', value, index);
         },
 
-        onClickChangeColumnOrderUp(columnIndex) {
+        onClickChangeColumnOrderUp(column) {
+            const columnIndex = this.currentColumns.findIndex((col) => col.property === column.property);
+
             this.$emit('change-column-order', columnIndex, columnIndex - 1);
         },
 
-        onClickChangeColumnOrderDown(columnIndex) {
+        onClickChangeColumnOrderDown(column) {
+            const columnIndex = this.currentColumns.findIndex((col) => col.property === column.property);
+
             this.$emit('change-column-order', columnIndex, columnIndex + 1);
         },
     },

@@ -9,24 +9,25 @@ use Shopware\Core\Checkout\Cart\Price\Struct\CalculatedPrice;
 use Shopware\Core\Checkout\Cart\Price\Struct\CartPrice;
 use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTaxCollection;
 use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
-use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
-use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundEntity;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundStates;
+use Shopware\Core\Checkout\Order\OrderCollection;
 use Shopware\Core\Checkout\Order\OrderStates;
 use Shopware\Core\Checkout\Payment\Cart\PaymentRefundProcessor;
-use Shopware\Core\Checkout\Payment\PaymentService;
-use Shopware\Core\Checkout\Payment\PreparedPaymentService;
+use Shopware\Core\Checkout\Payment\PaymentProcessor;
 use Shopware\Core\Defaults;
+use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\Lifecycle\AppLifecycle;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppInstallParameters;
 use Shopware\Core\Framework\App\Manifest\Manifest;
 use Shopware\Core\Framework\App\ShopId\ShopIdProvider;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\AbstractSalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
@@ -39,6 +40,7 @@ use Shopware\Core\Test\Integration\Builder\Order\OrderBuilder;
 use Shopware\Core\Test\Integration\Builder\Order\OrderTransactionBuilder;
 use Shopware\Core\Test\Integration\Builder\Order\OrderTransactionCaptureBuilder;
 use Shopware\Core\Test\Integration\Builder\Order\OrderTransactionCaptureRefundBuilder;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
 use Shopware\Tests\Integration\Core\Framework\App\GuzzleTestClientBehaviour;
 
@@ -51,9 +53,7 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
 
     final public const ERROR_MESSAGE = 'testError';
 
-    protected PaymentService $paymentService;
-
-    protected PreparedPaymentService $preparedPaymentService;
+    protected PaymentProcessor $paymentProcessor;
 
     protected PaymentRefundProcessor $paymentRefundProcessor;
 
@@ -65,7 +65,15 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
 
     protected IdsCollection $ids;
 
+    /**
+     * @var EntityRepository<OrderCollection>
+     */
     protected EntityRepository $orderRepository;
+
+    /**
+     * @var EntityRepository<OrderTransactionCollection>
+     */
+    protected EntityRepository $orderTransactionRepository;
 
     private EntityRepository $customerRepository;
 
@@ -77,43 +85,44 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
 
     private AbstractSalesChannelContextFactory $salesChannelContextFactory;
 
-    private EntityRepository $orderTransactionRepository;
-
     private EntityRepository $orderTransactionCaptureRepository;
 
+    /**
+     * @var EntityRepository<OrderTransactionCaptureRefundCollection>
+     */
     private EntityRepository $orderTransactionCaptureRefundRepository;
 
     private Context $context;
 
     protected function setUp(): void
     {
-        $this->orderRepository = $this->getContainer()->get('order.repository');
-        $this->customerRepository = $this->getContainer()->get('customer.repository');
-        $this->paymentMethodRepository = $this->getContainer()->get('payment_method.repository');
-        $this->orderTransactionRepository = $this->getContainer()->get('order_transaction.repository');
-        $this->orderTransactionCaptureRepository = $this->getContainer()->get('order_transaction_capture.repository');
-        $this->orderTransactionCaptureRefundRepository = $this->getContainer()->get('order_transaction_capture_refund.repository');
-        $this->stateMachineRegistry = $this->getContainer()->get(StateMachineRegistry::class);
-        $this->initialStateIdLoader = $this->getContainer()->get(InitialStateIdLoader::class);
-        $this->salesChannelContextFactory = $this->getContainer()->get(SalesChannelContextFactory::class);
+        $this->orderRepository = static::getContainer()->get('order.repository');
+        $this->customerRepository = static::getContainer()->get('customer.repository');
+        $this->paymentMethodRepository = static::getContainer()->get('payment_method.repository');
+        $this->orderTransactionRepository = static::getContainer()->get('order_transaction.repository');
+        $this->orderTransactionCaptureRepository = static::getContainer()->get('order_transaction_capture.repository');
+        $this->orderTransactionCaptureRefundRepository = static::getContainer()->get('order_transaction_capture_refund.repository');
+        $this->stateMachineRegistry = static::getContainer()->get(StateMachineRegistry::class);
+        $this->initialStateIdLoader = static::getContainer()->get(InitialStateIdLoader::class);
+        $this->salesChannelContextFactory = static::getContainer()->get(SalesChannelContextFactory::class);
         $this->shopUrl = $_SERVER['APP_URL'];
-        $this->shopIdProvider = $this->getContainer()->get(ShopIdProvider::class);
-        $this->paymentService = $this->getContainer()->get(PaymentService::class);
-        $this->preparedPaymentService = $this->getContainer()->get(PreparedPaymentService::class);
-        $this->paymentRefundProcessor = $this->getContainer()->get(PaymentRefundProcessor::class);
+        $this->shopIdProvider = static::getContainer()->get(ShopIdProvider::class);
+        $this->paymentProcessor = static::getContainer()->get(PaymentProcessor::class);
+        $this->paymentRefundProcessor = static::getContainer()->get(PaymentRefundProcessor::class);
         $this->context = Context::createDefaultContext();
 
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/_fixtures/testPayments/manifest.xml');
 
-        $appLifecycle = $this->getContainer()->get(AppLifecycle::class);
-        $appLifecycle->install($manifest, true, $this->context);
+        $appLifecycle = static::getContainer()->get(AppLifecycle::class);
+        $appLifecycle->install($manifest, new AppInstallParameters(), $this->context);
 
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('name', 'testPayments'));
-        $appRepository = $this->getContainer()->get('app.repository');
+        /** @var EntityRepository<AppCollection> $appRepository */
+        $appRepository = static::getContainer()->get('app.repository');
 
-        /** @var AppEntity $app */
-        $app = $appRepository->search($criteria, $this->context)->first();
+        $app = $appRepository->search($criteria, $this->context)->getEntities()->first();
+        static::assertNotNull($app);
         $this->app = $app;
         $this->ids = new IdsCollection();
 
@@ -132,7 +141,6 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
             ->add('email', Uuid::randomHex() . '@example.com')
             ->add('salesChannelId', TestDefaults::SALES_CHANNEL)
             ->add('password', 'shopware')
-            ->add('defaultPaymentMethodId', $this->getValidPaymentMethodId())
             ->defaultShippingAddress('address')
             ->defaultBillingAddress('address', [
                 'id' => $addressId,
@@ -145,10 +153,9 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
                 'zipcode' => '48624',
                 'city' => 'Schöppingen',
             ])
-            ->customerGroup(TestDefaults::FALLBACK_CUSTOMER_GROUP)
-            ->build();
+            ->customerGroup(TestDefaults::FALLBACK_CUSTOMER_GROUP);
 
-        $this->customerRepository->upsert([$customer], $this->context);
+        $this->customerRepository->upsert([$customer->build()], $this->context);
 
         return $customerId;
     }
@@ -160,7 +167,7 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
 
         $this->ids->set(
             'state',
-            $this->getContainer()->get(InitialStateIdLoader::class)->get(OrderStates::STATE_MACHINE)
+            static::getContainer()->get(InitialStateIdLoader::class)->get(OrderStates::STATE_MACHINE)
         );
 
         $stateId = $this->ids->get('state');
@@ -247,7 +254,7 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
     protected function getPaymentMethodId(string $name): string
     {
         $criteria = new Criteria();
-        $criteria->addFilter(new EqualsFilter('handlerIdentifier', sprintf('app\\testPayments_%s', $name)));
+        $criteria->addFilter(new EqualsFilter('handlerIdentifier', \sprintf('app\\testPayments_%s', $name)));
         $id = $this->paymentMethodRepository->searchIds($criteria, $this->context)->firstId();
         static::assertNotNull($id);
 
@@ -272,7 +279,7 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
     protected function signResponse(array $content): ResponseInterface
     {
         $json = \json_encode($content, \JSON_THROW_ON_ERROR);
-        static::assertNotFalse($json);
+        static::assertIsString($json);
 
         $secret = $this->app->getAppSecret();
         static::assertNotNull($secret);
@@ -293,8 +300,7 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
         $criteria = new Criteria([$transactionId]);
         $criteria->addAssociation('state');
 
-        /** @var OrderTransactionEntity|null $transaction */
-        $transaction = $this->orderTransactionRepository->search($criteria, $this->context)->first();
+        $transaction = $this->orderTransactionRepository->search($criteria, $this->context)->getEntities()->first();
         static::assertNotNull($transaction);
 
         $states = $this->stateMachineRegistry->getStateMachine(OrderTransactionStates::STATE_MACHINE, $this->context)->getStates();
@@ -309,8 +315,7 @@ abstract class AbstractAppPaymentHandlerTestCase extends TestCase
         $criteria = new Criteria([$refundId]);
         $criteria->addAssociation('state');
 
-        /** @var OrderTransactionCaptureRefundEntity|null $refund */
-        $refund = $this->orderTransactionCaptureRefundRepository->search($criteria, $this->context)->first();
+        $refund = $this->orderTransactionCaptureRefundRepository->search($criteria, $this->context)->getEntities()->first();
         static::assertNotNull($refund);
 
         $states = $this->stateMachineRegistry->getStateMachine(OrderTransactionCaptureRefundStates::STATE_MACHINE, $this->context)->getStates();

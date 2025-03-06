@@ -10,9 +10,8 @@ use Shopware\Core\Content\ProductExport\Event\ProductExportChangeEncodingEvent;
 use Shopware\Core\Content\ProductExport\Event\ProductExportLoggingEvent;
 use Shopware\Core\Content\ProductExport\Event\ProductExportProductCriteriaEvent;
 use Shopware\Core\Content\ProductExport\Event\ProductExportRenderBodyContextEvent;
-use Shopware\Core\Content\ProductExport\Exception\EmptyExportException;
-use Shopware\Core\Content\ProductExport\Exception\RenderProductException;
 use Shopware\Core\Content\ProductExport\ProductExportEntity;
+use Shopware\Core\Content\ProductExport\ProductExportException;
 use Shopware\Core\Content\ProductExport\Struct\ExportBehavior;
 use Shopware\Core\Content\ProductExport\Struct\ProductExportResult;
 use Shopware\Core\Content\ProductStream\Service\ProductStreamBuilderInterface;
@@ -35,7 +34,7 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Twig\Environment;
 
-#[Package('sales-channel')]
+#[Package('inventory')]
 class ProductExportGenerator implements ProductExportGeneratorInterface
 {
     private readonly TwigVariableParser $twigVariableParser;
@@ -67,6 +66,12 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
 
     public function generate(ProductExportEntity $productExport, ExportBehavior $exportBehavior): ?ProductExportResult
     {
+        $domain = $productExport->getSalesChannelDomain();
+
+        if ($domain === null) {
+            throw ProductExportException::salesChannelDomainNotFound($productExport->getId());
+        }
+
         $contextToken = Uuid::randomHex();
         $this->contextPersister->save(
             $contextToken,
@@ -76,19 +81,21 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
             $productExport->getSalesChannelId()
         );
 
+        $languageId = $domain->getLanguageId();
+
         $context = $this->salesChannelContextService->get(
             new SalesChannelContextServiceParameters(
                 $productExport->getStorefrontSalesChannelId(),
                 $contextToken,
-                $productExport->getSalesChannelDomain()->getLanguageId(),
+                $languageId,
                 $productExport->getCurrencyId()
             )
         );
 
         $this->translator->injectSettings(
             $productExport->getStorefrontSalesChannelId(),
-            $productExport->getSalesChannelDomain()->getLanguageId(),
-            $this->languageLocaleProvider->getLocaleForLanguageId($productExport->getSalesChannelDomain()->getLanguageId()),
+            $languageId,
+            $this->languageLocaleProvider->getLocaleForLanguageId($languageId),
             $context->getContext()
         );
 
@@ -100,9 +107,8 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
         $associations = $this->getAssociations($productExport, $context);
 
         $criteria = new Criteria();
-        $criteria->setTitle('product-export::products');
-
         $criteria
+            ->setTitle('product-export::products')
             ->addFilter(...$filters)
             ->setOffset($exportBehavior->offset())
             ->setLimit($this->readBufferSize);
@@ -119,7 +125,7 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
 
         $total = $iterator->getTotal();
         if ($total === 0) {
-            $exception = new EmptyExportException($productExport->getId());
+            $exception = ProductExportException::productExportNotFound($productExport->getId());
 
             $loggingEvent = new ProductExportLoggingEvent(
                 $context->getContext(),
@@ -150,7 +156,6 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
             )
         );
 
-        $body = '';
         while ($productResult = $iterator->fetch()) {
             foreach ($productResult->getEntities() as $product) {
                 $data = $productContext->getContext();
@@ -163,18 +168,19 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
                     continue; // Skip variants unless they are included
                 }
 
-                $body .= $this->productExportRender->renderBody($productExport, $context, $data);
+                $content .= $this->productExportRender->renderBody($productExport, $context, $data);
             }
 
             if ($exportBehavior->batchMode()) {
                 break;
             }
         }
-        $content .= $this->seoUrlPlaceholderHandler->replace($body, $productExport->getSalesChannelDomain()->getUrl(), $context);
 
         if ($exportBehavior->generateFooter()) {
             $content .= $this->productExportRender->renderFooter($productExport, $context);
         }
+
+        $content = $this->seoUrlPlaceholderHandler->replace($content, $domain->getUrl(), $context);
 
         $encodingEvent = $this->eventDispatcher->dispatch(
             new ProductExportChangeEncodingEvent($productExport, $content, mb_convert_encoding($content, $productExport->getEncoding()))
@@ -203,7 +209,7 @@ class ProductExportGenerator implements ProductExportGeneratorInterface
         try {
             $variables = $this->twigVariableParser->parse((string) $productExport->getBodyTemplate());
         } catch (\Exception $e) {
-            $e = new RenderProductException($e->getMessage());
+            $e = ProductExportException::renderProductException($e->getMessage());
 
             $loggingEvent = new ProductExportLoggingEvent($context->getContext(), $e->getMessage(), Level::Warning, $e);
 

@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Elasticsearch\Admin\Indexer;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Category\CategoryDefinition;
 use Shopware\Core\Content\Category\CategoryEntity;
@@ -17,12 +18,9 @@ use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Elasticsearch\Admin\Indexer\CategoryAdminSearchIndexer;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Admin\Indexer\CategoryAdminSearchIndexer
  */
+#[CoversClass(CategoryAdminSearchIndexer::class)]
 class CategoryAdminSearchIndexerTest extends TestCase
 {
     private CategoryAdminSearchIndexer $searchIndexer;

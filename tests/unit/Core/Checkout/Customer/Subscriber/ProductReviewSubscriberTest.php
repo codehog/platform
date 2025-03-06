@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Subscriber;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Customer\Service\ProductReviewCountService;
@@ -18,26 +19,37 @@ use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\ChangeSetAware;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\DeleteCommand;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\InsertCommand;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityExistence;
+use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityWriteGatewayInterface;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\WriteContext;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Customer\Subscriber\ProductReviewSubscriber
  */
-#[Package('business-ops')]
+#[Package('after-sales')]
+#[CoversClass(ProductReviewSubscriber::class)]
 class ProductReviewSubscriberTest extends TestCase
 {
     private MockObject&ProductReviewCountService $productReviewCountService;
 
     private ProductReviewSubscriber $productReviewSubscriber;
 
+    private StaticDefinitionInstanceRegistry $definitionInstanceRegistry;
+
     protected function setUp(): void
     {
         $this->productReviewCountService = $this->createMock(ProductReviewCountService::class);
         $this->productReviewSubscriber = new ProductReviewSubscriber($this->productReviewCountService);
+
+        $this->definitionInstanceRegistry = new StaticDefinitionInstanceRegistry(
+            [ProductReviewDefinition::class, ProductDefinition::class],
+            $this->createMock(ValidatorInterface::class),
+            $this->createMock(EntityWriteGatewayInterface::class)
+        );
     }
 
     public function testGetSubscribedEvents(): void
@@ -51,15 +63,17 @@ class ProductReviewSubscriberTest extends TestCase
 
     public function testDetectChangesetWithReviewDeleteEvent(): void
     {
+        $ids = new IdsCollection();
+
         $event = EntityDeleteEvent::create(
             WriteContext::createFromContext(Context::createDefaultContext()),
             [
                 new DeleteCommand(
-                    new ProductReviewDefinition(),
+                    $this->definitionInstanceRegistry->get(ProductReviewDefinition::class),
                     [
-                        'id' => 'foo',
+                        'id' => $ids->getBytes('foo'),
                     ],
-                    new EntityExistence(ProductReviewDefinition::ENTITY_NAME, ['id' => 'foo'], true, false, false, [])
+                    new EntityExistence(ProductReviewDefinition::ENTITY_NAME, ['id' => $ids->get('foo')], true, false, false, [])
                 ),
             ]
         );
@@ -79,21 +93,23 @@ class ProductReviewSubscriberTest extends TestCase
 
     public function testDetectChangesetWithInvalidCommands(): void
     {
+        $ids = new IdsCollection();
+
         $event = EntityDeleteEvent::create(
             WriteContext::createFromContext(Context::createDefaultContext()),
             [
                 new DeleteCommand(
-                    new ProductDefinition(),
+                    $this->definitionInstanceRegistry->get(ProductDefinition::class),
                     [
-                        'id' => 'foo',
+                        'id' => $ids->getBytes('foo'),
                     ],
-                    new EntityExistence(ProductDefinition::ENTITY_NAME, ['id' => 'foo'], true, false, false, [])
+                    new EntityExistence(ProductDefinition::ENTITY_NAME, ['id' => $ids->get('foo')], true, false, false, [])
                 ),
                 new InsertCommand(
-                    new ProductReviewDefinition(),
-                    ['id' => 'foo'],
-                    ['id' => 'foo'],
-                    new EntityExistence(ProductReviewDefinition::ENTITY_NAME, ['id' => 'foo'], true, false, false, []),
+                    $this->definitionInstanceRegistry->get(ProductReviewDefinition::class),
+                    ['id' => $ids->getBytes('foo')],
+                    ['id' => $ids->getBytes('foo')],
+                    new EntityExistence(ProductReviewDefinition::ENTITY_NAME, ['id' => $ids->get('foo')], true, false, false, []),
                     '/bar'
                 ),
             ]

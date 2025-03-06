@@ -1,21 +1,16 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-rating-stars';
+import { mount } from '@vue/test-utils';
 
-async function createWrapper(propsData = {}) {
-    return shallowMount(await Shopware.Component.build('sw-rating-stars'), {
-        stubs: {
-            'sw-icon': true,
-        },
-        provide: {},
-        propsData: {
+async function createWrapper(props = {}) {
+    return mount(await wrapTestComponent('sw-rating-stars', { sync: true }), {
+        props: {
             ...{
                 value: 3.5,
             },
-            ...propsData,
+            ...props,
         },
     });
 }
@@ -43,7 +38,11 @@ describe('src/app/component/base/sw-rating-stars', () => {
         expect(wrapper.vm).toBeTruthy();
     });
 
-    const maxStarCases = [5, 3, 8];
+    const maxStarCases = [
+        5,
+        3,
+        8,
+    ];
 
     maxStarCases.forEach((maxStars) => {
         it(`should round render float values per default into full stars (MaxStars = ${maxStars})`, async () => {

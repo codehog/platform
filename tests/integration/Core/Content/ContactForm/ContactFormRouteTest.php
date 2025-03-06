@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Integration\Core\Content\ContactForm;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Category\CategoryDefinition;
 use Shopware\Core\Content\LandingPage\LandingPageDefinition;
@@ -13,18 +15,17 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\MailTemplateTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelApiTestBehaviour;
-use Shopware\Core\Framework\Test\TestDataCollection;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * @internal
- *
- * @group store-api
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
+#[Group('store-api')]
 class ContactFormRouteTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -33,11 +34,11 @@ class ContactFormRouteTest extends TestCase
 
     private KernelBrowser $browser;
 
-    private TestDataCollection $ids;
+    private IdsCollection $ids;
 
     protected function setUp(): void
     {
-        $this->ids = new TestDataCollection();
+        $this->ids = new IdsCollection();
 
         $this->browser = $this->createCustomSalesChannelBrowser([
             'id' => $this->ids->create('sales-channel'),
@@ -47,7 +48,7 @@ class ContactFormRouteTest extends TestCase
     public function testContactFormSendMail(): void
     {
         /** @var EventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $phpunit = $this;
         $eventDidRun = false;
@@ -67,7 +68,7 @@ class ContactFormRouteTest extends TestCase
                     'salutationId' => $this->getValidSalutationId(),
                     'firstName' => 'Firstname',
                     'lastName' => 'Lastname',
-                    'email' => 'test@shopware.com',
+                    'email' => 'test@shäpware.com',
                     'phone' => '12345/6789',
                     'subject' => 'Subject',
                     'comment' => 'Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.',
@@ -84,9 +85,7 @@ class ContactFormRouteTest extends TestCase
         static::assertTrue($eventDidRun, 'The mail.sent Event did not run');
     }
 
-    /**
-     * @dataProvider navigationProvider
-     */
+    #[DataProvider('navigationProvider')]
     public function testContactFormSendMailWithNavigationIdAndSlotId(string $entityName): void
     {
         [$navigationId, $slotId] = match ($entityName) {
@@ -96,7 +95,7 @@ class ContactFormRouteTest extends TestCase
         };
 
         /** @var EventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $phpunit = $this;
         $eventDidRun = false;
@@ -153,7 +152,7 @@ class ContactFormRouteTest extends TestCase
         $this->createCmsFormData($formSlotId);
 
         /** @var EventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $phpunit = $this;
         $eventDidRun = false;
@@ -192,9 +191,7 @@ class ContactFormRouteTest extends TestCase
         static::assertTrue($eventDidRun, 'The mail.sent Event did not run');
     }
 
-    /**
-     * @dataProvider contactFormWithDomainProvider
-     */
+    #[DataProvider('contactFormWithDomainProvider')]
     public function testContactFormWithInvalid(string $firstName, string $lastName, \Closure $expectClosure): void
     {
         $this->browser
@@ -292,7 +289,7 @@ class ContactFormRouteTest extends TestCase
                 ],
             ],
         ];
-        $this->getContainer()->get('category.repository')->create($data, Context::createDefaultContext());
+        static::getContainer()->get('category.repository')->create($data, Context::createDefaultContext());
 
         return [$contactCategoryId, $slotId];
     }
@@ -337,7 +334,7 @@ class ContactFormRouteTest extends TestCase
             ],
         ];
 
-        $this->getContainer()->get('cms_page.repository')->create($cmsData, Context::createDefaultContext());
+        static::getContainer()->get('cms_page.repository')->create($cmsData, Context::createDefaultContext());
     }
 
     /**
@@ -372,7 +369,7 @@ class ContactFormRouteTest extends TestCase
                 'slotConfig' => $slotConfig,
             ],
         ];
-        $this->getContainer()->get('landing_page.repository')->create($data, Context::createDefaultContext());
+        static::getContainer()->get('landing_page.repository')->create($data, Context::createDefaultContext());
 
         return [$landingPageId, $slotId];
     }
@@ -411,7 +408,7 @@ class ContactFormRouteTest extends TestCase
                 'slotConfig' => $slotConfig,
             ],
         ];
-        $this->getContainer()->get('product.repository')->create($data, Context::createDefaultContext());
+        static::getContainer()->get('product.repository')->create($data, Context::createDefaultContext());
 
         return [$productId, $slotId];
     }

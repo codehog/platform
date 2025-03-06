@@ -2,10 +2,9 @@
 
 namespace Shopware\Administration\Controller;
 
-use Shopware\Administration\Notification\Exception\NotificationThrottledException;
 use Shopware\Administration\Notification\NotificationService;
+use Shopware\Core\Framework\Api\ApiException;
 use Shopware\Core\Framework\Api\Context\AdminApiSource;
-use Shopware\Core\Framework\Api\Context\Exception\InvalidContextSourceException;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\RateLimiter\Exception\RateLimitExceededException;
@@ -13,13 +12,14 @@ use Shopware\Core\Framework\RateLimiter\RateLimiter;
 use Shopware\Core\Framework\Routing\RoutingException;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(defaults: ['_routeScope' => ['api']])]
-#[Package('administration')]
+#[Package('framework')]
 class NotificationController extends AbstractController
 {
     final public const NOTIFICATION = 'notification';
@@ -38,14 +38,19 @@ class NotificationController extends AbstractController
     #[Route(path: '/api/notification', name: 'api.notification', defaults: ['_acl' => ['notification:create']], methods: ['POST'])]
     public function saveNotification(Request $request, Context $context): Response
     {
-        $status = $request->request->get('status');
-        $message = $request->request->get('message');
+        $status = (string) $request->request->get('status');
+        $message = (string) $request->request->get('message');
         $adminOnly = (bool) $request->request->get('adminOnly', false);
-        $requiredPrivileges = $request->request->all('requiredPrivileges');
+
+        try {
+            $requiredPrivileges = $request->request->all('requiredPrivileges');
+        } catch (BadRequestException) {
+            throw RoutingException::invalidRequestParameter('requiredPrivileges');
+        }
 
         $source = $context->getSource();
         if (!$source instanceof AdminApiSource) {
-            throw new InvalidContextSourceException(AdminApiSource::class, $context->getSource()::class);
+            throw ApiException::invalidAdminSource($context->getSource()::class);
         }
 
         if (empty($status)) {
@@ -56,10 +61,6 @@ class NotificationController extends AbstractController
             throw RoutingException::missingRequestParameter('message');
         }
 
-        if (!\is_array($requiredPrivileges)) {
-            throw RoutingException::invalidRequestParameter('requiredPrivileges');
-        }
-
         $integrationId = $source->getIntegrationId();
         $createdByUserId = $source->getUserId();
 
@@ -67,7 +68,7 @@ class NotificationController extends AbstractController
             $cacheKey = $createdByUserId ?? $integrationId . '-' . $request->getClientIp();
             $this->rateLimiter->ensureAccepted(self::NOTIFICATION, $cacheKey);
         } catch (RateLimitExceededException $exception) {
-            throw new NotificationThrottledException($exception->getWaitTime(), $exception);
+            throw ApiException::notificationThrottled($exception->getWaitTime(), $exception);
         }
 
         $notificationId = Uuid::randomHex();

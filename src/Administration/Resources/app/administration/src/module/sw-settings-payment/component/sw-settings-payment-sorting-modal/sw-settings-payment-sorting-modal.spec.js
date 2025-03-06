@@ -1,53 +1,62 @@
-import { shallowMount } from '@vue/test-utils';
-import swSettingsPaymentSortingModal from 'src/module/sw-settings-payment/component/sw-settings-payment-sorting-modal';
+import { mount } from '@vue/test-utils';
 
 /**
- * @package checkout
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-settings-payment-sorting-modal', swSettingsPaymentSortingModal);
+let repositoryFactoryMock;
 
 async function createWrapper(privileges = []) {
-    return shallowMount(await Shopware.Component.build('sw-settings-payment-sorting-modal'), {
-        propsData: {
-            paymentMethods: [
-                {
-                    id: '1a',
-                    position: 1,
-                },
-                {
-                    id: '2b',
-                    position: 2,
-                },
-            ],
+    repositoryFactoryMock = {
+        saveAll: () => {
+            return Promise.resolve();
         },
-        provide: {
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) {
-                        return true;
-                    }
+    };
 
-                    return privileges.includes(identifier);
-                },
+    return mount(
+        await wrapTestComponent('sw-settings-payment-sorting-modal', {
+            sync: true,
+        }),
+        {
+            props: {
+                paymentMethods: [
+                    {
+                        id: '1a',
+                        position: 1,
+                    },
+                    {
+                        id: '2b',
+                        position: 2,
+                    },
+                ],
             },
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        saveAll: () => {
-                            return Promise.resolve();
+            global: {
+                renderStubDefaultSlot: true,
+                provide: {
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
+
+                            return privileges.includes(identifier);
                         },
-                    };
+                    },
+                    repositoryFactory: {
+                        create: () => {
+                            return repositoryFactoryMock;
+                        },
+                    },
+                },
+                stubs: {
+                    'sw-modal': true,
+                    'sw-sortable-list': true,
+                    'sw-button-process': true,
+                    'sw-media-preview-v2': true,
                 },
             },
         },
-        stubs: {
-            'sw-modal': true,
-            'sw-sortable-list': true,
-            'sw-button': true,
-            'sw-button-process': true,
-        },
-    });
+    );
 }
 
 describe('module/sw-settings-payment/component/sw-settings-payment-sorting-modal', () => {
@@ -71,24 +80,20 @@ describe('module/sw-settings-payment/component/sw-settings-payment-sorting-modal
 
         await wrapper.vm.applyChanges();
 
-        expect(wrapper.vm.paymentMethodRepository.saveAll).toHaveBeenCalledWith([
-            {
-                id: '2b',
-                position: 1,
-            },
-            {
-                id: '1a',
-                position: 2,
-            },
-        ], Shopware.Context.api);
+        expect(wrapper.vm.paymentMethodRepository.saveAll).toHaveBeenCalledWith(
+            [
+                {
+                    id: '2b',
+                    position: 1,
+                },
+                {
+                    id: '1a',
+                    position: 2,
+                },
+            ],
+            Shopware.Context.api,
+        );
 
         wrapper.vm.paymentMethodRepository.saveAll.mockRestore();
     });
-
-    it('should return filters from filter registry', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm.assetFilter).toEqual(expect.any(Function));
-    });
 });
-

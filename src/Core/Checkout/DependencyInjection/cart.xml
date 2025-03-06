@@ -37,7 +37,8 @@
 
         <service id="Shopware\Core\Checkout\Cart\Cleanup\CleanupCartTaskHandler">
             <argument type="service" id="scheduled_task.repository"/>
-            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="logger"/>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\CartPersister"/>
             <argument>%shopware.cart.expire_days%</argument>
             <tag name="messenger.message_handler"/>
         </service>
@@ -48,7 +49,7 @@
             <argument type="service" id="Doctrine\DBAL\Connection"/>
             <argument type="service" id="event_dispatcher"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\CartSerializationCleaner"/>
-            <argument>%shopware.cart.compress%</argument>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\CartCompressor"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\CartSerializationCleaner">
@@ -73,6 +74,7 @@
 
         <service id="Shopware\Core\Checkout\Cart\CartCalculator">
             <argument type="service" id="Shopware\Core\Checkout\Cart\CartRuleLoader"/>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\CartContextHasher"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\CartFactory">
@@ -118,8 +120,10 @@
             <argument type="service" id="Shopware\Core\Checkout\Cart\Order\OrderPersister"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\CartPersister"/>
             <argument type="service" id="event_dispatcher"/>
-            <argument type="service" id="Shopware\Core\Checkout\Payment\PreparedPaymentService"/>
+            <argument type="service" id="Shopware\Core\Checkout\Payment\PaymentProcessor"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\TaxProvider\TaxProviderProcessor"/>
+            <argument type="service" id="Shopware\Core\Checkout\Gateway\SalesChannel\CheckoutGatewayRoute"/>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\CartContextHasher"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\Price\QuantityPriceCalculator">
@@ -153,12 +157,16 @@
             <argument type="service" id="Shopware\Core\Checkout\Cart\Tax\PercentageTaxRuleBuilder"/>
         </service>
 
+        <service id="Shopware\Core\Checkout\Cart\CartContextHasher">
+            <argument type="service" id="event_dispatcher"/>
+        </service>
+
         <!-- Tax calculation -->
         <service id="Shopware\Core\Checkout\Cart\Tax\PercentageTaxRuleBuilder"/>
 
         <service id="Shopware\Core\Checkout\Cart\Tax\TaxDetector"/>
 
-        <service id="Shopware\Core\Checkout\Cart\Tax\TaxCalculator" />
+        <service id="Shopware\Core\Checkout\Cart\Tax\TaxCalculator"/>
 
         <!-- Tax providers -->
         <!-- ==================================================================================================================== -->
@@ -188,10 +196,63 @@
             <argument type="service" id="Shopware\Core\Checkout\Cart\Price\CashRounding"/>
         </service>
 
-        <service id="Shopware\Core\Framework\App\TaxProvider\Payload\TaxProviderPayloadService">
-            <argument type="service" id="Shopware\Core\Framework\App\AppPayloadServiceHelper"/>
-            <argument type="service" id="shopware.app_system.guzzle"/>
-            <argument type="string">%env(APP_URL)%</argument>
+        <!-- ==================================================================================================================== -->
+
+        <!-- Checkout gateway -->
+        <!-- ==================================================================================================================== -->
+
+        <service id="Shopware\Core\Checkout\Gateway\SalesChannel\CheckoutGatewayRoute" public="true">
+            <argument type="service" id="Shopware\Core\Checkout\Payment\SalesChannel\PaymentMethodRoute"/>
+            <argument type="service" id="Shopware\Core\Checkout\Shipping\SalesChannel\ShippingMethodRoute"/>
+            <argument type="service" id="Shopware\Core\Framework\App\Checkout\Gateway\AppCheckoutGateway"/>
+            <argument type="service" id="Shopware\Core\Framework\Rule\RuleIdMatcher"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Registry\CheckoutGatewayCommandRegistry">
+            <argument type="tagged_iterator" tag="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Executor\CheckoutGatewayCommandExecutor">
+            <argument type="service" id="Shopware\Core\Checkout\Gateway\Command\Registry\CheckoutGatewayCommandRegistry"/>
+            <argument type="service" id="Shopware\Core\Framework\Log\ExceptionLogger"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\AddCartErrorCommandHandler">
+            <tag name="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\AddPaymentMethodCommandHandler">
+            <argument type="service" id="payment_method.repository"/>
+            <argument type="service" id="Shopware\Core\Framework\Log\ExceptionLogger"/>
+
+            <tag name="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\AddPaymentMethodExtensionsCommandHandler">
+            <argument type="service" id="Shopware\Core\Framework\Log\ExceptionLogger"/>
+
+            <tag name="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\RemovePaymentMethodCommandHandler">
+            <tag name="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\AddShippingMethodCommandHandler">
+            <argument type="service" id="payment_method.repository"/>
+            <argument type="service" id="Shopware\Core\Framework\Log\ExceptionLogger"/>
+
+            <tag name="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\AddShippingMethodExtensionsCommandHandler">
+            <argument type="service" id="Shopware\Core\Framework\Log\ExceptionLogger"/>
+
+            <tag name="shopware.checkout.gateway.command"/>
+        </service>
+
+        <service id="Shopware\Core\Checkout\Gateway\Command\Handler\RemoveShippingMethodCommandHandler">
+            <tag name="shopware.checkout.gateway.command"/>
         </service>
 
         <!-- ==================================================================================================================== -->
@@ -237,13 +298,13 @@
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\Address\AddressValidator">
-            <argument type="service" id="country.repository"/>
+            <argument type="service" id="sales_channel_country.repository"/>
             <tag name="shopware.cart.validator"/>
             <tag name="kernel.reset" method="reset"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\Validator">
-            <argument type="tagged" tag="shopware.cart.validator"/>
+            <argument type="tagged_iterator" tag="shopware.cart.validator"/>
         </service>
 
         <service id="Shopware\Core\Content\Product\Cart\ProductLineItemValidator">
@@ -254,8 +315,8 @@
             <argument type="service" id="Shopware\Core\Checkout\Cart\Validator"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\Price\AmountCalculator"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\Transaction\TransactionProcessor"/>
-            <argument type="tagged" tag="shopware.cart.processor"/>
-            <argument type="tagged" tag="shopware.cart.collector"/>
+            <argument type="tagged_iterator" tag="shopware.cart.processor"/>
+            <argument type="tagged_iterator" tag="shopware.cart.collector"/>
             <argument type="service" id="Shopware\Core\Framework\Script\Execution\ScriptExecutor"/>
         </service>
 
@@ -289,6 +350,7 @@
 
         <service id="Shopware\Core\Checkout\Cart\Order\Api\OrderRecalculationController" public="true">
             <argument type="service" id="Shopware\Core\Checkout\Cart\Order\RecalculationService"/>
+            <argument type="service" id="Shopware\Core\Checkout\Order\OrderAddressService"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
@@ -301,6 +363,7 @@
             <argument type="service" id="product.repository"/>
             <argument type="service" id="order_address.repository"/>
             <argument type="service" id="customer_address.repository"/>
+            <argument type="service" id="order_line_item.repository"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\Processor"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\CartRuleLoader"/>
             <argument type="service" id="Shopware\Core\Checkout\Promotion\Cart\PromotionItemBuilder"/>
@@ -319,7 +382,8 @@
             <tag name="kernel.reset" method="reset"/>
         </service>
 
-        <service id="Shopware\Core\Checkout\Cart\CachedRuleLoader" decorates="Shopware\Core\Checkout\Cart\RuleLoader" decoration-priority="-1000">
+        <service id="Shopware\Core\Checkout\Cart\CachedRuleLoader" decorates="Shopware\Core\Checkout\Cart\RuleLoader"
+                 decoration-priority="-1000">
             <argument type="service" id="Shopware\Core\Checkout\Cart\CachedRuleLoader.inner"/>
             <argument type="service" id="cache.object"/>
         </service>
@@ -335,7 +399,7 @@
         <service id="Shopware\Core\Checkout\Cart\PriceDefinitionFactory"/>
 
         <service id="Shopware\Core\Checkout\Cart\LineItemFactoryRegistry">
-            <argument type="tagged" tag="shopware.cart.line_item.factory"/>
+            <argument type="tagged_iterator" tag="shopware.cart.line_item.factory"/>
             <argument type="service" id="Shopware\Core\Framework\Validation\DataValidator"/>
             <argument type="service" id="event_dispatcher"/>
         </service>
@@ -378,8 +442,8 @@
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\LineItem\Group\LineItemGroupServiceRegistry">
-            <argument type="tagged" tag="lineitem.group.packager"/>
-            <argument type="tagged" tag="lineitem.group.sorter"/>
+            <argument type="tagged_iterator" tag="lineitem.group.packager"/>
+            <argument type="tagged_iterator" tag="lineitem.group.sorter"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\LineItem\Group\Packager\LineItemGroupCountPackager">
@@ -403,7 +467,8 @@
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\LineItem\Group\RulesMatcher\AnyRuleMatcher">
-            <argument type="service" id="Shopware\Core\Checkout\Cart\LineItem\Group\RulesMatcher\AbstractAnyRuleLineItemMatcher"/>
+            <argument type="service"
+                      id="Shopware\Core\Checkout\Cart\LineItem\Group\RulesMatcher\AbstractAnyRuleLineItemMatcher"/>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\Facade\CartFacadeHookFactory" public="true">
@@ -441,25 +506,30 @@
             <argument type="service" id="Shopware\Core\Checkout\Cart\Price\CurrencyPriceCalculator"/>
         </service>
 
+        <service id="Shopware\Core\Checkout\Cart\CartCompressor">
+            <argument>%shopware.cart.compress%</argument>
+            <argument>%shopware.cart.compression_method%</argument>
+        </service>
+
         <service id="Shopware\Core\Checkout\Cart\RedisCartPersister">
             <argument type="service" id="shopware.cart.redis"/>
             <argument type="service" id="event_dispatcher"/>
             <argument type="service" id="Shopware\Core\Checkout\Cart\CartSerializationCleaner"/>
-            <argument>%shopware.cart.compress%</argument>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\CartCompressor"/>
             <argument>%shopware.cart.expire_days%</argument>
         </service>
 
         <service id="shopware.cart.redis" class="Redis">
-            <factory service="Shopware\Core\Framework\Adapter\Cache\RedisConnectionFactory" method="create"/>
-            <argument>%shopware.cart.redis_url%</argument>
+            <factory service="Shopware\Core\Framework\Adapter\Redis\RedisConnectionProvider" method="getConnection"/>
+            <argument>%shopware.cart.storage.config.connection%</argument>
         </service>
 
         <service id="Shopware\Core\Checkout\Cart\Command\CartMigrateCommand">
             <argument type="service" id="shopware.cart.redis" on-invalid="null"/>
             <argument type="service" id="Doctrine\DBAL\Connection"/>
-            <argument>%shopware.cart.compress%</argument>
             <argument>%shopware.cart.expire_days%</argument>
             <argument type="service" id="Shopware\Core\Framework\Adapter\Cache\RedisConnectionFactory"/>
+            <argument type="service" id="Shopware\Core\Checkout\Cart\CartCompressor"/>
             <tag name="console.command"/>
         </service>
     </services>

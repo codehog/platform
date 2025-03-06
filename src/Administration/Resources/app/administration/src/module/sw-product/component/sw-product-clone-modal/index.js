@@ -1,5 +1,5 @@
 /*
- * @package inventory
+ * @sw-package inventory
  */
 
 import template from './sw-product-clone-modal.html.twig';
@@ -11,7 +11,12 @@ const { Criteria } = Shopware.Data;
 export default {
     template,
 
-    inject: ['repositoryFactory', 'numberRangeService'],
+    inject: [
+        'repositoryFactory',
+        'numberRangeService',
+    ],
+
+    emits: ['clone-finish'],
 
     props: {
         product: {
@@ -48,13 +53,15 @@ export default {
         },
 
         duplicate() {
-            this.numberRangeService
-                .reserve('product')
-                .then(this.cloneParent)
-                .then(this.verifyVariants);
+            this.numberRangeService.reserve('product').then(this.cloneParent).then(this.verifyVariants);
         },
 
         async cloneParent(number) {
+            const variantListingConfigOverwrite = this.product.variantListingConfig;
+            if (variantListingConfigOverwrite && variantListingConfigOverwrite.mainVariantId) {
+                variantListingConfigOverwrite.mainVariantId = null;
+            }
+
             const behavior = {
                 cloneChildren: false,
                 overwrites: {
@@ -62,11 +69,12 @@ export default {
                     name: `${this.product.name} ${this.$tc('global.default.copy')}`,
                     active: false,
                     mainVariantId: null,
+                    variantListingConfig: variantListingConfigOverwrite,
                 },
             };
 
             await this.repository.save(this.product);
-            const clone = await this.repository.clone(this.product.id, Shopware.Context.api, behavior);
+            const clone = await this.repository.clone(this.product.id, behavior, Shopware.Context.api);
 
             return { id: clone.id, productNumber: number.number };
         },
@@ -92,15 +100,11 @@ export default {
 
         getChildrenIds() {
             const criteria = new Criteria(1, null);
-            criteria.addFilter(
-                Criteria.equals('parentId', this.product.id),
-            );
+            criteria.addFilter(Criteria.equals('parentId', this.product.id));
 
-            return this.repository
-                .searchIds(criteria)
-                .then((response) => {
-                    return response.data;
-                });
+            return this.repository.searchIds(criteria).then((response) => {
+                return response.data;
+            });
         },
 
         duplicateVariant(duplicate, ids, callback) {
@@ -118,12 +122,10 @@ export default {
                 cloneChildren: false,
             };
 
-            this.repository
-                .clone(id, Shopware.Context.api, behavior)
-                .then(() => {
-                    this.cloneProgress += 1;
-                    this.duplicateVariant(duplicate, ids, callback);
-                });
+            this.repository.clone(id, behavior, Shopware.Context.api).then(() => {
+                this.cloneProgress += 1;
+                this.duplicateVariant(duplicate, ids, callback);
+            });
         },
     },
 };

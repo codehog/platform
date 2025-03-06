@@ -34,13 +34,18 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class EntityHydrator
 {
     /**
      * @var array<mixed>
      */
     protected static array $partial = [];
+
+    /**
+     * @var array<bool>
+     */
+    protected static array $partialFullPaths = [];
 
     /**
      * @var array<mixed>
@@ -79,13 +84,17 @@ class EntityHydrator
 
         self::$partial = $partial;
 
+        self::$partialFullPaths = [];
+
         if (!empty(self::$partial)) {
             /** @var TEntityCollection $collection */
             $collection = new EntityCollection();
+
+            $this->mapPartialFieldsToHydrate(self::$partial, $root);
         }
 
         foreach ($rows as $row) {
-            $collection->add($this->hydrateEntity($definition, $entityClass, $row, $root, $context, $partial));
+            $collection->add($this->hydrateEntity($definition, $entityClass, $row, $root, $context));
         }
 
         return $collection;
@@ -177,18 +186,15 @@ class EntityHydrator
      */
     protected function hydrateFields(EntityDefinition $definition, Entity $entity, string $root, array $row, Context $context, iterable $fields): Entity
     {
-        /** @var ArrayStruct<string, mixed> $foreignKeys */
-        $foreignKeys = $entity->getExtension(EntityReader::FOREIGN_KEYS);
         $isPartial = self::$partial !== [];
 
         foreach ($fields as $field) {
             $property = $field->getPropertyName();
 
-            if ($isPartial && !isset(self::$partial[$property])) {
+            $key = $root . '.' . $property;
+            if ($isPartial && !isset(self::$partialFullPaths[$key])) {
                 continue;
             }
-
-            $key = $root . '.' . $property;
 
             // initialize not loaded associations with null
             if ($field instanceof AssociationField && $entity instanceof ArrayEntity) {
@@ -265,6 +271,8 @@ class EntityHydrator
             $decoded = $definition->decode($property, $value);
 
             if ($field->is(Extension::class)) {
+                $foreignKeys = $entity->getExtension(EntityReader::FOREIGN_KEYS);
+                \assert($foreignKeys instanceof ArrayStruct);
                 $foreignKeys->set($property, $decoded);
             } else {
                 $entity->assign([$property => $decoded]);
@@ -295,8 +303,10 @@ class EntityHydrator
 
         $ids = array_map('strtolower', array_filter($ids));
 
-        /** @var ArrayStruct<string, mixed> $mapping */
         $mapping = $entity->getExtension(EntityReader::INTERNAL_MAPPING_STORAGE);
+        if (!$mapping instanceof ArrayStruct) {
+            return;
+        }
 
         $mapping->set($field->getPropertyName(), $ids);
     }
@@ -314,9 +324,13 @@ class EntityHydrator
         $translatedFields = $this->getTranslatedFields($definition, $fields);
 
         foreach ($translatedFields as $field => $typed) {
-            $entity->addTranslated($field, $typed->getSerializer()->decode($typed, self::value($row, $root, $field)));
+            $fieldValue = self::value($row, $root, $field);
+            $translation = $fieldValue !== null ? $typed->getSerializer()->decode($typed, $fieldValue) : null;
 
-            $entity->$field = $typed->getSerializer()->decode($typed, self::value($row, $chain[0], $field)); /* @phpstan-ignore-line */
+            $entity->addTranslated($field, $translation);
+
+            $chainFieldValue = self::value($row, $chain[0], $field);
+            $entity->$field = $chainFieldValue !== null ? ($fieldValue === $chainFieldValue ? $translation : $typed->getSerializer()->decode($typed, $chainFieldValue)) : null;
         }
     }
 
@@ -351,7 +365,7 @@ class EntityHydrator
         }
 
         if (!$field instanceof AssociationField) {
-            throw new \RuntimeException(sprintf('Provided field %s is no association field', $field->getPropertyName()));
+            throw new \RuntimeException(\sprintf('Provided field %s is no association field', $field->getPropertyName()));
         }
         $pk = $this->getManyToOneProperty($field);
 
@@ -363,7 +377,11 @@ class EntityHydrator
             return null;
         }
 
-        return $this->hydrateEntity($field->getReferenceDefinition(), $field->getReferenceDefinition()->getEntityClass(), $row, $association, $context, self::$partial[$field->getPropertyName()] ?? []);
+        if (self::$partial !== [] && !isset(self::$partialFullPaths[$pk])) {
+            self::$partialFullPaths[$key] = true;
+        }
+
+        return $this->hydrateEntity($field->getReferenceDefinition(), $field->getReferenceDefinition()->getEntityClass(), $row, $association, $context);
     }
 
     /**
@@ -480,7 +498,7 @@ class EntityHydrator
         );
 
         if ($reference === null) {
-            throw new \RuntimeException(sprintf(
+            throw new \RuntimeException(\sprintf(
                 'Can not find field by storage name %s in definition %s',
                 $field->getReferenceField(),
                 $field->getReferenceDefinition()->getEntityName()
@@ -520,12 +538,23 @@ class EntityHydrator
     }
 
     /**
-     * @param array<mixed> $row
-     * @param array<string|array<string>> $partial
+     * @param array<string, mixed> $fields
      */
-    private function hydrateEntity(EntityDefinition $definition, string $entityClass, array $row, string $root, Context $context, array $partial = []): Entity
+    private function mapPartialFieldsToHydrate(array $fields, string $currentPath): void
     {
-        $isPartial = $partial !== [];
+        foreach ($fields as $field => $values) {
+            self::$partialFullPaths[$currentPath . '.' . $field] = true;
+
+            $this->mapPartialFieldsToHydrate($values, $currentPath . '.' . $field);
+        }
+    }
+
+    /**
+     * @param array<mixed> $row
+     */
+    private function hydrateEntity(EntityDefinition $definition, string $entityClass, array $row, string $root, Context $context): Entity
+    {
+        $isPartial = self::$partial !== [];
         $hydratorClass = $definition->getHydratorClass();
         $entityClass = $isPartial ? PartialEntity::class : $entityClass;
 
@@ -536,7 +565,7 @@ class EntityHydrator
         $hydrator = $this->container->get($hydratorClass);
 
         if (!$hydrator instanceof self) {
-            throw new \RuntimeException(sprintf('Hydrator for entity %s not registered', $definition->getEntityName()));
+            throw new \RuntimeException(\sprintf('Hydrator for entity %s not registered', $definition->getEntityName()));
         }
 
         $identifier = implode('-', self::buildUniqueIdentifier($definition, $row, $root));
@@ -550,7 +579,7 @@ class EntityHydrator
         $entity = new $entityClass();
 
         if (!$entity instanceof Entity) {
-            throw new \RuntimeException(sprintf('Expected instance of Entity.php, got %s', $entity::class));
+            throw new \RuntimeException(\sprintf('Expected instance of Entity.php, got %s', $entity::class));
         }
 
         $entity->addExtension(EntityReader::FOREIGN_KEYS, new ArrayStruct([], $definition->getEntityName() . '_foreign_keys_extension'));

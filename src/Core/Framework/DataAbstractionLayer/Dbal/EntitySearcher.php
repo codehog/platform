@@ -23,7 +23,7 @@ use Shopware\Core\System\NumberRange\DataAbstractionLayer\NumberRangeField;
  *
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class EntitySearcher implements EntitySearcherInterface
 {
     public function __construct(
@@ -63,7 +63,6 @@ class EntitySearcher implements EntitySearcherInterface
             }
         }
 
-        /** @var StorageAware $field */
         foreach ($fields as $field) {
             $query->addSelect(
                 EntityDefinitionQueryHelper::escape($table) . '.' . EntityDefinitionQueryHelper::escape($field->getStorageName())
@@ -76,7 +75,7 @@ class EntitySearcher implements EntitySearcherInterface
             $this->queryHelper->addIdCondition($criteria, $definition, $query);
         }
 
-        $this->addGroupBy($definition, $criteria, $context, $query, $table);
+        $this->queryHelper->addGroupBy($definition, $criteria, $context, $query, $table);
 
         // add pagination
         if ($criteria->getOffset() !== null) {
@@ -155,43 +154,33 @@ class EntitySearcher implements EntitySearcherInterface
         $query->setMaxResults($criteria->getLimit() * 6 + 1);
     }
 
+    /**
+     * @param list<array<string, mixed>> $data
+     */
     private function getTotalCount(Criteria $criteria, QueryBuilder $query, array $data): int
     {
         if ($criteria->getTotalCountMode() !== Criteria::TOTAL_COUNT_MODE_EXACT) {
             return \count($data);
         }
 
-        $query->resetQueryPart('orderBy');
+        $query->resetOrderBy();
         $query->setMaxResults(null);
         $query->setFirstResult(0);
 
         $total = new QueryBuilder($this->connection);
-        $total->select(['COUNT(*)'])
-            ->from(sprintf('(%s) total', $query->getSQL()))
+        $total->select('COUNT(*)')
+            ->from(\sprintf('(%s) total', $query->getSQL()))
             ->setParameters($query->getParameters(), $query->getParameterTypes());
 
         return (int) $total->executeQuery()->fetchOne();
     }
 
-    private function addGroupBy(EntityDefinition $definition, Criteria $criteria, Context $context, QueryBuilder $query, string $table): void
-    {
-        if ($criteria->getGroupFields()) {
-            foreach ($criteria->getGroupFields() as $grouping) {
-                $accessor = $this->queryHelper->getFieldAccessor($grouping->getField(), $definition, $definition->getEntityName(), $context);
-
-                $query->addGroupBy($accessor);
-            }
-
-            return;
-        }
-
-        if ($query->hasState(EntityDefinitionQueryHelper::HAS_TO_MANY_JOIN)) {
-            $query->addGroupBy(
-                EntityDefinitionQueryHelper::escape($table) . '.' . EntityDefinitionQueryHelper::escape('id')
-            );
-        }
-    }
-
+    /**
+     * @param array<string>|array<array<string, string>> $ids
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, array<string, mixed>>
+     */
     private function sortByIdArray(array $ids, array $data): array
     {
         $sorted = [];

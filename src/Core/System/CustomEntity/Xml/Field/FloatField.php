@@ -9,7 +9,7 @@ use Shopware\Core\System\CustomEntity\Xml\Field\Traits\TranslatableTrait;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class FloatField extends Field
 {
     use RequiredTrait;
@@ -17,11 +17,10 @@ class FloatField extends Field
 
     protected string $type = 'float';
 
-    /**
-     * @internal
-     */
-    public static function fromXml(\DOMElement $element): Field
+    protected ?float $default = null;
+
+    public function getDefault(): ?float
     {
-        return new self(self::parse($element));
+        return $this->default;
     }
 }

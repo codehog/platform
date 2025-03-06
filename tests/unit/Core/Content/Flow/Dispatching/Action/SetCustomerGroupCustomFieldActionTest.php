@@ -3,35 +3,33 @@
 namespace Shopware\Tests\Unit\Core\Content\Flow\Dispatching\Action;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerGroup\CustomerGroupCollection;
+use Shopware\Core\Checkout\Customer\Aggregate\CustomerGroup\CustomerGroupDefinition;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerGroup\CustomerGroupEntity;
 use Shopware\Core\Content\Flow\Dispatching\Action\SetCustomerGroupCustomFieldAction;
 use Shopware\Core\Content\Flow\Dispatching\StorableFlow;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\EntitySearchResult;
 use Shopware\Core\Framework\Event\CustomerGroupAware;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @covers \Shopware\Core\Content\Flow\Dispatching\Action\SetCustomerGroupCustomFieldAction
  */
+#[Package('after-sales')]
+#[CoversClass(SetCustomerGroupCustomFieldAction::class)]
 class SetCustomerGroupCustomFieldActionTest extends TestCase
 {
     private Connection&MockObject $connection;
 
     private MockObject&EntityRepository $repository;
-
-    /**
-     * @var MockObject&EntitySearchResult<CustomerGroupCollection>
-     */
-    private MockObject&EntitySearchResult $entitySearchResult;
 
     private SetCustomerGroupCustomFieldAction $action;
 
@@ -39,7 +37,6 @@ class SetCustomerGroupCustomFieldActionTest extends TestCase
     {
         $this->connection = $this->createMock(Connection::class);
         $this->repository = $this->createMock(EntityRepository::class);
-        $this->entitySearchResult = $this->createMock(EntitySearchResult::class);
 
         $this->action = new SetCustomerGroupCustomFieldAction($this->connection, $this->repository);
     }
@@ -61,26 +58,32 @@ class SetCustomerGroupCustomFieldActionTest extends TestCase
      * @param array<string, mixed> $config
      * @param array<string, mixed> $existsData
      * @param array<string, mixed> $expected
-     *
-     * @dataProvider actionExecutedProvider
      */
+    #[DataProvider('actionExecutedProvider')]
     public function testExecutedAction(array $config, array $existsData, array $expected): void
     {
+        $customerGroupId = Uuid::randomHex();
         $customerGroup = new CustomerGroupEntity();
+        $customerGroup->setId($customerGroupId);
+        $customerGroup->setUniqueIdentifier($customerGroupId);
         $customerGroup->setCustomFields($existsData);
 
         $context = Context::createDefaultContext();
-        $customerGroupId = Uuid::randomHex();
         $flow = new StorableFlow('', $context, [], [CustomerGroupAware::CUSTOMER_GROUP_ID => $customerGroupId]);
         $flow->setConfig($config);
 
-        $this->entitySearchResult->expects(static::once())
-            ->method('first')
-            ->willReturn($customerGroup);
+        $entitySearchResult = new EntitySearchResult(
+            CustomerGroupDefinition::ENTITY_NAME,
+            1,
+            new CustomerGroupCollection([$customerGroup]),
+            null,
+            new Criteria(),
+            $context
+        );
 
         $this->repository->expects(static::once())
             ->method('search')
-            ->willReturn($this->entitySearchResult);
+            ->willReturn($entitySearchResult);
 
         $this->connection->expects(static::once())
             ->method('fetchOne')

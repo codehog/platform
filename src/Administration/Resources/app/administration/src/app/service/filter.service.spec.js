@@ -1,18 +1,29 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import FilterService from 'src/app/service/filter.service';
 import EntityCollection from 'src/core/data/entity-collection.data';
 import Criteria from 'src/core/data/criteria.data';
-import VueRouter from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 
 describe('app/service/filter.service.js', () => {
     let filterService;
     let filterData;
 
     beforeEach(async () => {
-        const router = new VueRouter();
+        const router = createRouter({
+            history: createWebHashHistory(),
+            routes: [
+                {
+                    name: 'sw.jest.index',
+                    path: '/',
+                    component: {
+                        template: '<div></div>',
+                    },
+                },
+            ],
+        });
         const orgPush = router.push;
         router.push = (location) => {
             return orgPush.call(router, location).catch(() => {});
@@ -22,39 +33,44 @@ describe('app/service/filter.service.js', () => {
             router,
         };
 
-        filterData = new EntityCollection(null, null, null, new Criteria(1, 25), [{
-            key: 'test',
-            userId: '123',
-            value: {
-                filter3: {
-                    value: [
-                        {
-                            id: '123',
-                        },
-                    ],
-                    criteria: [{
-                        type: 'equalsAny',
-                        field: 'salutation.id',
-                        value: '123',
-                    }],
+        filterData = new EntityCollection(null, null, null, new Criteria(1, 25), [
+            {
+                key: 'test',
+                userId: '123',
+                value: {
+                    filter3: {
+                        value: [
+                            {
+                                id: '123',
+                            },
+                        ],
+                        criteria: [
+                            {
+                                type: 'equalsAny',
+                                field: 'salutation.id',
+                                value: '123',
+                            },
+                        ],
+                    },
                 },
             },
-        }]);
+        ]);
 
-        Shopware.State.get('session').currentUser = {
+        Shopware.Store.get('session').setCurrentUser({
             currentUser: {
                 id: '123',
             },
-        };
+        });
 
         filterService = new FilterService({
             userConfigRepository: {
-                create: () => Promise.resolve({
-                    key: 'test',
-                    userId: '123',
-                }),
+                create: () =>
+                    Promise.resolve({
+                        key: 'test',
+                        userId: '123',
+                    }),
                 search: () => Promise.resolve(filterData),
-                save: criteria => {
+                save: (criteria) => {
                     filterData = criteria;
                     return Promise.resolve();
                 },
@@ -70,6 +86,8 @@ describe('app/service/filter.service.js', () => {
 
     it('getStoredFilters when there is no data from url, has data from database', async () => {
         const data = await filterService.getStoredFilters('test');
+        await flushPromises();
+
         const filterResult = {
             filter3: {
                 value: [
@@ -77,29 +95,33 @@ describe('app/service/filter.service.js', () => {
                         id: '123',
                     },
                 ],
-                criteria: [{
-                    type: 'equalsAny',
-                    field: 'salutation.id',
-                    value: '123',
-                }],
+                criteria: [
+                    {
+                        type: 'equalsAny',
+                        field: 'salutation.id',
+                        value: '123',
+                    },
+                ],
             },
         };
 
         expect(data).toEqual(filterResult);
 
-        const query = JSON.parse(decodeURIComponent(Shopware.Application.view.router.currentRoute.query.test));
+        const query = JSON.parse(decodeURIComponent(Shopware.Application.view.router.currentRoute.value.query.test));
         expect(query).toEqual(filterResult);
     });
 
     it('getStoredFilters when there is no data from database, has data from url', async () => {
         filterData = new EntityCollection(null, null, null, new Criteria(1, 25), []);
-        const urlEncodedValue = encodeURIComponent(JSON.stringify({
-            'stock-filter': {
-                value: null,
-                criteria: null,
-            },
-        }));
-        Shopware.Application.view.router.push({
+        const urlEncodedValue = encodeURIComponent(
+            JSON.stringify({
+                'stock-filter': {
+                    value: null,
+                    criteria: null,
+                },
+            }),
+        );
+        await Shopware.Application.view.router.push({
             query: {
                 test: urlEncodedValue,
             },
@@ -115,13 +137,15 @@ describe('app/service/filter.service.js', () => {
     });
 
     it('getStoredFilters when there is data from database and data from url', async () => {
-        const urlEncodedValue = encodeURIComponent(JSON.stringify({
-            'stock-filter': {
-                value: null,
-                criteria: null,
-            },
-        }));
-        Shopware.Application.view.router.push({
+        const urlEncodedValue = encodeURIComponent(
+            JSON.stringify({
+                'stock-filter': {
+                    value: null,
+                    criteria: null,
+                },
+            }),
+        );
+        await Shopware.Application.view.router.push({
             query: {
                 test: urlEncodedValue,
             },
@@ -138,7 +162,9 @@ describe('app/service/filter.service.js', () => {
 
     it('getStoredCriteria should return correct criteria', async () => {
         const data = await filterService.getStoredCriteria('test');
-        expect(data).toEqual([{ type: 'equalsAny', field: 'salutation.id', value: '123' }]);
+        expect(data).toEqual([
+            { type: 'equalsAny', field: 'salutation.id', value: '123' },
+        ]);
     });
 
     it('saveFilters should cache and save data correctly', async () => {
@@ -147,19 +173,23 @@ describe('app/service/filter.service.js', () => {
         const filters = {
             filter1: {
                 value: 'filter1',
-                criteria: [{
-                    type: 'equalsAny',
-                    field: 'salutation.id',
-                    value: 'filter1',
-                }],
+                criteria: [
+                    {
+                        type: 'equalsAny',
+                        field: 'salutation.id',
+                        value: 'filter1',
+                    },
+                ],
             },
             filter2: {
                 value: 'filter2',
-                criteria: [{
-                    type: 'equalsAny',
-                    field: 'salutation.id',
-                    value: 'filter2',
-                }],
+                criteria: [
+                    {
+                        type: 'equalsAny',
+                        field: 'salutation.id',
+                        value: 'filter2',
+                    },
+                ],
             },
         };
 

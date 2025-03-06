@@ -2,34 +2,31 @@
 
 namespace Shopware\Tests\Integration\Core\Content\Product\SalesChannel\FindVariant;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\Exception\VariantNotFoundException;
 use Shopware\Core\Content\Product\SalesChannel\FindVariant\FindProductVariantRoute;
 use Shopware\Core\Content\Test\Product\ProductBuilder;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SalesChannel\FindVariant\FindProductVariantRoute
  */
+#[CoversClass(FindProductVariantRoute::class)]
 class FindProductVariantRouteTest extends TestCase
 {
     use IntegrationTestBehaviour;
 
     private EntityRepository $repository;
 
-    /**
-     * @var SalesChannelContext
-     */
-    private $context;
+    private SalesChannelContext $context;
 
     private FindProductVariantRoute $findProductVariantRoute;
 
@@ -37,12 +34,12 @@ class FindProductVariantRouteTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->repository = $this->getContainer()->get('product.repository');
+        $this->repository = static::getContainer()->get('product.repository');
 
-        $this->context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $this->context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create('test', TestDefaults::SALES_CHANNEL);
 
-        $this->findProductVariantRoute = $this->getContainer()->get(FindProductVariantRoute::class);
+        $this->findProductVariantRoute = static::getContainer()->get(FindProductVariantRoute::class);
 
         $this->ids = new IdsCollection();
 
@@ -148,23 +145,23 @@ class FindProductVariantRouteTest extends TestCase
         )->configuratorSetting(
             'L',
             'Size'
-        )->visibility()->price(10)->write($this->getContainer());
+        )->visibility()->price(10)->write(static::getContainer());
 
         (new ProductBuilder($this->ids, 'redXL', 10))->visibility()->parent('base')->price(10)->option(
             'Red',
             'Color'
-        )->option('XL', 'Size')->stock(10)->write($this->getContainer());
+        )->option('XL', 'Size')->stock(10)->write(static::getContainer());
         (new ProductBuilder($this->ids, 'greenXL', 10))->visibility()->parent('base')->price(10)->option(
             'Green',
             'Color'
-        )->option('XL', 'Size')->stock(10)->write($this->getContainer());
+        )->option('XL', 'Size')->stock(10)->write(static::getContainer());
         (new ProductBuilder($this->ids, 'redL', 10))->visibility()->parent('base')->price(10)->option(
             'Red',
             'Color'
-        )->option('L', 'Size')->stock(10)->write($this->getContainer());
+        )->option('L', 'Size')->stock(10)->write(static::getContainer());
         (new ProductBuilder($this->ids, 'greenL', 10))->visibility()->parent('base')->price(10)->option(
             'Green',
             'Color'
-        )->option('L', 'Size')->stock(10)->write($this->getContainer());
+        )->option('L', 'Size')->stock(10)->write(static::getContainer());
     }
 }

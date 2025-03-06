@@ -4,8 +4,8 @@ const { Component } = Shopware;
 const { string } = Shopware.Utils;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @sw-package framework
+ * @private
  * @status ready
  * @description Renders a multi select field for ip addresses specifically. The corresponding validation method
  * is active by default.
@@ -22,7 +22,7 @@ Component.extend('sw-multi-tag-ip-select', 'sw-multi-tag-select', {
         validate: {
             type: Function,
             required: false,
-            default: searchTerm => string.isValidIp(searchTerm),
+            default: (searchTerm) => string.isValidIp(searchTerm),
         },
 
         knownIps: {
@@ -32,21 +32,29 @@ Component.extend('sw-multi-tag-ip-select', 'sw-multi-tag-select', {
                 return [];
             },
         },
+
+        errorCode: {
+            type: String,
+            required: false,
+            default() {
+                return 'SHOPWARE_INVALID_IP';
+            },
+        },
     },
 
     computed: {
         errorObject() {
             const err = !this.inputIsValid && this.searchTerm.length > 0;
 
-            return err ? { code: 'SHOPWARE_INVALID_IP' } : null;
+            return err ? { code: this.errorCode } : null;
         },
 
         validKnownIps() {
-            return this.knownIps.filter(ip => string.isValidIp(ip.value));
+            return this.knownIps.filter((ip) => this.validate(ip.value));
         },
 
         validUnselectedKnownIps() {
-            return this.validKnownIps.filter(ip => this.value.indexOf(ip.value) === -1);
+            return this.validKnownIps.filter((ip) => this.value.indexOf(ip.value) === -1);
         },
     },
 
@@ -57,7 +65,7 @@ Component.extend('sw-multi-tag-ip-select', 'sw-multi-tag-select', {
         },
 
         getKnownIp(ip) {
-            const index = this.validKnownIps.findIndex(knownIp => knownIp.value === ip.value);
+            const index = this.validKnownIps.findIndex((knownIp) => knownIp.value === ip.value);
 
             if (index === -1) {
                 return null;

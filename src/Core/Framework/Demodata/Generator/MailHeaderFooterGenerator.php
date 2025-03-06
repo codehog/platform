@@ -14,7 +14,7 @@ use Shopware\Core\Framework\Uuid\Uuid;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class MailHeaderFooterGenerator implements DemodataGeneratorInterface
 {
     /**
@@ -112,7 +112,7 @@ class MailHeaderFooterGenerator implements DemodataGeneratorInterface
             if (\is_array($text)) {
                 $text = implode(' ', $text);
             }
-            $output .= sprintf('<%1$s>%2$s</%1$s>', $tag, $text);
+            $output .= \sprintf('<%1$s>%2$s</%1$s>', $tag, $text);
             $output .= '<br/>';
         }
 

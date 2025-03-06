@@ -17,7 +17,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * @internal
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
 class RuleIndexerSubscriber implements EventSubscriberInterface
 {
     /**

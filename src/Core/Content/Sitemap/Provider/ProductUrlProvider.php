@@ -4,6 +4,7 @@ namespace Shopware\Core\Content\Sitemap\Provider;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Shopware\Core\Content\Product\Aggregate\ProductVisibility\ProductVisibilityDefinition;
 use Shopware\Core\Content\Product\ProductDefinition;
 use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Content\Sitemap\Service\ConfigHandler;
@@ -17,13 +18,14 @@ use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RouterInterface;
 
-#[Package('sales-channel')]
+#[Package('discovery')]
 class ProductUrlProvider extends AbstractUrlProvider
 {
     final public const CHANGE_FREQ = 'hourly';
+
+    private const CONFIG_EXCLUDE_LINKED_PRODUCTS = 'core.sitemap.excludeLinkedProducts';
 
     private const CONFIG_HIDE_AFTER_CLOSEOUT = 'core.listing.hideCloseoutProductsWhenOutOfStock';
 
@@ -67,6 +69,7 @@ class ProductUrlProvider extends AbstractUrlProvider
 
         $seoUrls = $this->getSeoUrls(array_values($keys), 'frontend.detail.page', $context, $this->connection);
 
+        /** @var array<string, array{seo_path_info: string}> $seoUrls */
         $seoUrls = FetchModeHelper::groupUnique($seoUrls);
 
         $urls = [];
@@ -82,7 +85,7 @@ class ProductUrlProvider extends AbstractUrlProvider
             if (isset($seoUrls[$product['id']])) {
                 $newUrl->setLoc($seoUrls[$product['id']]['seo_path_info']);
             } else {
-                $newUrl->setLoc($this->router->generate('frontend.detail.page', ['productId' => $product['id']], UrlGeneratorInterface::ABSOLUTE_PATH));
+                $newUrl->setLoc($this->router->generate('frontend.detail.page', ['productId' => $product['id']]));
             }
 
             $newUrl->setLastmod(new \DateTime($lastMod));
@@ -100,6 +103,9 @@ class ProductUrlProvider extends AbstractUrlProvider
         return new UrlResult($urls, $nextOffset);
     }
 
+    /**
+     * @return list<array{id: string, created_at: string, updated_at: string}>
+     */
     private function getProducts(SalesChannelContext $context, int $limit, ?int $offset): array
     {
         $lastId = null;
@@ -113,10 +119,10 @@ class ProductUrlProvider extends AbstractUrlProvider
 
         $showAfterCloseout = !$this->systemConfigService->get(self::CONFIG_HIDE_AFTER_CLOSEOUT, $context->getSalesChannelId());
 
-        $query->addSelect([
+        $query->addSelect(
             '`product`.created_at as created_at',
             '`product`.updated_at as updated_at',
-        ]);
+        );
 
         $query->leftJoin('`product`', '`product`', 'parent', '`product`.parent_id = parent.id');
         $query->innerJoin('`product`', 'product_visibility', 'visibilities', 'product.visibilities = visibilities.product_id');
@@ -138,18 +144,30 @@ class ProductUrlProvider extends AbstractUrlProvider
         $excludedProductIds = $this->getExcludedProductIds($context);
         if (!empty($excludedProductIds)) {
             $query->andWhere('`product`.id NOT IN (:productIds)');
-            $query->setParameter('productIds', Uuid::fromHexToBytesList($excludedProductIds), ArrayParameterType::STRING);
+            $query->setParameter('productIds', Uuid::fromHexToBytesList($excludedProductIds), ArrayParameterType::BINARY);
+        }
+
+        $excludeLinkedProducts = $this->systemConfigService->getBool(self::CONFIG_EXCLUDE_LINKED_PRODUCTS, $context->getSalesChannelId());
+        if ($excludeLinkedProducts) {
+            $query->andWhere('visibilities.visibility != :excludedVisibility');
+            $query->setParameter('excludedVisibility', ProductVisibilityDefinition::VISIBILITY_LINK);
         }
 
         $query->setParameter('versionId', Uuid::fromHexToBytes(Defaults::LIVE_VERSION));
         $query->setParameter('salesChannelId', Uuid::fromHexToBytes($context->getSalesChannelId()));
 
-        return $query->executeQuery()->fetchAllAssociative();
+        /** @var list<array{id: string, created_at: string, updated_at: string}> $result */
+        $result = $query->executeQuery()->fetchAllAssociative();
+
+        return $result;
     }
 
+    /**
+     * @return array<string>
+     */
     private function getExcludedProductIds(SalesChannelContext $salesChannelContext): array
     {
-        $salesChannelId = $salesChannelContext->getSalesChannel()->getId();
+        $salesChannelId = $salesChannelContext->getSalesChannelId();
 
         $excludedUrls = $this->configHandler->get(ConfigHandler::EXCLUDED_URLS_KEY);
         if (empty($excludedUrls)) {

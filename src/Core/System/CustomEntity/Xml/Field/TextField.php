@@ -9,7 +9,7 @@ use Shopware\Core\System\CustomEntity\Xml\Field\Traits\TranslatableTrait;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class TextField extends Field
 {
     use RequiredTrait;
@@ -19,16 +19,15 @@ class TextField extends Field
 
     protected string $type = 'text';
 
-    /**
-     * @internal
-     */
-    public static function fromXml(\DOMElement $element): Field
-    {
-        return new self(self::parse($element));
-    }
+    protected ?string $default = null;
 
     public function allowHtml(): bool
     {
         return $this->allowHtml;
+    }
+
+    public function getDefault(): ?string
+    {
+        return $this->default;
     }
 }

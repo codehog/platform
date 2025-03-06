@@ -1,8 +1,8 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/app/component/form/sw-purchase-price-field';
 
 // mock data
@@ -44,8 +44,11 @@ const defaultPrice = {
 
 // initial component setup
 const setup = async (propOverride) => {
-    const propsData = {
-        price: [dollarPrice, euroPrice],
+    const props = {
+        price: [
+            dollarPrice,
+            euroPrice,
+        ],
         taxRate,
         currency,
         defaultPrice,
@@ -53,9 +56,14 @@ const setup = async (propOverride) => {
         ...propOverride,
     };
 
-    return shallowMount(await Shopware.Component.build('sw-purchase-price-field'), {
-        stubs: ['sw-price-field', 'sw-field', 'sw-icon'],
-        propsData,
+    return mount(await wrapTestComponent('sw-purchase-price-field', { sync: true }), {
+        global: {
+            stubs: [
+                'sw-price-field',
+                'sw-field',
+            ],
+        },
+        props,
     });
 };
 
@@ -63,11 +71,6 @@ describe('components/form/sw-purchase-price-field', () => {
     it('should be a Vue.js component', async () => {
         const wrapper = await setup();
         expect(wrapper.vm).toBeTruthy();
-    });
-
-    it('should renders correctly', async () => {
-        const wrapper = await setup();
-        expect(wrapper.element).toMatchSnapshot();
     });
 
     it('should contain the dollar price', async () => {

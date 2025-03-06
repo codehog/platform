@@ -2,18 +2,16 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\TaxProvider;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\TaxProvider\TaxProviderRegistry;
 use Shopware\Tests\Unit\Core\Checkout\Cart\TaxProvider\_fixtures\TestConstantTaxRateProvider;
 use Shopware\Tests\Unit\Core\Checkout\Cart\TaxProvider\_fixtures\TestEmptyTaxProvider;
 
 /**
- * @package checkout
- *
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Cart\TaxProvider\TaxProviderRegistry
  */
+#[CoversClass(TaxProviderRegistry::class)]
 class TaxProviderRegistryTest extends TestCase
 {
     public function testProviderRegistered(): void

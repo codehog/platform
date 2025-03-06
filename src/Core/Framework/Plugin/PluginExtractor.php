@@ -2,6 +2,7 @@
 
 namespace Shopware\Core\Framework\Plugin;
 
+use Shopware\Core\Framework\App\Manifest\Manifest;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Plugin\Exception\PluginExtractionException;
 use Shopware\Core\Framework\Plugin\Util\ZipUtils;
@@ -10,7 +11,7 @@ use Symfony\Component\Filesystem\Filesystem;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class PluginExtractor
 {
     /**
@@ -32,7 +33,7 @@ class PluginExtractor
         $destination = $this->extensionDirectories[$type];
 
         if (!is_writable($destination)) {
-            throw new PluginExtractionException(sprintf('Destination directory "%s" is not writable', $destination));
+            throw new PluginExtractionException(\sprintf('Destination directory "%s" is not writable', $destination));
         }
 
         $pluginName = $this->getPluginName($archive);
@@ -69,6 +70,12 @@ class PluginExtractor
      */
     private function validatePluginZip(string $prefix, \ZipArchive $archive): void
     {
+        $file = $prefix . '/manifest.xml';
+        $manifestAsString = $archive->getFromName($file);
+        if (\is_string($manifestAsString)) {
+            Manifest::validate($manifestAsString, $file);
+        }
+
         for ($i = 2; $i < $archive->numFiles; ++$i) {
             $stat = $archive->statIndex($i);
             \assert($stat !== false);
@@ -105,7 +112,7 @@ class PluginExtractor
     {
         if (mb_strpos($filename, $prefix) !== 0) {
             throw new PluginExtractionException(
-                sprintf(
+                \sprintf(
                     'Detected invalid file/directory %s in the plugin zip: %s',
                     $filename,
                     $prefix

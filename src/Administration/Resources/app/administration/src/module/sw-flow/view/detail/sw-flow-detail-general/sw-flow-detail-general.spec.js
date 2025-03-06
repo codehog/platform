@@ -1,59 +1,63 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swFlowDetailGeneral from 'src/module/sw-flow/view/detail/sw-flow-detail-general';
+import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 
-import Vuex from 'vuex';
-import flowState from 'src/module/sw-flow/state/flow.state';
-
-Shopware.Component.register('sw-flow-detail-general', swFlowDetailGeneral);
+/**
+ * @sw-package after-sales
+ */
 
 async function createWrapper(privileges = [], query = {}) {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
+    return mount(
+        await wrapTestComponent('sw-flow-detail-general', {
+            sync: true,
+        }),
+        {
+            global: {
+                plugins: [createPinia()],
+                provide: {
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
 
-    return shallowMount(await Shopware.Component.build('sw-flow-detail-general'), {
-        localVue,
-        provide: { repositoryFactory: {
-            create: () => ({
-                create: () => {
-                    return Promise.resolve({});
+                            return privileges.includes(identifier);
+                        },
+                    },
+                    repositoryFactory: {
+                        create: () => ({
+                            create: () => {
+                                return Promise.resolve({});
+                            },
+                        }),
+                    },
+
+                    mocks: {
+                        $route: { params: {}, query: query },
+                    },
                 },
-            }),
-        },
-
-        mocks: {
-            $route: { params: {}, query: query },
-        },
-
-        acl: {
-            can: (identifier) => {
-                if (!identifier) {
-                    return true;
-                }
-
-                return privileges.includes(identifier);
+                stubs: {
+                    'mt-card': {
+                        template: '<div><slot></slot></div>',
+                    },
+                    'mt-text-field': true,
+                    'mt-textarea': true,
+                    'mt-number-field': true,
+                    'sw-container': {
+                        template: '<div><slot></slot></div>',
+                    },
+                    'mt-switch': true,
+                },
             },
-        } },
-
-        stubs: {
-            'sw-number-field': true,
-            'sw-card': true,
-            'sw-text-field': true,
-            'sw-textarea-field': true,
-            'sw-container': true,
-            'sw-switch-field': true,
         },
-    });
+    );
 }
 
 describe('module/sw-flow/view/detail/sw-flow-detail-general', () => {
-    beforeAll(() => {
-        Shopware.State.registerModule('swFlowState', flowState);
-    });
-
     it('should enabled element when have privilege', async () => {
         const wrapper = await createWrapper([
             'flow.editor',
         ]);
+        await flushPromises();
 
         const elementClasses = [
             '.sw-flow-detail-general__general-name',
@@ -62,7 +66,7 @@ describe('module/sw-flow/view/detail/sw-flow-detail-general', () => {
             '.sw-flow-detail-general__general-active',
         ];
 
-        elementClasses.forEach(element => {
+        elementClasses.forEach((element) => {
             const inputElement = wrapper.find(`${element}`);
             expect(inputElement.attributes().disabled).toBeFalsy();
         });
@@ -73,6 +77,7 @@ describe('module/sw-flow/view/detail/sw-flow-detail-general', () => {
             'flow.viewer',
         ]);
         await flushPromises();
+
         const elementClasses = [
             '.sw-flow-detail-general__general-name',
             '.sw-flow-detail-general__general-description',
@@ -80,9 +85,9 @@ describe('module/sw-flow/view/detail/sw-flow-detail-general', () => {
             '.sw-flow-detail-general__general-active',
         ];
 
-        elementClasses.forEach(element => {
-            const inputElement = wrapper.find(`${element}`);
-            expect(inputElement.attributes().disabled).toBeTruthy();
+        elementClasses.forEach((element) => {
+            const inputElement = wrapper.find(element);
+            expect(inputElement.attributes('disabled')).toBeDefined();
         });
     });
 
@@ -91,11 +96,12 @@ describe('module/sw-flow/view/detail/sw-flow-detail-general', () => {
             'flow.viewer',
         ]);
         await flushPromises();
+
         await wrapper.setProps({
             isTemplate: true,
         });
+        await flushPromises();
 
-        const alertElement = wrapper.findAll('.sw-flow-detail-general__template');
-        expect(alertElement.exists()).toBe(true);
+        expect(wrapper.exists('.sw-flow-detail-general__template')).toBe(true);
     });
 });

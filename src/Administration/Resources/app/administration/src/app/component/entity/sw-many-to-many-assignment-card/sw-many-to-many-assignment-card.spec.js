@@ -1,9 +1,8 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/entity/sw-many-to-many-assignment-card';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(customPropsData = {}) {
     const entityCollection = [];
@@ -11,30 +10,41 @@ async function createWrapper(customPropsData = {}) {
         languageId: '1a2b3c',
     };
 
-    return shallowMount(await Shopware.Component.build('sw-many-to-many-assignment-card'), {
-        stubs: {
-            'sw-card': {
-                template: '<div><slot></slot><slot name="grid"></slot></div>',
+    return mount(
+        await wrapTestComponent('sw-many-to-many-assignment-card', {
+            sync: true,
+        }),
+        {
+            props: {
+                columns: [],
+                entityCollection: entityCollection,
+                localMode: true,
+                ...customPropsData,
             },
-            'sw-select-base': {
-                template: '<div class="sw-select-base"></div>',
+            global: {
+                stubs: {
+                    'mt-card': {
+                        template: '<div><slot></slot><slot name="grid"></slot></div>',
+                    },
+                    'sw-select-base': {
+                        template: '<div class="sw-select-base"></div>',
+                    },
+                    'sw-data-grid': {
+                        template: '<div><slot name="actions"></slot></div>',
+                    },
+                    'sw-context-menu': true,
+                    'sw-context-menu-item': true,
+                    'sw-highlight-text': true,
+                    'sw-select-result': true,
+                    'sw-select-result-list': true,
+                    'sw-pagination': true,
+                },
+                provide: {
+                    repositoryFactory: {},
+                },
             },
-            'sw-data-grid': {
-                template: '<div><slot name="actions"></slot></div>',
-            },
-            'sw-context-menu': true,
-            'sw-context-menu-item': true,
         },
-        provide: {
-            repositoryFactory: {},
-        },
-        propsData: {
-            columns: [],
-            entityCollection: entityCollection,
-            localMode: true,
-            ...customPropsData,
-        },
-    });
+    );
 }
 
 describe('src/app/component/entity/sw-many-to-many-assignment-card', () => {

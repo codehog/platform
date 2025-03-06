@@ -3,12 +3,14 @@
 namespace Shopware\Administration\Controller;
 
 use Doctrine\DBAL\Connection;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\FilesystemOperator;
 use Shopware\Administration\Events\PreResetExcludedSearchTermEvent;
 use Shopware\Administration\Framework\Routing\KnownIps\KnownIpsCollectorInterface;
 use Shopware\Administration\Snippet\SnippetFinderInterface;
+use Shopware\Core\Checkout\Customer\CustomerCollection;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Defaults;
-use Shopware\Core\DevOps\Environment\EnvironmentHelper;
 use Shopware\Core\Framework\Adapter\Twig\TemplateFinder;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
@@ -26,20 +28,20 @@ use Shopware\Core\Framework\Util\HtmlSanitizer;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\Exception\ConstraintViolationException;
 use Shopware\Core\PlatformRequest;
-use Shopware\Core\System\Currency\CurrencyEntity;
+use Shopware\Core\System\Currency\CurrencyCollection;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\ConstraintViolation;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[Route(defaults: ['_routeScope' => ['administration']])]
-#[Package('administration')]
+#[Package('framework')]
 class AdministrationController extends AbstractController
 {
     private readonly bool $esAdministrationEnabled;
@@ -50,6 +52,8 @@ class AdministrationController extends AbstractController
      * @internal
      *
      * @param array<int, int> $supportedApiVersions
+     * @param EntityRepository<CustomerCollection> $customerRepository
+     * @param EntityRepository<CurrencyCollection> $currencyRepository
      */
     public function __construct(
         private readonly TemplateFinder $finder,
@@ -60,12 +64,14 @@ class AdministrationController extends AbstractController
         private readonly Connection $connection,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $shopwareCoreDir,
-        private readonly EntityRepository $customerRepo,
+        private readonly EntityRepository $customerRepository,
         private readonly EntityRepository $currencyRepository,
         private readonly HtmlSanitizer $htmlSanitizer,
         private readonly DefinitionInstanceRegistry $definitionInstanceRegistry,
         ParameterBagInterface $params,
-        private readonly SystemConfigService $systemConfigService
+        private readonly SystemConfigService $systemConfigService,
+        private readonly FilesystemOperator $fileSystem,
+        private readonly string $refreshTokenTtl = 'P1W',
     ) {
         // param is only available if the elasticsearch bundle is enabled
         $this->esAdministrationEnabled = $params->has('elasticsearch.administration.enabled')
@@ -81,22 +87,24 @@ class AdministrationController extends AbstractController
     {
         $template = $this->finder->find('@Administration/administration/index.html.twig');
 
-        /** @var CurrencyEntity $defaultCurrency */
-        $defaultCurrency = $this->currencyRepository->search(new Criteria([Defaults::CURRENCY]), $context)->first();
+        $defaultCurrency = $this->currencyRepository->search(new Criteria([Defaults::CURRENCY]), $context)->getEntities()->first();
+
+        $refreshTokenInterval = new \DateInterval($this->refreshTokenTtl);
+        $refreshTokenTtl = $refreshTokenInterval->s + $refreshTokenInterval->i * 60 + $refreshTokenInterval->h * 3600 + $refreshTokenInterval->d * 86400;
 
         return $this->render($template, [
             'features' => Feature::getAll(),
             'systemLanguageId' => Defaults::LANGUAGE_SYSTEM,
             'defaultLanguageIds' => [Defaults::LANGUAGE_SYSTEM],
             'systemCurrencyId' => Defaults::CURRENCY,
-            'disableExtensions' => EnvironmentHelper::getVariable('DISABLE_EXTENSIONS', false),
-            'systemCurrencyISOCode' => $defaultCurrency->getIsoCode(),
+            'systemCurrencyISOCode' => $defaultCurrency?->getIsoCode(),
             'liveVersionId' => Defaults::LIVE_VERSION,
             'firstRunWizard' => $this->firstRunWizardService->frwShouldRun(),
             'apiVersion' => $this->getLatestApiVersion(),
             'cspNonce' => $request->attributes->get(PlatformRequest::ATTRIBUTE_CSP_NONCE),
             'adminEsEnable' => $this->esAdministrationEnabled,
             'storefrontEsEnable' => $this->esStorefrontEnabled,
+            'refreshTokenTtl' => $refreshTokenTtl * 1000,
         ]);
     }
 
@@ -129,6 +137,28 @@ class AdministrationController extends AbstractController
         return new JsonResponse(['ips' => $ips]);
     }
 
+    #[Route(path: '/%shopware_administration.path_name%/{pluginName}/index.html', name: 'administration.plugin.index', defaults: ['auth_required' => false], methods: ['GET'])]
+    public function pluginIndex(string $pluginName): Response
+    {
+        try {
+            $publicAssetBaseUrl = $this->fileSystem->publicUrl('/');
+            $viteIndexHtml = $this->fileSystem->read('bundles/' . $pluginName . '/meteor-app/index.html');
+        } catch (FilesystemException $e) {
+            return new Response('Plugin index.html not found', Response::HTTP_NOT_FOUND);
+        }
+
+        $indexHtml = str_replace('__$ASSET_BASE_PATH$__', \sprintf('%sbundles/%s/meteor-app/', $publicAssetBaseUrl, $pluginName), $viteIndexHtml);
+
+        $response = new Response($indexHtml, Response::HTTP_OK, [
+            'Content-Type' => 'text/html',
+            'Content-Security-Policy' => 'script-src * \'unsafe-eval\' \'unsafe-inline\'',
+            PlatformRequest::HEADER_FRAME_OPTIONS => 'sameorigin',
+        ]);
+        $response->setSharedMaxAge(3600);
+
+        return $response;
+    }
+
     #[Route(path: '/api/_admin/reset-excluded-search-term', name: 'api.admin.reset-excluded-search-term', defaults: ['_acl' => ['system_config:update', 'system_config:create', 'system_config:delete']], methods: ['POST'])]
     public function resetExcludedSearchTerm(Context $context): JsonResponse
     {
@@ -151,7 +181,6 @@ class AdministrationController extends AbstractController
 
                 break;
             default:
-                /** @var PreResetExcludedSearchTermEvent $preResetExcludedSearchTermEvent */
                 $preResetExcludedSearchTermEvent = $this->eventDispatcher->dispatch(new PreResetExcludedSearchTermEvent($searchConfigId, [], $context));
                 $defaultExcludedTerm = $preResetExcludedSearchTermEvent->getExcludedTerms();
         }
@@ -199,7 +228,7 @@ class AdministrationController extends AbstractController
 
         if ($customer->getBoundSalesChannel()) {
             $message .= ' in the Sales Channel {{ salesChannel }}';
-            $params['{{ salesChannel }}'] = $customer->getBoundSalesChannel()->getName();
+            $params['{{ salesChannel }}'] = (string) $customer->getBoundSalesChannel()->getName();
         }
 
         $violations = new ConstraintViolationList();
@@ -301,9 +330,6 @@ class AdministrationController extends AbstractController
             new EqualsFilter('boundSalesChannelId', $boundSalesChannelId),
         ]));
 
-        /** @var ?CustomerEntity $customer */
-        $customer = $this->customerRepo->search($criteria, $context)->first();
-
-        return $customer;
+        return $this->customerRepository->search($criteria, $context)->getEntities()->first();
     }
 }

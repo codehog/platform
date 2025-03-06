@@ -6,14 +6,12 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ClientException;
 use Psr\Http\Message\ResponseInterface;
 use Shopware\Core\Framework\Api\Context\AdminApiSource;
-use Shopware\Core\Framework\Api\Context\Exception\InvalidContextSourceException;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Plugin\PluginCollection;
-use Shopware\Core\Framework\Plugin\PluginEntity;
 use Shopware\Core\Framework\Store\Authentication\AbstractStoreRequestOptionsProvider;
-use Shopware\Core\Framework\Store\Exception\StoreApiException;
 use Shopware\Core\Framework\Store\Exception\StoreTokenMissingException;
+use Shopware\Core\Framework\Store\StoreException;
 use Shopware\Core\Framework\Store\Struct\AccessTokenStruct;
 use Shopware\Core\Framework\Store\Struct\ExtensionCollection;
 use Shopware\Core\Framework\Store\Struct\ExtensionStruct;
@@ -27,13 +25,15 @@ use Shopware\Core\Framework\Store\Struct\StoreLicenseViolationTypeStruct;
 use Shopware\Core\Framework\Store\Struct\StoreUpdateStruct;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * @internal
  */
-#[Package('merchant-services')]
+#[Package('checkout')]
 class StoreClient
 {
+    public const EXTENSION_LICENSE_IS_ALREADY_CANCELLED = 'ShopwarePlatformException-61';
     private const PLUGIN_LICENSE_VIOLATION_EXTENSION_KEY = 'licenseViolation';
 
     public function __construct(
@@ -45,13 +45,14 @@ class StoreClient
         private readonly ExtensionLoader $extensionLoader,
         protected readonly ClientInterface $client,
         private readonly InstanceService $instanceService,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
     public function loginWithShopwareId(string $shopwareId, string $password, Context $context): void
     {
         if (!$context->getSource() instanceof AdminApiSource) {
-            throw new InvalidContextSourceException(AdminApiSource::class, $context->getSource()::class);
+            throw StoreException::invalidContextSource(AdminApiSource::class, $context->getSource()::class);
         }
 
         $userId = $context->getSource()->getUserId();
@@ -114,6 +115,7 @@ class StoreClient
             $extensionList[] = [
                 'name' => $extension->getName(),
                 'version' => $extension->getVersion(),
+                'inAppFeatures' => \implode(',', $extension->getInAppPurchases()),
             ];
         }
 
@@ -127,7 +129,6 @@ class StoreClient
     ): void {
         $indexedExtensions = [];
 
-        /** @var PluginEntity|ExtensionStruct $extension */
         foreach ($extensions as $extension) {
             $name = $extension->getName();
             $indexedExtensions[$name] = [
@@ -139,7 +140,6 @@ class StoreClient
 
         $violations = $this->getLicenseViolations($context, $indexedExtensions, $hostName);
         $indexed = [];
-        /** @var StoreLicenseViolationStruct $violation */
         foreach ($violations as $violation) {
             $indexed[$violation->getName()] = $violation;
         }
@@ -161,8 +161,11 @@ class StoreClient
         array $extensions,
         string $hostName
     ): array {
+        $uri = $this->requestStack->getCurrentRequest()?->headers->get('referer');
+
         $query = $this->getQueries($context);
         $query['hostName'] = $hostName;
+        $query['uri'] = $uri;
 
         $response = $this->client->request(
             Request::METHOD_POST,
@@ -170,7 +173,10 @@ class StoreClient
             [
                 'query' => $query,
                 'headers' => $this->getHeaders($context),
-                'json' => ['plugins' => $extensions],
+                'json' => [
+                    'plugins' => $extensions,
+                    'uri' => $uri,
+                ],
             ]
         );
 
@@ -304,7 +310,7 @@ class StoreClient
 
             $response = $this->fetchLicenses($payload, $context);
         } catch (ClientException $e) {
-            throw new StoreApiException($e);
+            throw StoreException::storeError($e);
         }
 
         $body = \json_decode($response->getBody()->getContents(), true, flags: \JSON_THROW_ON_ERROR);
@@ -335,23 +341,23 @@ class StoreClient
         try {
             $this->client->request(
                 Request::METHOD_POST,
-                sprintf($this->endpoints['cancel_license'], $licenseId),
+                \sprintf($this->endpoints['cancel_license'], $licenseId),
                 [
                     'query' => $this->getQueries($context),
                     'headers' => $this->getHeaders($context),
                 ]
             );
         } catch (ClientException $e) {
-            if ($e->hasResponse() && $e->getResponse() !== null) {
+            if ($e->hasResponse()) {
                 $error = \json_decode((string) $e->getResponse()->getBody(), true, flags: \JSON_THROW_ON_ERROR);
 
                 // It's okay when its already canceled
-                if (isset($error['type']) && $error['type'] === 'EXTENSION_LICENSE_IS_ALREADY_CANCELLED') {
+                if (isset($error['code']) && $error['code'] === self::EXTENSION_LICENSE_IS_ALREADY_CANCELLED) {
                     return;
                 }
             }
 
-            throw new StoreApiException($e);
+            throw StoreException::storeError($e);
         }
     }
 
@@ -360,7 +366,7 @@ class StoreClient
         try {
             $this->client->request(
                 Request::METHOD_POST,
-                sprintf($this->endpoints['create_rating'], $rating->getExtensionId()),
+                \sprintf($this->endpoints['create_rating'], $rating->getExtensionId()),
                 [
                     'query' => $this->getQueries($context),
                     'headers' => $this->getHeaders($context),
@@ -368,7 +374,7 @@ class StoreClient
                 ]
             );
         } catch (ClientException $e) {
-            throw new StoreApiException($e);
+            throw StoreException::storeError($e);
         }
     }
 

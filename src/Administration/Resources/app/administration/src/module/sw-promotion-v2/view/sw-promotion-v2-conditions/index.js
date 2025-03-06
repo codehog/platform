@@ -1,5 +1,5 @@
 /**
- * @package buyers-experience
+ * @sw-package checkout
  */
 import template from './sw-promotion-v2-conditions.html.twig';
 
@@ -13,7 +13,6 @@ export default {
     inject: [
         'repositoryFactory',
         'acl',
-        'feature',
         'ruleConditionDataProviderService',
     ],
 
@@ -46,8 +45,7 @@ export default {
         personaRuleFilter() {
             const criteria = new Criteria(1, 25);
 
-            criteria.addAssociation('conditions')
-                .addSorting(Criteria.sort('name', 'ASC', false));
+            criteria.addAssociation('conditions').addSorting(Criteria.sort('name', 'ASC', false));
 
             return criteria;
         },
@@ -55,8 +53,7 @@ export default {
         cartConditionsRuleFilter() {
             const criteria = new Criteria(1, 25);
 
-            criteria.addAssociation('conditions')
-                .addSorting(Criteria.sort('name', 'ASC', false));
+            criteria.addAssociation('conditions').addSorting(Criteria.sort('name', 'ASC', false));
 
             return criteria;
         },
@@ -64,8 +61,7 @@ export default {
         orderConditionsFilter() {
             const criteria = new Criteria(1, 25);
 
-            criteria.addAssociation('conditions')
-                .addSorting(Criteria.sort('name', 'ASC', false));
+            criteria.addAssociation('conditions').addSorting(Criteria.sort('name', 'ASC', false));
 
             return criteria;
         },
@@ -87,7 +83,7 @@ export default {
             }
 
             const promotionRepository = this.repositoryFactory.create('promotion');
-            const criteria = (new Criteria(1, 25)).addFilter(Criteria.equalsAny('id', this.promotion.exclusionIds));
+            const criteria = new Criteria(1, 25).addFilter(Criteria.equalsAny('id', this.promotion.exclusionIds));
 
             promotionRepository.search(criteria).then((excluded) => {
                 this.excludedPromotions = excluded;

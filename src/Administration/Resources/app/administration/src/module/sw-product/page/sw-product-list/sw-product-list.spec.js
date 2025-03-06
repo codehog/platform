@@ -1,19 +1,9 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { createLocalVue, shallowMount, config } from '@vue/test-utils';
-import VueRouter from 'vue-router';
-import swProductList from 'src/module/sw-product/page/sw-product-list';
-import 'src/app/component/data-grid/sw-data-grid';
-import 'src/app/component/data-grid/sw-data-grid-settings';
-import 'src/app/component/entity/sw-entity-listing';
-import 'src/app/component/context-menu/sw-context-button';
-import 'src/app/component/context-menu/sw-context-menu-item';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/grid/sw-pagination';
-import 'src/app/component/base/sw-empty-state';
-import 'src/app/component/structure/sw-page';
+import { mount, config } from '@vue/test-utils';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import { searchRankingPoint } from 'src/app/service/search-ranking.service';
 import Criteria from 'src/core/data/criteria.data';
 
@@ -21,8 +11,6 @@ const CURRENCY_ID = {
     EURO: 'b7d2554b0ce847cd82f3ac9bd1c0dfca',
     POUND: 'fce3465831e8639bb2ea165d0fcf1e8b',
 };
-
-Shopware.Component.register('sw-product-list', swProductList);
 
 function mockContext() {
     return {
@@ -132,7 +120,7 @@ function getProductData(criteria) {
     ];
 
     // check if grid is sorting for currency
-    const sortingForCurrency = criteria.sortings.some(sortAttr => sortAttr.field.startsWith('price'));
+    const sortingForCurrency = criteria.sortings.some((sortAttr) => sortAttr.field.startsWith('price'));
 
     if (sortingForCurrency) {
         const sortBy = criteria.sortings[0].field;
@@ -141,8 +129,8 @@ function getProductData(criteria) {
         products.sort((productA, productB) => {
             const currencyId = sortBy.split('.')[1];
 
-            const currencyValueA = productA.price.find(price => price.currencyId === currencyId).gross;
-            const currencyValueB = productB.price.find(price => price.currencyId === currencyId).gross;
+            const currencyValueA = productA.price.find((price) => price.currencyId === currencyId).gross;
+            const currencyValueB = productB.price.find((price) => price.currencyId === currencyId).gross;
 
             if (sortDirection === 'DESC') {
                 return currencyValueB - currencyValueA;
@@ -153,7 +141,7 @@ function getProductData(criteria) {
     }
 
     // check if grid is sorting for name
-    const sortingForName = criteria.sortings.some(sortAttr => sortAttr.field.startsWith('name'));
+    const sortingForName = criteria.sortings.some((sortAttr) => sortAttr.field.startsWith('name'));
 
     if (sortingForName) {
         const sortDirection = criteria.sortings[0].order;
@@ -170,7 +158,7 @@ function getProductData(criteria) {
     }
 
     // check if grid is sorting for manufacturer name
-    const sortingForManufacturer = criteria.sortings.some(sortAttr => sortAttr.field.startsWith('manufacturer'));
+    const sortingForManufacturer = criteria.sortings.some((sortAttr) => sortAttr.field.startsWith('manufacturer'));
 
     if (sortingForManufacturer) {
         const sortDirection = criteria.sortings[0].order;
@@ -208,7 +196,7 @@ function getCurrencyData() {
             id: CURRENCY_ID.EURO,
         },
         {
-            factor: 1.0457384950,
+            factor: 1.045738495,
             symbol: '£',
             isoCode: 'GBP',
             shortName: 'GBP',
@@ -223,121 +211,142 @@ function getCurrencyData() {
 
 async function createWrapper() {
     // delete global $router and $routes mocks
-    delete config.mocks.$router;
-    delete config.mocks.$route;
+    delete config.global.mocks.$router;
+    delete config.global.mocks.$route;
 
-    const localVue = createLocalVue();
-    localVue.use(VueRouter);
-
-    const router = new VueRouter({
-        routes: [{
-            name: 'sw.product.list',
-            path: '/sw/product/list',
-            component: await Shopware.Component.build('sw-product-list'),
-            meta: {
-                $module: {
-                    entity: 'product',
+    const router = createRouter({
+        history: createWebHashHistory(),
+        routes: [
+            {
+                name: 'sw.product.list',
+                path: '/sw/product/list',
+                component: await wrapTestComponent('sw-product-list', {
+                    sync: true,
+                }),
+                meta: {
+                    $module: {
+                        entity: 'product',
+                    },
                 },
             },
-        }],
+        ],
     });
 
     router.push({ name: 'sw.product.list' });
+    await router.isReady();
 
     return {
-        wrapper: shallowMount(await Shopware.Component.build('sw-product-list'), {
-            localVue,
-            router,
-            provide: {
-                numberRangeService: {},
-                repositoryFactory: {
-                    create: (name) => {
-                        if (name === 'product') {
-                            return { search: (criteria) => {
-                                const productData = getProductData(criteria);
+        wrapper: mount(await wrapTestComponent('sw-product-list', { sync: true }), {
+            global: {
+                plugins: [
+                    router,
+                ],
+                provide: {
+                    numberRangeService: {},
+                    repositoryFactory: {
+                        create: (name) => {
+                            if (name === 'product') {
+                                return {
+                                    search: (criteria) => {
+                                        const productData = getProductData(criteria);
 
-                                return Promise.resolve(productData);
-                            } };
-                        } if (name === 'user_config') {
-                            return { search: () => Promise.resolve([]) };
-                        }
+                                        return Promise.resolve(productData);
+                                    },
+                                };
+                            }
+                            if (name === 'user_config') {
+                                return {
+                                    search: () => Promise.resolve([]),
+                                };
+                            }
 
-                        return { search: () => Promise.resolve(getCurrencyData()) };
+                            return {
+                                search: () => Promise.resolve(getCurrencyData()),
+                            };
+                        },
+                    },
+                    searchRankingService: {
+                        getSearchFieldsByEntity: () => {
+                            return Promise.resolve({
+                                name: searchRankingPoint.HIGH_SEARCH_RANKING,
+                            });
+                        },
+                        buildSearchQueriesForEntity: (searchFields, term, criteria) => {
+                            return criteria;
+                        },
+                    },
+                    filterFactory: {
+                        create: () => [],
+                    },
+                    acl: {
+                        can: () => true,
                     },
                 },
-                searchRankingService: {
-                    getSearchFieldsByEntity: () => {
-                        return Promise.resolve({
-                            name: searchRankingPoint.HIGH_SEARCH_RANKING,
-                        });
+                stubs: {
+                    'sw-page': {
+                        template: '<div><slot name="content"></slot></div>',
                     },
-                    buildSearchQueriesForEntity: (searchFields, term, criteria) => {
-                        return criteria;
+                    'sw-entity-listing': await wrapTestComponent('sw-entity-listing', { sync: true }),
+                    'sw-context-button': {
+                        template: '<div></div>',
                     },
-                },
-                filterFactory: {
-                    create: () => [],
-                },
-                acl: {
-                    can: () => true,
-                },
-            },
-            stubs: {
-                'sw-page': {
-                    template: '<div><slot name="content"></slot></div>',
-                },
-                'sw-entity-listing': await Shopware.Component.build('sw-entity-listing'),
-                'sw-context-button': {
-                    template: '<div></div>',
-                },
-                'sw-context-menu-item': {
-                    template: '<div></div>',
-                },
-                'sw-data-grid-settings': {
-                    template: '<div></div>',
-                },
-                'sw-empty-state': {
-                    template: '<div class="sw-empty-state"></div>',
-                },
-                'sw-pagination': {
-                    template: '<div></div>',
-                },
-                'sw-icon': {
-                    template: '<div></div>',
-                },
-                'sw-button': {
-                    template: '<div></div>',
-                },
-                'sw-sidebar': {
-                    template: '<div></div>',
-                },
-                'sw-sidebar-item': {
-                    template: '<div></div>',
-                },
-                'router-link': true,
-                'sw-language-switch': {
-                    template: '<div></div>',
-                },
-                'sw-notification-center': {
-                    template: '<div></div>',
-                },
-                'sw-search-bar': {
-                    template: '<div></div>',
-                },
-                'sw-loader': {
-                    template: '<div></div>',
-                },
-                'sw-data-grid-skeleton': {
-                    template: '<div class="sw-data-grid-skeleton"></div>',
-                },
-                'sw-checkbox-field': {
-                    template: '<div></div>',
-                },
-                'sw-media-preview-v2': {
-                    template: '<div></div>',
-                },
-                'sw-color-badge': {
-                    template: '<div></div>',
+                    'sw-context-menu-item': {
+                        template: '<div></div>',
+                    },
+                    'sw-data-grid-settings': {
+                        template: '<div></div>',
+                    },
+                    'sw-empty-state': {
+                        template: '<div class="sw-empty-state"></div>',
+                    },
+                    'sw-pagination': {
+                        template: '<div></div>',
+                    },
+                    'sw-sidebar': {
+                        template: '<div></div>',
+                    },
+                    'sw-sidebar-item': {
+                        template: '<div></div>',
+                    },
+                    'router-link': {
+                        template: '<div class="sw-router-link"><slot></slot></div>',
+                        props: ['to'],
+                    },
+                    'sw-language-switch': {
+                        template: '<div></div>',
+                    },
+                    'sw-notification-center': {
+                        template: '<div></div>',
+                    },
+                    'sw-search-bar': {
+                        template: '<div></div>',
+                    },
+                    'sw-loader': {
+                        template: '<div></div>',
+                    },
+                    'sw-data-grid-skeleton': {
+                        template: '<div class="sw-data-grid-skeleton"></div>',
+                    },
+                    'sw-checkbox-field': {
+                        template: '<div></div>',
+                    },
+                    'sw-media-preview-v2': {
+                        template: '<div></div>',
+                    },
+                    'sw-color-badge': {
+                        template: '<div></div>',
+                    },
+                    'sw-button-group': true,
+                    'sw-text-field': true,
+                    'sw-label': true,
+                    'mt-number-field': true,
+                    'sw-bulk-edit-modal': true,
+                    'sw-product-clone-modal': true,
+                    'sw-product-variant-modal': true,
+                    'sw-sidebar-filter-panel': true,
+                    'sw-data-grid-column-boolean': true,
+                    'sw-data-grid-inline-edit': true,
+                    'sw-provide': { template: '<slot/>', inheritAttrs: false },
                 },
             },
         }),
@@ -359,10 +368,6 @@ describe('module/sw-product/page/sw-product-list', () => {
         const data = await createWrapper();
         wrapper = data.wrapper;
         router = data.router;
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
     });
 
     it('should be a Vue.JS component', async () => {
@@ -389,8 +394,7 @@ describe('module/sw-product/page/sw-product-list', () => {
 
         // sort grid after price ASC
         await currencyColumnHeader.trigger('click');
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const sortedPriceCells = wrapper.findAll('.sw-data-grid__cell--price-EUR');
         const firstSortedPriceCell = sortedPriceCells.at(0);
@@ -414,17 +418,22 @@ describe('module/sw-product/page/sw-product-list', () => {
         // sort grid after price ASC
         await currencyColumnHeader.trigger('click');
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const euroCells = wrapper.findAll('.sw-data-grid__cell--price-EUR');
-        const [firstEuroCell, secondEuroCell] = euroCells.wrappers;
+        const [
+            firstEuroCell,
+            secondEuroCell,
+        ] = euroCells;
 
         expect(firstEuroCell.text()).toBe('€200.00');
         expect(secondEuroCell.text()).toBe('€600.00');
 
         const poundCells = wrapper.findAll('.sw-data-grid__cell--price-GBP');
-        const [firstPoundCell, secondPoundCell] = poundCells.wrappers;
+        const [
+            firstPoundCell,
+            secondPoundCell,
+        ] = poundCells;
 
         expect(firstPoundCell.text()).toBe('£22.00');
         expect(secondPoundCell.text()).toBe('£400.00');
@@ -434,22 +443,26 @@ describe('module/sw-product/page/sw-product-list', () => {
 
         await poundColumn.trigger('click');
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         let sortedPoundCells = wrapper.findAll('.sw-data-grid__cell--price-GBP');
-        let [firstSortedPoundCell, secondSortedPoundCell] = sortedPoundCells.wrappers;
+        let [
+            firstSortedPoundCell,
+            secondSortedPoundCell,
+        ] = sortedPoundCells;
 
         expect(firstSortedPoundCell.text()).toBe('£22.00');
         expect(secondSortedPoundCell.text()).toBe('£400.00');
 
         await poundColumn.trigger('click');
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         sortedPoundCells = wrapper.findAll('.sw-data-grid__cell--price-GBP');
-        [firstSortedPoundCell, secondSortedPoundCell] = sortedPoundCells.wrappers;
+        [
+            firstSortedPoundCell,
+            secondSortedPoundCell,
+        ] = sortedPoundCells;
 
         expect(firstSortedPoundCell.text()).toBe('£400.00');
         expect(secondSortedPoundCell.text()).toBe('£22.00');
@@ -461,21 +474,25 @@ describe('module/sw-product/page/sw-product-list', () => {
         const currencyColumnHeader = wrapper.find('.sw-data-grid__cell--header.sw-data-grid__cell--0');
 
         await currencyColumnHeader.trigger('click');
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const productNamesASCSorted = wrapper.findAll('.sw-data-grid__cell--name');
-        const [firstProductNameASCSorted, secondProductNameASCSorted] = productNamesASCSorted.wrappers;
+        const [
+            firstProductNameASCSorted,
+            secondProductNameASCSorted,
+        ] = productNamesASCSorted;
 
         expect(firstProductNameASCSorted.text()).toBe('Product 1');
         expect(secondProductNameASCSorted.text()).toBe('Product 2');
 
         await currencyColumnHeader.trigger('click');
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const productNamesDESCSorted = wrapper.findAll('.sw-data-grid__cell--name');
-        const [firstProductNameDESCSorted, secondProductNameDESCSorted] = productNamesDESCSorted.wrappers;
+        const [
+            firstProductNameDESCSorted,
+            secondProductNameDESCSorted,
+        ] = productNamesDESCSorted;
 
         expect(firstProductNameDESCSorted.text()).toBe('Product 2');
         expect(secondProductNameDESCSorted.text()).toBe('Product 1');
@@ -491,21 +508,25 @@ describe('module/sw-product/page/sw-product-list', () => {
         const currencyColumnHeader = wrapper.find('.sw-data-grid__cell--header.sw-data-grid__cell--2');
 
         await currencyColumnHeader.trigger('click');
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const manufacturerNamesASCSorted = wrapper.findAll('.sw-data-grid__cell--manufacturer-name');
-        const [firstManufacturerNameASCSorted, secondManufacturerNameASCSorted] = manufacturerNamesASCSorted.wrappers;
+        const [
+            firstManufacturerNameASCSorted,
+            secondManufacturerNameASCSorted,
+        ] = manufacturerNamesASCSorted;
 
         expect(firstManufacturerNameASCSorted.text()).toBe('Manufacturer A');
         expect(secondManufacturerNameASCSorted.text()).toBe('Manufacturer B');
 
         await currencyColumnHeader.trigger('click');
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const manufacturerNamesDESCSorted = wrapper.findAll('.sw-data-grid__cell--manufacturer-name');
-        const [firstManufacturerNameDESCSorted, secondManufacturerNameDESCSorted] = manufacturerNamesDESCSorted.wrappers;
+        const [
+            firstManufacturerNameDESCSorted,
+            secondManufacturerNameDESCSorted,
+        ] = manufacturerNamesDESCSorted;
 
         expect(firstManufacturerNameDESCSorted.text()).toBe('Manufacturer B');
         expect(secondManufacturerNameDESCSorted.text()).toBe('Manufacturer A');
@@ -549,7 +570,10 @@ describe('module/sw-product/page/sw-product-list', () => {
     });
 
     it('should return true if product has variants', async () => {
-        const [, product] = getProductData(mockCriteria());
+        const [
+            ,
+            product,
+        ] = getProductData(mockCriteria());
         const productHasVariants = wrapper.vm.productHasVariants(product);
 
         expect(productHasVariants).toBe(true);
@@ -623,7 +647,7 @@ describe('module/sw-product/page/sw-product-list', () => {
         await wrapper.setData({
             term: 'foo',
         });
-        await wrapper.vm.$nextTick();
+        await flushPromises();
         wrapper.vm.searchRankingService.getSearchFieldsByEntity = jest.fn(() => {
             return {};
         });
@@ -649,13 +673,15 @@ describe('module/sw-product/page/sw-product-list', () => {
         });
 
         await wrapper.vm.onBulkEditItems();
-        expect(wrapper.vm.$router.push).toHaveBeenCalledWith(expect.objectContaining({
-            name: 'sw.bulk.edit.product',
-            params: expect.objectContaining({
-                parentId: 'null',
-                includesDigital: '1',
+        expect(wrapper.vm.$router.push).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'sw.bulk.edit.product',
+                params: expect.objectContaining({
+                    parentId: 'null',
+                    includesDigital: '1',
+                }),
             }),
-        }));
+        );
 
         wrapper.vm.$router.push.mockRestore();
     });
@@ -665,5 +691,18 @@ describe('module/sw-product/page/sw-product-list', () => {
         expect(wrapper.vm.currencyFilter).toEqual(expect.any(Function));
         expect(wrapper.vm.dateFilter).toEqual(expect.any(Function));
         expect(wrapper.vm.stockColorVariantFilter).toEqual(expect.any(Function));
+    });
+
+    it('should not have media and configuratorSettings association when loading product list', async () => {
+        await wrapper.vm.getList();
+
+        expect(
+            wrapper.vm.productCriteria.associations.some((association) => association.association === 'media'),
+        ).toBeFalsy();
+        expect(
+            wrapper.vm.productCriteria.associations.some(
+                (association) => association.association === 'configuratorSettings',
+            ),
+        ).toBeFalsy();
     });
 });

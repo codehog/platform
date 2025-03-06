@@ -1,10 +1,7 @@
 /**
- * @package content
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
-import swCategoryEntryPointModal from 'src/module/sw-category/component/sw-category-entry-point-modal';
-
-Shopware.Component.register('sw-category-entry-point-modal', swCategoryEntryPointModal);
+import { mount } from '@vue/test-utils';
 
 const { Context } = Shopware;
 const { EntityCollection } = Shopware.Data;
@@ -27,47 +24,60 @@ async function createWrapper() {
         },
     ]);
 
-    return shallowMount(await Shopware.Component.build('sw-category-entry-point-modal'), {
-        stubs: {
-            'sw-modal': {
-                template: `
-                    <div class="sw-modal">
-                      <slot name="modal-header"></slot>
-                      <slot></slot>
-                      <slot name="modal-footer"></slot>
-                    </div>
-                `,
-            },
-            'sw-single-select': true,
-            'sw-text-field': true,
-            'sw-textarea-field': true,
-            'sw-cms-list-item': true,
-            'sw-switch-field': true,
-            'sw-button': true,
-        },
-        propsData: {
-            salesChannelCollection,
-        },
-        provide: {
-            cmsPageTypeService: {
-                getTypes: () => {
-                    return [{
-                        name: 'page',
-                        title: 'page',
-                    }, {
-                        name: 'landingpage',
-                        title: 'landingpage',
-                    }, {
-                        name: 'product_list',
-                        title: 'product_list',
-                    }, {
-                        name: 'product_detail',
-                        title: 'product_detail',
-                    }];
+    return mount(
+        await wrapTestComponent('sw-category-entry-point-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-modal': {
+                        template: `
+                        <div class="sw-modal">
+                          <slot name="modal-header"></slot>
+                          <slot></slot>
+                          <slot name="modal-footer"></slot>
+                        </div>
+                    `,
+                    },
+                    'sw-single-select': true,
+                    'sw-textarea-field': true,
+                    'mt-textarea': true,
+                    'sw-cms-list-item': true,
+
+                    'sw-cms-layout-modal': true,
+                    'sw-discard-changes-modal': true,
+                },
+                provide: {
+                    cmsPageTypeService: {
+                        getTypes: () => {
+                            return [
+                                {
+                                    name: 'page',
+                                    title: 'page',
+                                },
+                                {
+                                    name: 'landingpage',
+                                    title: 'landingpage',
+                                },
+                                {
+                                    name: 'product_list',
+                                    title: 'product_list',
+                                },
+                                {
+                                    name: 'product_detail',
+                                    title: 'product_detail',
+                                },
+                            ];
+                        },
+                    },
                 },
             },
+            props: {
+                salesChannelCollection,
+            },
         },
-    });
+    );
 }
 
 describe('src/module/sw-category/component/sw-category-entry-point-modal', () => {
@@ -75,50 +85,29 @@ describe('src/module/sw-category/component/sw-category-entry-point-modal', () =>
         global.activeAclRoles = [];
     });
 
-    it('should be a Vue.js component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should have enabled fields', async () => {
         global.activeAclRoles = ['category.editor'];
 
         const wrapper = await createWrapper();
 
-        await wrapper.vm.$nextTick();
-
-        expect(wrapper.find('.sw-category-entry-point-modal__show-in-main-navigation').attributes().disabled)
-            .toBeUndefined();
-        expect(wrapper.find('.sw-category-entry-point-modal__layout-item').attributes().disabled)
-            .toBeUndefined();
-        expect(wrapper.find('.sw-category-entry-point-modal__meta-title').attributes().disabled)
-            .toBeUndefined();
-        expect(wrapper.find('.sw-category-entry-point-modal__meta-description').attributes().disabled)
-            .toBeUndefined();
-        expect(wrapper.find('.sw-category-entry-point-modal__seo-keywords').attributes().disabled)
-            .toBeUndefined();
+        expect(
+            wrapper.find('.sw-category-entry-point-modal__show-in-main-navigation').attributes().disabled,
+        ).toBeUndefined();
+        expect(wrapper.find('.sw-category-entry-point-modal__layout-item').attributes().disabled).toBeUndefined();
+        expect(wrapper.find('.sw-category-entry-point-modal__meta-title').attributes().disabled).toBeUndefined();
+        expect(wrapper.find('.sw-category-entry-point-modal__meta-description').attributes().disabled).toBeUndefined();
+        expect(wrapper.find('.sw-category-entry-point-modal__seo-keywords').attributes().disabled).toBeUndefined();
     });
 
     it('should have disabled fields', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.vm.$nextTick();
-
-        expect(wrapper.find('.sw-category-entry-point-modal__show-in-main-navigation').attributes().disabled)
-            .toBe('true');
-        expect(wrapper.find('.sw-category-entry-point-modal__name-in-main-navigation').attributes().disabled)
-            .toBe('true');
-        expect(wrapper.find('.sw-category-entry-point-modal__layout-item').attributes().disabled)
-            .toBe('true');
-        expect(wrapper.find('.sw-category-entry-point-modal__meta-title').attributes().disabled)
-            .toBe('true');
-        expect(wrapper.find('.sw-category-entry-point-modal__meta-description').attributes().disabled)
-            .toBe('true');
-        expect(wrapper.find('.sw-category-entry-point-modal__seo-keywords').attributes().disabled)
-            .toBe('true');
+        expect(wrapper.findComponent('.sw-category-entry-point-modal__name-in-main-navigation').props().disabled).toBe(true);
+        expect(wrapper.find('.sw-category-entry-point-modal__layout-item').attributes().disabled).toBe('true');
+        expect(wrapper.findComponent('.sw-category-entry-point-modal__meta-title').props().disabled).toBe(true);
+        expect(wrapper.find('.sw-category-entry-point-modal__meta-description').attributes().disabled).toBe('true');
+        expect(wrapper.findComponent('.sw-category-entry-point-modal__seo-keywords').props().disabled).toBe(true);
     });
-
 
     it('should have sales channel options which contain no changes', async () => {
         global.activeAclRoles = ['category.editor'];

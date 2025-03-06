@@ -7,13 +7,10 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Storefront\Page\PageLoadedEvent;
 use Symfony\Component\HttpFoundation\Request;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class AccountProfilePageLoadedEvent extends PageLoadedEvent
 {
-    /**
-     * @var AccountProfilePage
-     */
-    protected $page;
+    protected AccountProfilePage $page;
 
     public function __construct(
         AccountProfilePage $page,

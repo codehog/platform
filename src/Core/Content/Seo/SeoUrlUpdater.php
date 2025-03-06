@@ -9,14 +9,17 @@ use Shopware\Core\Framework\Api\Context\SystemSource;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\NandFilter;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\Language\LanguageCollection;
 use Shopware\Core\System\SalesChannel\SalesChannelCollection;
 
 /**
  * This class can be used to regenerate the seo urls for a route and an offset at ids.
  */
-#[Package('buyers-experience')]
+#[Package('inventory')]
 class SeoUrlUpdater
 {
     /**
@@ -36,7 +39,7 @@ class SeoUrlUpdater
     }
 
     /**
-     * @param list<string> $ids
+     * @param array<string> $ids
      */
     public function update(string $routeName, array $ids): void
     {
@@ -47,22 +50,30 @@ class SeoUrlUpdater
 
         $route = $this->seoUrlRouteRegistry->findByRouteName($routeName);
         if ($route === null) {
-            throw new \RuntimeException(sprintf('Route by name %s not found', $routeName));
+            throw new \RuntimeException(\sprintf('Route by name %s not found', $routeName));
         }
 
         $context = Context::createDefaultContext();
 
         $languageChains = $this->fetchLanguageChains($context);
-        $salesChannels = $this->salesChannelRepository->search(new Criteria(), $context)->getEntities();
+
+        $criteria = new Criteria();
+        $criteria->addFilter(new NandFilter([new EqualsFilter('typeId', Defaults::SALES_CHANNEL_TYPE_API)]));
+
+        $salesChannels = $this->salesChannelRepository->search($criteria, $context)->getEntities();
 
         foreach ($templates as $config) {
             $template = $config['template'];
             $salesChannel = $salesChannels->get($config['salesChannelId']);
-            if ($template === '' || $salesChannel === null) {
+            if ($template === '' || !$salesChannel) {
                 continue;
             }
 
-            $chain = $languageChains[$config['languageId']];
+            $chain = $languageChains[$config['languageId']] ?? null;
+            if (!$chain) {
+                continue;
+            }
+
             $languageContext = new Context(new SystemSource(), [], Defaults::CURRENCY, $chain);
             $languageContext->setConsiderInheritance(true);
 
@@ -83,15 +94,19 @@ class SeoUrlUpdater
      */
     private function loadUrlTemplate(string $routeName): array
     {
-        $domains = $this->connection->fetchAllAssociative(
-            'SELECT DISTINCT
+        $query = 'SELECT DISTINCT
                LOWER(HEX(sales_channel.id)) as salesChannelId,
                LOWER(HEX(domains.language_id)) as languageId
              FROM sales_channel_domain as domains
              INNER JOIN sales_channel
                ON domains.sales_channel_id = sales_channel.id
-               AND sales_channel.active = 1'
-        );
+               AND sales_channel.active = 1';
+        $parameters = [];
+
+        $query .= ' AND sales_channel.type_id != :apiTypeId';
+        $parameters['apiTypeId'] = Uuid::fromHexToBytes(Defaults::SALES_CHANNEL_TYPE_API);
+
+        $domains = $this->connection->fetchAllAssociative($query, $parameters);
 
         if ($domains === []) {
             return [];
@@ -125,7 +140,7 @@ class SeoUrlUpdater
     }
 
     /**
-     * @return array<string, array<string>>
+     * @return array<string, non-empty-list<string>>
      */
     private function fetchLanguageChains(Context $context): array
     {
@@ -134,11 +149,11 @@ class SeoUrlUpdater
         $languageChains = [];
         foreach ($languages as $language) {
             $languageId = $language->getId();
-            $languageChains[$languageId] = array_filter([
+            $languageChains[$languageId] = array_values(array_filter([
                 $languageId,
                 $language->getParentId(),
                 Defaults::LANGUAGE_SYSTEM,
-            ]);
+            ]));
         }
 
         return $languageChains;

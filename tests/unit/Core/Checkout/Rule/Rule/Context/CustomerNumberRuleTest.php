@@ -2,20 +2,23 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Rule\Rule\Context;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Checkout\Customer\Rule\CustomerNumberRule;
+use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 
 /**
- * @covers \Shopware\Core\Checkout\Customer\Rule\CustomerNumberRule
- *
  * @internal
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(CustomerNumberRule::class)]
 class CustomerNumberRuleTest extends TestCase
 {
     public function testExactMatch(): void
@@ -112,6 +115,28 @@ class CustomerNumberRuleTest extends TestCase
 
         static::assertFalse(
             $rule->match(new CartRuleScope($cart, $context))
+        );
+    }
+
+    public function testMatchThrowsException(): void
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
+
+        $context = $this->createMock(SalesChannelContext::class);
+
+        $context
+            ->method('getCustomer')
+            ->willReturn(new CustomerEntity());
+
+        (new CustomerNumberRule())->match(
+            new CartRuleScope(
+                new Cart('test'),
+                $context
+            )
         );
     }
 }

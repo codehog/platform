@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Integration\Core\Framework\Translation;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Adapter\Translation\Translator;
@@ -11,6 +12,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenEvent;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\Framework\DataAbstractionLayer\Util\StatementHelper;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseHelper\ReflectionHelper;
 use Shopware\Core\Framework\Uuid\Uuid;
@@ -18,11 +20,11 @@ use Shopware\Core\SalesChannelRequest;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\Snippet\Files\SnippetFileCollection;
 use Shopware\Core\System\Snippet\SnippetDefinition;
+use Shopware\Core\Test\AppSystemTestBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Storefront\Theme\SalesChannelThemeLoader;
+use Shopware\Storefront\Theme\DatabaseSalesChannelThemeLoader;
 use Shopware\Storefront\Theme\ThemeService;
-use Shopware\Tests\Integration\Core\Framework\App\AppSystemTestBehaviour;
-use Shopware\Tests\Integration\Core\Framework\Translation\Fixtures\SnippetFile_UnitTest;
+use Shopware\Tests\Integration\Core\Framework\Translation\Fixtures\UnitTest_SnippetFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Translation\MessageCatalogueInterface;
@@ -43,9 +45,9 @@ class TranslatorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->connection = $this->getContainer()->get(Connection::class);
-        $this->translator = $this->getContainer()->get(Translator::class);
-        $this->snippetRepository = $this->getContainer()->get('snippet.repository');
+        $this->connection = static::getContainer()->get(Connection::class);
+        $this->translator = static::getContainer()->get(Translator::class);
+        $this->snippetRepository = static::getContainer()->get('snippet.repository');
 
         $this->translator->reset();
         $this->translator->warmUp('');
@@ -53,10 +55,10 @@ class TranslatorTest extends TestCase
 
     public function testPassthru(): void
     {
-        $snippetFile = new SnippetFile_UnitTest();
-        $this->getContainer()->get(SnippetFileCollection::class)->add($snippetFile);
+        $snippetFile = new UnitTest_SnippetFile();
+        static::getContainer()->get(SnippetFileCollection::class)->add($snippetFile);
 
-        $stack = $this->getContainer()->get(RequestStack::class);
+        $stack = static::getContainer()->get(RequestStack::class);
         $prop = ReflectionHelper::getProperty(RequestStack::class, 'requests');
         $prop->setValue($stack, []);
 
@@ -93,7 +95,7 @@ class TranslatorTest extends TestCase
         $request->attributes->set(SalesChannelRequest::ATTRIBUTE_DOMAIN_SNIPPET_SET_ID, $this->getSnippetSetIdForLocale('en-GB'));
         $request->attributes->set(SalesChannelRequest::ATTRIBUTE_DOMAIN_LOCALE, 'en-GB');
 
-        $this->getContainer()->get(RequestStack::class)->push($request);
+        static::getContainer()->get(RequestStack::class)->push($request);
 
         // get overwritten string
         static::assertEquals(
@@ -102,7 +104,7 @@ class TranslatorTest extends TestCase
         );
         static::assertSame(
             $request,
-            $this->getContainer()->get(RequestStack::class)->pop()
+            static::getContainer()->get(RequestStack::class)->pop()
         );
     }
 
@@ -233,7 +235,7 @@ class TranslatorTest extends TestCase
         $request->attributes->set(SalesChannelRequest::ATTRIBUTE_DOMAIN_SNIPPET_SET_ID, $this->getSnippetSetIdForLocale('en-GB'));
         $request->attributes->set(SalesChannelRequest::ATTRIBUTE_DOMAIN_LOCALE, 'en-GB');
 
-        $this->getContainer()->get(RequestStack::class)->push($request);
+        static::getContainer()->get(RequestStack::class)->push($request);
 
         // get overwritten string
         static::assertEquals(
@@ -265,13 +267,13 @@ class TranslatorTest extends TestCase
 
         static::assertSame(
             $request,
-            $this->getContainer()->get(RequestStack::class)->pop()
+            static::getContainer()->get(RequestStack::class)->pop()
         );
     }
 
     public function testDeleteSnippet(): void
     {
-        $snippetRepository = $this->getContainer()->get('snippet.repository');
+        $snippetRepository = static::getContainer()->get('snippet.repository');
         $snippet = [
             'id' => Uuid::randomHex(),
             'translationKey' => 'foo',
@@ -296,19 +298,19 @@ class TranslatorTest extends TestCase
 
     public function testThemeSnippetsGetsMergedWithOverride(): void
     {
-        if (!$this->getContainer()->has(ThemeService::class) || !$this->getContainer()->has('theme.repository')) {
+        if (!static::getContainer()->has(ThemeService::class) || !static::getContainer()->has('theme.repository')) {
             static::markTestSkipped('This test needs storefront to be installed.');
         }
 
-        $salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)->create(
+        $salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)->create(
             Uuid::randomHex(),
             TestDefaults::SALES_CHANNEL
         );
 
-        $translator = $this->getContainer()->get(Translator::class);
-        $themeService = $this->getContainer()->get(ThemeService::class);
-        $themeRepo = $this->getContainer()->get('theme.repository');
-        $themeLoader = $this->getContainer()->get(SalesChannelThemeLoader::class);
+        $translator = static::getContainer()->get(Translator::class);
+        $themeService = static::getContainer()->get(ThemeService::class);
+        $themeRepo = static::getContainer()->get('theme.repository');
+        $loader = static::getContainer()->get(DatabaseSalesChannelThemeLoader::class);
 
         // Install the app
         $this->loadAppsFromDir(__DIR__ . '/Fixtures/theme');
@@ -330,9 +332,8 @@ class TranslatorTest extends TestCase
         );
 
         static::assertEquals('Service date equivalent to invoice date', $translator->trans('document.serviceDateNotice'));
-
         $translator->reset();
-        $themeLoader->reset();
+        $loader->reset();
 
         // Assign the SwagTheme and assert that the snippet is overwritten
         $criteria = new Criteria();
@@ -353,6 +354,7 @@ class TranslatorTest extends TestCase
         static::assertEquals('Swag Theme serviceDateNotice EN', $translator->trans('document.serviceDateNotice'));
 
         $translator->reset();
+        $loader->reset();
 
         // In reset, we ignore all theme snippets and use the default ones
         static::assertEquals('Service date equivalent to invoice date', $translator->trans('document.serviceDateNotice'));
@@ -363,10 +365,10 @@ class TranslatorTest extends TestCase
         $themeId = $themeRepo->searchIds($criteria, $salesChannelContext->getContext())->firstId();
         static::assertNotNull($themeId);
 
-        $themeLoader->reset();
         $themeService->assignTheme($themeId, $salesChannelContext->getSalesChannelId(), $salesChannelContext->getContext(), true);
 
         $translator->reset();
+        $loader->reset();
 
         $translator->injectSettings(
             $salesChannelContext->getSalesChannelId(),
@@ -378,9 +380,7 @@ class TranslatorTest extends TestCase
         static::assertEquals('Service date equivalent to invoice date', $translator->trans('document.serviceDateNotice'));
     }
 
-    /**
-     * @dataProvider pluralTranslationProvider
-     */
+    #[DataProvider('pluralTranslationProvider')]
     public function testPluralRules(string $expected, string $id, int $number, string $locale): void
     {
         static::assertEquals($expected, $this->translator->trans($id, ['%count%' => (string) $number], null, $locale));
@@ -434,13 +434,13 @@ class TranslatorTest extends TestCase
         );
 
         // assign new uuid to old DEFAULT
-        $stmt->executeStatement([
+        StatementHelper::executeStatement($stmt, [
             'newId' => Uuid::randomBytes(),
             'oldId' => Uuid::fromHexToBytes(Defaults::LANGUAGE_SYSTEM),
         ]);
 
         // change id to DEFAULT
-        $stmt->executeStatement([
+        StatementHelper::executeStatement($stmt, [
             'newId' => Uuid::fromHexToBytes(Defaults::LANGUAGE_SYSTEM),
             'oldId' => $currentDeId,
         ]);

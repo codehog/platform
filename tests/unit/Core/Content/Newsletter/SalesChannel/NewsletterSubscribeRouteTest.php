@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\Content\Newsletter\SalesChannel;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Newsletter\Aggregate\NewsletterRecipient\NewsletterRecipientCollection;
 use Shopware\Core\Content\Newsletter\Aggregate\NewsletterRecipient\NewsletterRecipientEntity;
@@ -11,7 +13,6 @@ use Shopware\Core\Content\Newsletter\Event\NewsletterSubscribeUrlEvent;
 use Shopware\Core\Content\Newsletter\NewsletterException;
 use Shopware\Core\Content\Newsletter\SalesChannel\NewsletterSubscribeRoute;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\RateLimiter\Exception\RateLimitExceededException;
 use Shopware\Core\Framework\RateLimiter\RateLimiter;
@@ -21,10 +22,11 @@ use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\DataValidationDefinition;
 use Shopware\Core\Framework\Validation\DataValidator;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\System\SalesChannel\StoreApiCustomFieldMapper;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticEntityRepository;
+use Shopware\Core\Test\Stub\SystemConfigService\StaticSystemConfigService;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Unit\Common\Stubs\DataAbstractionLayer\StaticEntityRepository;
-use Shopware\Tests\Unit\Common\Stubs\SystemConfigService\StaticSystemConfigService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -33,10 +35,9 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Newsletter\SalesChannel\NewsletterSubscribeRoute
  */
-#[Package('buyers-experience')]
+#[Package('after-sales')]
+#[CoversClass(NewsletterSubscribeRoute::class)]
 class NewsletterSubscribeRouteTest extends TestCase
 {
     private SalesChannelContext $salesChannelContext;
@@ -88,6 +89,7 @@ class NewsletterSubscribeRouteTest extends TestCase
             $systemConfig,
             $this->createMock(RateLimiter::class),
             $this->createMock(RequestStack::class),
+            $this->createMock(StoreApiCustomFieldMapper::class),
         );
 
         $newsletterSubscribeRoute->subscribe($requestData, $this->salesChannelContext, false);
@@ -135,6 +137,7 @@ class NewsletterSubscribeRouteTest extends TestCase
             $systemConfig,
             $this->createMock(RateLimiter::class),
             $this->createMock(RequestStack::class),
+            $this->createMock(StoreApiCustomFieldMapper::class),
         );
 
         $newsletterSubscribeRoute->subscribe($requestData, $this->salesChannelContext, false);
@@ -144,9 +147,8 @@ class NewsletterSubscribeRouteTest extends TestCase
      * @param array<string, string> $data
      * @param array<string, string> $properties
      * @param array<int, mixed> $constraints
-     *
-     * @dataProvider validatorDataProvider
      */
+    #[DataProvider('validatorDataProvider')]
     public function testSubscribeWithValidation(array $data, array $properties, array $constraints): void
     {
         $requestData = new RequestDataBag();
@@ -176,6 +178,7 @@ class NewsletterSubscribeRouteTest extends TestCase
             $this->createMock(SystemConfigService::class),
             $this->createMock(RateLimiter::class),
             $this->createMock(RequestStack::class),
+            $this->createMock(StoreApiCustomFieldMapper::class),
         );
 
         $newsletterSubscribeRoute->subscribe($requestData, $this->salesChannelContext, false);
@@ -256,6 +259,7 @@ class NewsletterSubscribeRouteTest extends TestCase
             $this->createMock(SystemConfigService::class),
             $rateLimiterMock,
             $requestStack,
+            $this->createMock(StoreApiCustomFieldMapper::class),
         );
 
         $newsletterSubscribeRoute->subscribe($requestData, $this->salesChannelContext, false);
@@ -291,13 +295,10 @@ class NewsletterSubscribeRouteTest extends TestCase
             $this->createMock(SystemConfigService::class),
             $rateLimiterMock,
             $requestStack,
+            $this->createMock(StoreApiCustomFieldMapper::class),
         );
 
-        if (!Feature::isActive('v6.6.0.0')) {
-            static::expectException(RateLimitExceededException::class);
-        } else {
-            static::expectException(NewsletterException::class);
-        }
+        static::expectException(NewsletterException::class);
 
         $newsletterSubscribeRoute->subscribe($requestData, $this->salesChannelContext, false);
     }

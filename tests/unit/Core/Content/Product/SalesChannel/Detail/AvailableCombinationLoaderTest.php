@@ -4,6 +4,7 @@ namespace Shopware\Tests\Unit\Core\Content\Product\SalesChannel\Detail;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Result;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\SalesChannel\Detail\AvailableCombinationLoader;
 use Shopware\Core\Content\Product\Stock\AbstractStockStorage;
@@ -11,17 +12,14 @@ use Shopware\Core\Content\Product\Stock\StockData;
 use Shopware\Core\Content\Product\Stock\StockDataCollection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Dbal\QueryBuilder;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\Uuid\Uuid;
-use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\Generator;
+use Shopware\Core\Test\Generator;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SalesChannel\Detail\AvailableCombinationLoader
  */
+#[CoversClass(AvailableCombinationLoader::class)]
 class AvailableCombinationLoaderTest extends TestCase
 {
     public function testGetDecoratedThrowsDecorationPatternException(): void
@@ -30,38 +28,10 @@ class AvailableCombinationLoaderTest extends TestCase
         $this->getAvailableCombinationLoader()->getDecorated();
     }
 
-    /**
-     * @deprecated tag:v6.6.0.0 - Method will be removed. Use `loadCombinations` instead.
-     */
-    public function testLoadReturnsAvailableCombinationResult(): void
-    {
-        if (Feature::isActive('v6.6.0.0')) {
-            static::markTestSkipped('The load method has been deprecated and will be removed in v6.6.0.0');
-        }
-
-        $loader = $this->getAvailableCombinationLoader();
-        $result = $loader->load(
-            Uuid::randomHex(),
-            Context::createDefaultContext(),
-            TestDefaults::SALES_CHANNEL
-        );
-
-        $combinations = $result->getCombinations();
-        static::assertSame([
-            'a3f67ea263a4f2f5cf456e16de744b4b' => [
-                'green',
-                'red',
-            ],
-            'b6073234fc601007b541885dd70491f1' => [
-                'green',
-            ],
-        ], $combinations);
-    }
-
     public function testLoadCombinationsReturnsAvailableCombinationResult(): void
     {
         $context = Context::createDefaultContext();
-        $salesChanelContext = Generator::createSalesChannelContext($context);
+        $salesChanelContext = Generator::generateSalesChannelContext($context);
         $loader = $this->getAvailableCombinationLoader();
         $result = $loader->loadCombinations(
             Uuid::randomHex(),
@@ -70,11 +40,11 @@ class AvailableCombinationLoaderTest extends TestCase
 
         $combinations = $result->getCombinations();
         static::assertSame([
-            'a3f67ea263a4f2f5cf456e16de744b4b' => [
+            '4b97f87ff3bd2cd72cc6f6f7d2ae49ae' => [
                 'green',
                 'red',
             ],
-            'b6073234fc601007b541885dd70491f1' => [
+            'a6a23a74867cad90ee0c788a48944911' => [
                 'green',
             ],
         ], $combinations);
@@ -83,7 +53,7 @@ class AvailableCombinationLoaderTest extends TestCase
     public function testLoadCombinationsReturnsAvailableCombinationResultWithAvailabilityFromStockStorage(): void
     {
         $context = Context::createDefaultContext();
-        $salesChanelContext = Generator::createSalesChannelContext($context);
+        $salesChanelContext = Generator::generateSalesChannelContext($context);
 
         $stockStorage = $this->createMock(AbstractStockStorage::class);
         $stockStorage->expects(static::once())
@@ -100,11 +70,11 @@ class AvailableCombinationLoaderTest extends TestCase
 
         $combinations = $result->getCombinations();
         static::assertSame([
-            'a3f67ea263a4f2f5cf456e16de744b4b' => [
+            '4b97f87ff3bd2cd72cc6f6f7d2ae49ae' => [
                 'green',
                 'red',
             ],
-            'b6073234fc601007b541885dd70491f1' => [
+            'a6a23a74867cad90ee0c788a48944911' => [
                 'green',
             ],
         ], $combinations);

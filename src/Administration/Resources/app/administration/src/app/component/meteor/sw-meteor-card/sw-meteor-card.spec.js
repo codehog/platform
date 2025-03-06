@@ -1,21 +1,27 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/app/component/meteor/sw-meteor-card';
 import 'src/app/component/base/sw-tabs';
 import 'src/app/component/base/sw-tabs-item';
 
 async function createWrapper(customConfig = {}) {
-    return shallowMount(await Shopware.Component.build('sw-meteor-card'), {
-        propsData: {},
-        stubs: {
-            'sw-loader': true,
-            'sw-tabs': await Shopware.Component.build('sw-tabs'),
-            'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
+    return mount(await wrapTestComponent('sw-meteor-card', { sync: true }), {
+        props: {},
+        global: {
+            stubs: {
+                'sw-loader': true,
+                'sw-tabs': await wrapTestComponent('sw-tabs'),
+                'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                'mt-tabs': true,
+                'sw-extension-component-section': true,
+                'router-link': true,
+            },
+            provide: {},
         },
-        provide: {},
         ...customConfig,
     });
 }
@@ -40,7 +46,7 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
 
     it('should render the content of the default scoped slot', async () => {
         const wrapper = await createWrapper({
-            scopedSlots: {
+            slots: {
                 default: '<p>I am in the default slot</p>',
             },
         });
@@ -51,7 +57,7 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
 
     it('should render the title as prop', async () => {
         const wrapper = await createWrapper({
-            propsData: {
+            props: {
                 title: 'Welcome to Shopware',
             },
         });
@@ -62,7 +68,7 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
 
     it('should render as hero card', async () => {
         const wrapper = await createWrapper({
-            propsData: {
+            props: {
                 hero: true,
             },
         });
@@ -89,7 +95,7 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
 
     it('should render a large card', async () => {
         const wrapper = await createWrapper({
-            propsData: {
+            props: {
                 large: true,
             },
         });
@@ -142,8 +148,9 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
     });
 
     it('should render the tabs', async () => {
-        const wrapper = shallowMount({
-            template: `
+        const wrapper = mount(
+            {
+                template: `
 <sw-meteor-card defaultTab="tab1">
 
     <template #tabs="{ activeTab }">
@@ -158,13 +165,24 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
 
 </sw-meteor-card>
             `,
-        }, {
-            stubs: {
-                'sw-meteor-card': await Shopware.Component.build('sw-meteor-card'),
-                'sw-tabs': await Shopware.Component.build('sw-tabs'),
-                'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
             },
-        });
+            {
+                global: {
+                    stubs: {
+                        'sw-meteor-card': await wrapTestComponent('sw-meteor-card'),
+                        'sw-tabs': await wrapTestComponent('sw-tabs'),
+                        'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                        'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                        'sw-loader': true,
+                        'mt-tabs': true,
+                        'sw-extension-component-section': true,
+                        'router-link': true,
+                    },
+                },
+            },
+        );
+
+        await flushPromises();
 
         const tabItems = wrapper.findAll('.sw-tabs-item');
         expect(tabItems.at(0).text()).toBe('Tab 1');
@@ -172,8 +190,9 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
     });
 
     it('should render tabs and change content', async () => {
-        const wrapper = shallowMount({
-            template: `
+        const wrapper = mount(
+            {
+                template: `
 <sw-meteor-card defaultTab="tab1">
 
     <template #tabs="{ activeTab }">
@@ -188,13 +207,24 @@ describe('src/app/component/meteor/sw-meteor-card', () => {
 
 </sw-meteor-card>
             `,
-        }, {
-            stubs: {
-                'sw-meteor-card': await Shopware.Component.build('sw-meteor-card'),
-                'sw-tabs': await Shopware.Component.build('sw-tabs'),
-                'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
             },
-        });
+            {
+                global: {
+                    stubs: {
+                        'sw-meteor-card': await wrapTestComponent('sw-meteor-card'),
+                        'sw-tabs': await wrapTestComponent('sw-tabs'),
+                        'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                        'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                        'sw-loader': true,
+                        'mt-tabs': true,
+                        'sw-extension-component-section': true,
+                        'router-link': true,
+                    },
+                },
+            },
+        );
+
+        await flushPromises();
 
         const tabTwo = wrapper.findAll('.sw-tabs-item').at(1);
 

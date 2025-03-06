@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import { email } from 'src/core/service/validation.service';
@@ -8,12 +8,14 @@ import template from './sw-login-recovery.html.twig';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-login-recovery', {
     template,
 
     inject: ['userRecoveryService'],
+
+    emits: ['is-loading'],
 
     data() {
         return {
@@ -39,11 +41,14 @@ Component.register('sw-login-recovery', {
         sendRecoveryMail() {
             this.$emit('is-loading');
 
-            this.userRecoveryService.createRecovery(this.email).then(() => {
-                this.displayRecoveryInfo();
-            }).catch(error => {
-                this.displayRecoveryInfo(error.response.data);
-            });
+            this.userRecoveryService
+                .createRecovery(this.email)
+                .then(() => {
+                    this.displayRecoveryInfo();
+                })
+                .catch((error) => {
+                    this.displayRecoveryInfo(error.response.data);
+                });
         },
 
         displayRecoveryInfo(data = null) {

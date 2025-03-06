@@ -4,12 +4,18 @@ import './sw-text-editor-toolbar-table-button.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
+ * @deprecated tag:v6.8.0 - Will be removed, use mt-text-editor instead.
  *
  * @private
  */
 Component.register('sw-text-editor-toolbar-table-button', {
     template,
+
+    emits: [
+        'mounted',
+        'table-create',
+    ],
 
     props: {
         buttonConfig: {

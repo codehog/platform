@@ -1,7 +1,6 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@framework
  */
-import { email } from 'src/core/service/validation.service';
 import template from './sw-users-permissions-user-detail.html.twig';
 import './sw-users-permissions-user-detail.scss';
 
@@ -9,6 +8,7 @@ const { Component, Mixin } = Shopware;
 const { Criteria } = Shopware.Data;
 const { mapPropertyErrors } = Component.getComponentHelper();
 const { warn } = Shopware.Utils.debug;
+const { ShopwareError } = Shopware.Classes;
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
@@ -17,6 +17,7 @@ export default {
     inject: [
         'userService',
         'loginService',
+        'mediaDefaultFolderService',
         'userValidationService',
         'integrationService',
         'repositoryFactory',
@@ -45,7 +46,7 @@ export default {
             mediaItem: null,
             newPassword: '',
             newPasswordConfirm: '',
-            isEmailUsed: false,
+            isEmailAlreadyInUse: false,
             isUsernameUsed: false,
             isIntegrationsLoading: false,
             isSaveSuccessful: false,
@@ -55,6 +56,8 @@ export default {
             skeletonItemAmount: 3,
             confirmPasswordModal: false,
             timezoneOptions: [],
+            mediaDefaultFolderId: null,
+            showMediaModal: false,
         };
     },
 
@@ -129,7 +132,7 @@ export default {
         },
 
         isError() {
-            return this.isEmailUsed || this.isUsernameUsed || !this.hasLanguage;
+            return this.isEmailAlreadyInUse || this.isUsernameUsed || !this.hasLanguage;
         },
 
         hasLanguage() {
@@ -153,21 +156,16 @@ export default {
         },
 
         integrationColumns() {
-            return [{
-                property: 'accessKey',
-                label: this.$tc('sw-users-permissions.users.user-detail.labelAccessKey'),
-            }];
-        },
-
-        /**
-         * @deprecated tag:v6.6.0 - Will be removed.
-         */
-        secretAccessKeyFieldType() {
-            return this.showSecretAccessKey ? 'text' : 'password';
+            return [
+                {
+                    property: 'accessKey',
+                    label: this.$tc('sw-users-permissions.users.user-detail.labelAccessKey'),
+                },
+            ];
         },
 
         languageId() {
-            return Shopware.State.get('session').languageId;
+            return Shopware.Store.get('session').languageId;
         },
 
         tooltipSave() {
@@ -184,6 +182,16 @@ export default {
                 message: 'ESC',
                 appearance: 'light',
             };
+        },
+
+        localeOptions() {
+            return this.languages.map((language) => {
+                return {
+                    id: language.locale.id,
+                    value: language.locale.id,
+                    label: language.customLabel,
+                };
+            });
         },
     },
 
@@ -204,6 +212,13 @@ export default {
                 path: 'currentUser',
                 scope: this,
             });
+
+            Shopware.ExtensionAPI.publishData({
+                id: 'sw-users-permissions-user-detail__user',
+                path: 'user',
+                scope: this,
+            });
+
             this.isLoading = true;
 
             if (!this.languageId) {
@@ -211,9 +226,17 @@ export default {
                 return;
             }
 
+            this.getMediaDefaultFolderId()
+                .then((id) => {
+                    this.mediaDefaultFolderId = id;
+                })
+                .catch(() => {
+                    this.mediaDefaultFolderId = null;
+                });
+
             this.timezoneOptions = Shopware.Service('timezoneService').getTimezoneOptions();
             const languagePromise = new Promise((resolve) => {
-                Shopware.State.commit('context/setApiLanguageId', this.languageId);
+                Shopware.Store.get('context').api.languageId = this.languageId;
                 resolve(this.languageId);
             });
 
@@ -227,10 +250,6 @@ export default {
             Promise.all(promises).then(() => {
                 this.isLoading = false;
             });
-        },
-
-        // @deprecated tag:v6.6.0 - Unused
-        loadTimezones() {
         },
 
         loadLanguages() {
@@ -252,7 +271,7 @@ export default {
                 this.user = user;
 
                 if (this.user.avatarId) {
-                    this.mediaItem = this.user.avatarMedia;
+                    this.loadMediaItem(this.user.avatarId);
                 }
 
                 this.keyRepository = this.repositoryFactory.create(user.accessKeys.entity, this.user.accessKeys.source);
@@ -289,45 +308,61 @@ export default {
                 return Promise.resolve();
             }
 
-            if (!email(this.user.email)) {
-                this.createNotificationError({
-                    title: this.$tc('global.default.error'),
-                    message: this.$tc(
-                        'sw-users-permissions.users.user-detail.notification.invalidEmailErrorMessage',
-                    ),
+            return this.userValidationService
+                .checkUserEmail({
+                    email: this.user.email,
+                    id: this.user.id,
+                })
+                .then(({ emailIsUnique }) => {
+                    this.isEmailAlreadyInUse = !emailIsUnique;
                 });
-                return Promise.reject();
-            }
-
-            return this.userValidationService.checkUserEmail({
-                email: this.user.email,
-                id: this.user.id,
-            }).then(({ emailIsUnique }) => {
-                this.isEmailUsed = !emailIsUnique;
-            });
         },
 
         checkUsername() {
-            return this.userValidationService.checkUserUsername({
-                username: this.user.username,
-                id: this.user.id,
-            }).then(({ usernameIsUnique }) => {
-                this.isUsernameUsed = !usernameIsUnique;
+            return this.userValidationService
+                .checkUserUsername({
+                    username: this.user.username,
+                    id: this.user.id,
+                })
+                .then(({ usernameIsUnique }) => {
+                    this.isUsernameUsed = !usernameIsUnique;
+                });
+        },
+
+        loadMediaItem(targetId) {
+            this.mediaRepository.get(targetId).then((media) => {
+                this.mediaItem = media;
+                this.user.avatarMedia = media;
             });
         },
 
         setMediaItem({ targetId }) {
-            this.mediaRepository.get(targetId).then((media) => {
-                this.mediaItem = media;
-                this.user.avatarMedia = media;
-                this.user.avatarId = targetId;
-            });
+            this.user.avatarId = targetId;
+            this.loadMediaItem(targetId);
         },
 
         onUnlinkLogo() {
             this.mediaItem = null;
             this.user.avatarMedia = null;
             this.user.avatarId = null;
+        },
+
+        onDropMedia(mediaItem) {
+            this.setMediaItem({ targetId: mediaItem.id });
+        },
+
+        onOpenMedia() {
+            this.showMediaModal = true;
+        },
+
+        onMediaSelectionChange([mediaEntity]) {
+            this.mediaItem = mediaEntity;
+            this.user.avatarMedia = mediaEntity;
+            this.user.avatarId = mediaEntity.id;
+        },
+
+        getMediaDefaultFolderId() {
+            return this.mediaDefaultFolderService.getDefaultFolderId('user');
         },
 
         onSearch(value) {
@@ -349,29 +384,49 @@ export default {
             let promises = [];
 
             if (this.currentUser.id === this.user.id) {
-                promises = [Shopware.Service('localeHelper').setLocaleWithId(this.user.localeId)];
+                promises = [
+                    Shopware.Service('localeHelper').setLocaleWithId(this.user.localeId),
+                ];
             }
 
             return Promise.all(promises).then(
                 this.checkEmail()
                     .then(() => {
-                        if (!this.isEmailUsed) {
-                            this.isLoading = true;
-                            const titleSaveError = this.$tc('global.default.error');
-                            const messageSaveError = this.$tc(
-                                'sw-users-permissions.users.user-detail.notification.saveError.message',
-                                0,
-                                { name: this.fullName },
-                            );
+                        if (this.isEmailAlreadyInUse) {
+                            const expression = `user.${this.user.id}.email`;
+                            const error = new ShopwareError({
+                                code: 'USER_EMAIL_ALREADY_EXISTS',
+                                detail: this.$tc('sw-users-permissions.users.user-detail.errorEmailUsed'),
+                            });
 
-                            return this.userRepository.save(this.user, context).then(() => {
+                            Shopware.Store.get('error').addApiError({
+                                expression,
+                                error,
+                            });
+
+                            return Promise.resolve();
+                        }
+
+                        this.isLoading = true;
+                        const titleSaveError = this.$tc('global.default.error');
+                        const messageSaveError = this.$tc(
+                            'sw-users-permissions.users.user-detail.notification.saveError.message',
+                            { name: this.fullName },
+                            0,
+                        );
+
+                        return this.userRepository
+                            .save(this.user, context)
+                            .then(() => {
                                 return this.updateCurrentUser();
-                            }).then(() => {
+                            })
+                            .then(() => {
                                 this.createdComponent();
 
                                 this.confirmPasswordModal = false;
                                 this.isSaveSuccessful = true;
-                            }).catch((exception) => {
+                            })
+                            .catch((exception) => {
                                 this.createNotificationError({
                                     title: titleSaveError,
                                     message: messageSaveError,
@@ -380,18 +435,9 @@ export default {
                                 this.isLoading = false;
                                 throw exception;
                             })
-                                .finally(() => {
-                                    this.isLoading = false;
-                                });
-                        }
-
-                        this.createNotificationError({
-                            message: this.$tc(
-                                'sw-users-permissions.users.user-detail.notification.duplicateEmailErrorMessage',
-                            ),
-                        });
-
-                        return Promise.resolve();
+                            .finally(() => {
+                                this.isLoading = false;
+                            });
                     })
                     .catch(() => Promise.reject())
                     .finally(() => {
@@ -405,7 +451,7 @@ export default {
                 const data = response.data;
                 delete data.password;
 
-                return Shopware.State.commit('setCurrentUser', data);
+                return Shopware.Store.get('session').setCurrentUser(data);
             });
         },
 
@@ -415,11 +461,11 @@ export default {
 
         setPassword(password) {
             if (typeof password === 'string' && password.length <= 0) {
-                this.$delete(this.user, 'password');
+                delete this.user.password;
                 return;
             }
 
-            this.$set(this.user, 'password', password);
+            this.user.password = password;
         },
 
         onShowDetailModal(id) {

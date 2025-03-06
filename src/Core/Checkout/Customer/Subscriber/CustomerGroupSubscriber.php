@@ -5,6 +5,7 @@ namespace Shopware\Core\Checkout\Customer\Subscriber;
 use Cocur\Slugify\SlugifyInterface;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerGroup\CustomerGroupCollection;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerGroupTranslation\CustomerGroupTranslationCollection;
+use Shopware\Core\Content\Seo\SeoUrl\SeoUrlCollection;
 use Shopware\Core\Content\Seo\SeoUrlPersister;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
@@ -14,6 +15,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenEvent;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsAnyFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\NandFilter;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Language\LanguageCollection;
 use Shopware\Core\System\Language\LanguageEntity;
@@ -22,13 +24,17 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * @internal
  */
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerGroupSubscriber implements EventSubscriberInterface
 {
     private const ROUTE_NAME = 'frontend.account.customer-group-registration.page';
 
     /**
      * @internal
+     *
+     * @param EntityRepository<CustomerGroupCollection> $customerGroupRepository
+     * @param EntityRepository<SeoUrlCollection> $seoUrlRepository
+     * @param EntityRepository<LanguageCollection> $languageRepository
      */
     public function __construct(
         private readonly EntityRepository $customerGroupRepository,
@@ -98,9 +104,9 @@ class CustomerGroupSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $criteria = new Criteria();
-        $criteria->addFilter(new EqualsAnyFilter('foreignKey', $ids));
-        $criteria->addFilter(new EqualsFilter('routeName', self::ROUTE_NAME));
+        $criteria = (new Criteria())
+            ->addFilter(new EqualsAnyFilter('foreignKey', $ids))
+            ->addFilter(new EqualsFilter('routeName', self::ROUTE_NAME));
 
         /** @var array<string> $ids */
         $ids = array_values($this->seoUrlRepository->searchIds($criteria, $event->getContext())->getIds());
@@ -117,12 +123,13 @@ class CustomerGroupSubscriber implements EventSubscriberInterface
      */
     private function createUrls(array $ids, Context $context): void
     {
-        $criteria = new Criteria($ids);
-        $criteria->addFilter(new EqualsFilter('registrationActive', true));
-        $criteria->addAssociation('registrationSalesChannels.languages');
-        $criteria->addAssociation('translations');
+        $criteria = (new Criteria($ids))
+            ->addFilter(new EqualsFilter('registrationActive', true))
+            ->addAssociations(['registrationSalesChannels.languages', 'translations']);
 
-        /** @var CustomerGroupCollection $groups */
+        $criteria->getAssociation('registrationSalesChannels')
+            ->addFilter(new NandFilter([new EqualsFilter('typeId', Defaults::SALES_CHANNEL_TYPE_API)]));
+
         $groups = $this->customerGroupRepository->search($criteria, $context)->getEntities();
         $buildUrls = [];
 
@@ -136,16 +143,26 @@ class CustomerGroupSubscriber implements EventSubscriberInterface
                     continue;
                 }
 
+                if ($registrationSalesChannel->getTypeId() === Defaults::SALES_CHANNEL_TYPE_API) {
+                    continue;
+                }
+
                 /** @var array<string> $languageIds */
                 $languageIds = $registrationSalesChannel->getLanguages()->getIds();
-                $criteria = new Criteria($languageIds);
-                /** @var LanguageCollection $languageCollection */
-                $languageCollection = $this->languageRepository->search($criteria, $context)->getEntities();
+
+                $languageCollection = $this->languageRepository->search(new Criteria($languageIds), $context)->getEntities();
 
                 foreach ($languageIds as $languageId) {
-                    /** @var LanguageEntity $language */
                     $language = $languageCollection->get($languageId);
+                    if (!$language) {
+                        continue;
+                    }
+
                     $title = $this->getTranslatedTitle($group->getTranslations(), $language);
+
+                    if (empty($title)) {
+                        continue;
+                    }
 
                     if (!isset($buildUrls[$languageId])) {
                         $buildUrls[$languageId] = [

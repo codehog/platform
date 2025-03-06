@@ -10,7 +10,7 @@ use Shopware\Core\Framework\Plugin\KernelPluginLoader\KernelPluginLoader;
 use Shopware\Core\Framework\Plugin\PluginService;
 use Shopware\Core\Framework\Plugin\Util\PluginFinder;
 use Shopware\Core\Framework\Plugin\Util\VersionSanitizer;
-use SwagTest\SwagTest;
+use SwagTestPlugin\SwagTestPlugin;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 trait PluginTestsHelper
@@ -35,16 +35,16 @@ trait PluginTestsHelper
     protected function createPlugin(
         EntityRepository $pluginRepo,
         Context $context,
-        string $version = SwagTest::PLUGIN_VERSION,
+        string $version = SwagTestPlugin::PLUGIN_VERSION,
         ?string $installedAt = null
     ): void {
         $pluginRepo->create(
             [
                 [
-                    'baseClass' => SwagTest::class,
-                    'name' => 'SwagTest',
+                    'baseClass' => SwagTestPlugin::class,
+                    'name' => 'SwagTestPlugin',
                     'version' => $version,
-                    'label' => SwagTest::PLUGIN_LABEL,
+                    'label' => SwagTestPlugin::PLUGIN_LABEL,
                     'installedAt' => $installedAt,
                     'active' => false,
                     'autoload' => [],
@@ -60,13 +60,11 @@ trait PluginTestsHelper
     {
         require_once $testPluginBaseDir . '/src/' . $pluginName . '.php';
 
-        /** @var KernelPluginCollection $pluginCollection */
-        $pluginCollection = $this->getContainer()->get(KernelPluginCollection::class);
-        /** @var class-string<Plugin> $class */
         $class = '\\' . $pluginName . '\\' . $pluginName;
         $plugin = new $class($active, $testPluginBaseDir);
-        $pluginCollection->add($plugin);
+        static::assertInstanceOf(Plugin::class, $plugin);
+        static::getContainer()->get(KernelPluginCollection::class)->add($plugin);
 
-        $this->getContainer()->get(KernelPluginLoader::class)->getPluginInstances()->add($plugin);
+        static::getContainer()->get(KernelPluginLoader::class)->getPluginInstances()->add($plugin);
     }
 }

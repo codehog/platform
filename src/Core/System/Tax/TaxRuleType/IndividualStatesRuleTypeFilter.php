@@ -7,7 +7,7 @@ use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Tax\Aggregate\TaxRule\TaxRuleEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class IndividualStatesRuleTypeFilter extends AbstractTaxRuleTypeFilter
 {
     final public const TECHNICAL_NAME = 'individual_states';
@@ -21,7 +21,7 @@ class IndividualStatesRuleTypeFilter extends AbstractTaxRuleTypeFilter
         }
 
         $stateId = $this->getStateId($shippingLocation);
-        $states = $taxRuleEntity->getData()['states'];
+        $states = $taxRuleEntity->getData()['states'] ?? [];
 
         if (!\in_array($stateId, $states, true)) {
             return false;
@@ -45,6 +45,6 @@ class IndividualStatesRuleTypeFilter extends AbstractTaxRuleTypeFilter
 
     private function getStateId(ShippingLocation $shippingLocation): ?string
     {
-        return $shippingLocation->getState() !== null ? $shippingLocation->getState()->getId() : null;
+        return $shippingLocation->getState()?->getId();
     }
 }

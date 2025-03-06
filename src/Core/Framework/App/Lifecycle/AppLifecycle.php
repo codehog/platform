@@ -6,20 +6,26 @@ use Composer\Semver\VersionParser;
 use Doctrine\DBAL\Connection;
 use Shopware\Administration\Snippet\AppAdministrationSnippetPersister;
 use Shopware\Core\Defaults;
+use Shopware\Core\Framework\Api\Acl\Role\AclRoleCollection;
 use Shopware\Core\Framework\Api\Acl\Role\AclRoleDefinition;
-use Shopware\Core\Framework\Api\Acl\Role\AclRoleEntity;
 use Shopware\Core\Framework\Api\Util\AccessKeyHelper;
+use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\AppException;
 use Shopware\Core\Framework\App\AppStateService;
+use Shopware\Core\Framework\App\Cms\CmsExtensions as CmsManifest;
 use Shopware\Core\Framework\App\Event\AppDeletedEvent;
 use Shopware\Core\Framework\App\Event\AppInstalledEvent;
 use Shopware\Core\Framework\App\Event\AppUpdatedEvent;
 use Shopware\Core\Framework\App\Event\Hooks\AppDeletedHook;
 use Shopware\Core\Framework\App\Event\Hooks\AppInstalledHook;
 use Shopware\Core\Framework\App\Event\Hooks\AppUpdatedHook;
+use Shopware\Core\Framework\App\Event\PostAppDeletedEvent;
 use Shopware\Core\Framework\App\Exception\AppRegistrationException;
 use Shopware\Core\Framework\App\Flow\Action\Action;
+use Shopware\Core\Framework\App\Flow\Event\Event;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppInstallParameters;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppUpdateParameters;
 use Shopware\Core\Framework\App\Lifecycle\Persister\ActionButtonPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\CmsBlockPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\CustomFieldPersister;
@@ -29,12 +35,15 @@ use Shopware\Core\Framework\App\Lifecycle\Persister\PaymentMethodPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\PermissionPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\RuleConditionPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\ScriptPersister;
+use Shopware\Core\Framework\App\Lifecycle\Persister\ShippingMethodPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\TaxProviderPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\TemplatePersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\WebhookPersister;
 use Shopware\Core\Framework\App\Lifecycle\Registration\AppRegistrationService;
 use Shopware\Core\Framework\App\Manifest\Manifest;
-use Shopware\Core\Framework\App\Manifest\Xml\Module;
+use Shopware\Core\Framework\App\Manifest\Xml\Administration\Module;
+use Shopware\Core\Framework\App\Manifest\Xml\Webhook\Webhook;
+use Shopware\Core\Framework\App\Source\SourceResolver;
 use Shopware\Core\Framework\App\Validation\ConfigValidator;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -46,20 +55,29 @@ use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\Plugin\Util\AssetService;
 use Shopware\Core\Framework\Script\Execution\ScriptExecutor;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\System\CustomEntity\CustomEntityCollection;
 use Shopware\Core\System\CustomEntity\CustomEntityLifecycleService;
 use Shopware\Core\System\CustomEntity\Schema\CustomEntitySchemaUpdater;
 use Shopware\Core\System\CustomEntity\Xml\Field\AssociationField;
-use Shopware\Core\System\Language\LanguageEntity;
-use Shopware\Core\System\Locale\LocaleEntity;
+use Shopware\Core\System\Integration\IntegrationCollection;
+use Shopware\Core\System\Language\LanguageCollection;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\System\SystemConfig\Util\ConfigReader;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class AppLifecycle extends AbstractAppLifecycle
 {
+    /**
+     * @param EntityRepository<AppCollection> $appRepository
+     * @param EntityRepository<LanguageCollection> $languageRepository
+     * @param EntityRepository<IntegrationCollection> $integrationRepository
+     * @param EntityRepository<AclRoleCollection> $aclRoleRepository
+     * @param EntityRepository<CustomEntityCollection> $customEntityRepository
+     */
     public function __construct(
         private readonly EntityRepository $appRepository,
         private readonly PermissionPersister $permissionPersister,
@@ -72,7 +90,6 @@ class AppLifecycle extends AbstractAppLifecycle
         private readonly TaxProviderPersister $taxProviderPersister,
         private readonly RuleConditionPersister $ruleConditionPersister,
         private readonly CmsBlockPersister $cmsBlockPersister,
-        private readonly AbstractAppLoader $appLoader,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly AppRegistrationService $registrationService,
         private readonly AppStateService $appStateService,
@@ -91,7 +108,11 @@ class AppLifecycle extends AbstractAppLifecycle
         private readonly CustomEntityLifecycleService $customEntityLifecycleService,
         private readonly string $shopwareVersion,
         private readonly FlowEventPersister $flowEventPersister,
-        private readonly string $env
+        private readonly string $env,
+        private readonly ShippingMethodPersister $shippingMethodPersister,
+        private readonly EntityRepository $customEntityRepository,
+        private readonly SourceResolver $sourceResolver,
+        private readonly ConfigReader $configReader
     ) {
     }
 
@@ -100,7 +121,7 @@ class AppLifecycle extends AbstractAppLifecycle
         throw new DecorationPatternException(self::class);
     }
 
-    public function install(Manifest $manifest, bool $activate, Context $context): void
+    public function install(Manifest $manifest, AppInstallParameters $parameters, Context $context): void
     {
         $this->ensureIsCompatible($manifest);
 
@@ -115,38 +136,50 @@ class AppLifecycle extends AbstractAppLifecycle
         $roleId = Uuid::randomHex();
         $metadata = $this->enrichInstallMetadata($manifest, $metadata, $roleId);
 
-        $app = $this->updateApp($manifest, $metadata, $appId, $roleId, $defaultLocale, $context, true);
+        $app = $this->updateApp(
+            $manifest,
+            new AppUpdateParameters(acceptPermissions: $parameters->acceptPermissions),
+            $metadata,
+            $appId,
+            $roleId,
+            $defaultLocale,
+            $context,
+            true
+        );
 
         $event = new AppInstalledEvent($app, $manifest, $context);
         $this->eventDispatcher->dispatch($event);
         $this->scriptExecutor->execute(new AppInstalledHook($event));
 
-        if ($activate) {
+        if ($parameters->activate) {
             $this->appStateService->activateApp($appId, $context);
         }
 
         $this->updateAclRole($app->getName(), $context);
     }
 
-    /**
-     * @param array{id: string, roleId: string} $app
-     */
-    public function update(Manifest $manifest, array $app, Context $context): void
+    public function update(Manifest $manifest, AppUpdateParameters $parameters, array $app, Context $context): void
     {
         $this->ensureIsCompatible($manifest);
 
         $defaultLocale = $this->getDefaultLocale($context);
         $metadata = $manifest->getMetadata()->toArray($defaultLocale);
-        $appEntity = $this->updateApp($manifest, $metadata, $app['id'], $app['roleId'], $defaultLocale, $context, false);
+        $appEntity = $this->updateApp(
+            $manifest,
+            $parameters,
+            $metadata,
+            $app['id'],
+            $app['roleId'],
+            $defaultLocale,
+            $context,
+            false
+        );
 
         $event = new AppUpdatedEvent($appEntity, $manifest, $context);
         $this->eventDispatcher->dispatch($event);
         $this->scriptExecutor->execute(new AppUpdatedHook($event));
     }
 
-    /**
-     * @param array{id: string} $app
-     */
     public function delete(string $appName, array $app, Context $context, bool $keepUserData = false): void
     {
         $appEntity = $this->loadApp($app['id'], $context);
@@ -158,6 +191,9 @@ class AppLifecycle extends AbstractAppLifecycle
         $this->removeAppAndRole($appEntity, $context, $keepUserData, true);
         $this->assetService->removeAssets($appEntity->getName());
         $this->customEntitySchemaUpdater->update();
+
+        $event = new PostAppDeletedEvent($appEntity->getName(), $appEntity->getSourceType(), $context, $keepUserData);
+        $this->eventDispatcher->dispatch($event);
     }
 
     public function ensureIsCompatible(Manifest $manifest): void
@@ -173,6 +209,7 @@ class AppLifecycle extends AbstractAppLifecycle
      */
     private function updateApp(
         Manifest $manifest,
+        AppUpdateParameters $parameters,
         array $metadata,
         string $id,
         string $roleId,
@@ -181,7 +218,6 @@ class AppLifecycle extends AbstractAppLifecycle
         bool $install
     ): AppEntity {
         // accessToken is not set on update, but in that case we don't run registration, so we won't need it
-        /** @var string $secretAccessKey */
         $secretAccessKey = $metadata['accessToken'] ?? '';
         unset($metadata['accessToken'], $metadata['icon']);
         $metadata['path'] = str_replace($this->projectDir . '/', '', $manifest->getPath());
@@ -189,15 +225,19 @@ class AppLifecycle extends AbstractAppLifecycle
         $metadata['modules'] = [];
         $metadata['iconRaw'] = $this->getIcon($manifest);
         $metadata['cookies'] = $manifest->getCookies() !== null ? $manifest->getCookies()->getCookies() : [];
-        $metadata['baseAppUrl'] = $manifest->getAdmin() !== null ? $manifest->getAdmin()->getBaseAppUrl() : null;
+        $metadata['baseAppUrl'] = $manifest->getAdmin()?->getBaseAppUrl();
         $metadata['allowedHosts'] = $manifest->getAllHosts();
         $metadata['templateLoadPriority'] = $manifest->getStorefront() ? $manifest->getStorefront()->getTemplateLoadPriority() : 0;
+        $metadata['checkoutGatewayUrl'] = $manifest->getGateways()?->getCheckout()?->getUrl();
+        $metadata['sourceType'] = $manifest->getSourceType() ?? $this->sourceResolver->resolveSourceType($manifest);
+        $metadata['sourceConfig'] = $manifest->getSourceConfig();
+        $metadata['inAppPurchasesGatewayUrl'] = $manifest->getGateways()?->getInAppPurchasesGateway()?->getUrl();
 
         $this->updateMetadata($metadata, $context);
 
         $app = $this->loadApp($id, $context);
 
-        $this->updateCustomEntities($app->getId(), $app->getPath(), $manifest);
+        $this->updateCustomEntities($app, $manifest);
 
         $this->permissionPersister->updatePrivileges($manifest->getPermissions(), $roleId);
 
@@ -224,10 +264,10 @@ class AppLifecycle extends AbstractAppLifecycle
             throw $e;
         }
 
-        $flowActions = $this->appLoader->getFlowActions($app);
+        $flowActions = $this->getFlowActions($app);
 
         if ($flowActions) {
-            $this->flowBuilderActionPersister->updateActions($flowActions, $id, $context, $defaultLocale);
+            $this->flowBuilderActionPersister->updateActions($app, $flowActions, $context, $defaultLocale);
         }
 
         $webhooks = $this->getWebhooks($manifest, $flowActions, $id, $defaultLocale, (bool) $app->getAppSecret());
@@ -235,7 +275,7 @@ class AppLifecycle extends AbstractAppLifecycle
             $this->webhookPersister->updateWebhooksFromArray($webhooks, $id, $context);
         });
 
-        $flowEvents = $this->appLoader->getFlowEvents($app);
+        $flowEvents = $this->getFlowEvents($app);
 
         if ($flowEvents) {
             $this->flowEventPersister->updateEvents($flowEvents, $id, $context, $defaultLocale);
@@ -250,32 +290,100 @@ class AppLifecycle extends AbstractAppLifecycle
             $this->updateModules($manifest, $id, $defaultLocale, $context);
         }
 
+        $this->shippingMethodPersister->updateShippingMethods($manifest, $id, $defaultLocale, $context);
         $this->ruleConditionPersister->updateConditions($manifest, $id, $defaultLocale, $context);
         $this->actionButtonPersister->updateActions($manifest, $id, $defaultLocale, $context);
-        $this->templatePersister->updateTemplates($manifest, $id, $context);
+        $this->templatePersister->updateTemplates($manifest, $id, $context, $install);
         $this->scriptPersister->updateScripts($id, $context);
         $this->customFieldPersister->updateCustomFields($manifest, $id, $context);
         $this->assetService->copyAssetsFromApp($app->getName(), $app->getPath());
 
-        $cmsExtensions = $this->appLoader->getCmsExtensions($app);
+        $cmsExtensions = $this->getCmsExtensions($app);
+
         if ($cmsExtensions) {
             $this->cmsBlockPersister->updateCmsBlocks($cmsExtensions, $id, $defaultLocale, $context);
         }
 
         $updatePayload = [
             'id' => $app->getId(),
-            'configurable' => $this->handleConfigUpdates($app, $manifest, $install, $context),
-            'allowDisable' => $this->doesAllowDisabling($app, $context),
+            'configurable' => $this->handleConfigUpdates($app, $manifest, $install),
+            'allowDisable' => $this->doesAllowDisabling($app),
         ];
         $this->updateMetadata($updatePayload, $context);
 
         // updates the snippets if the administration bundle is available
         if ($this->appAdministrationSnippetPersister !== null) {
-            $snippets = $this->appLoader->getSnippets($app);
+            $snippets = $this->getSnippets($app);
             $this->appAdministrationSnippetPersister->updateSnippets($app, $snippets, $context);
         }
 
         return $app;
+    }
+
+    private function getCmsExtensions(AppEntity $app): ?CmsManifest
+    {
+        $fs = $this->sourceResolver->filesystemForApp($app);
+
+        if (!$fs->has('Resources/cms.xml')) {
+            return null;
+        }
+
+        return CmsManifest::createFromXmlFile($fs->path('Resources/cms.xml'));
+    }
+
+    private function getFlowEvents(AppEntity $app): ?Event
+    {
+        $fs = $this->sourceResolver->filesystemForApp($app);
+
+        if (!$fs->has('Resources/flow.xml')) {
+            return null;
+        }
+
+        return Event::createFromXmlFile($fs->path('Resources/flow.xml'));
+    }
+
+    private function getFlowActions(AppEntity $app): ?Action
+    {
+        $fs = $this->sourceResolver->filesystemForApp($app);
+
+        if (!$fs->has('Resources/flow.xml')) {
+            return null;
+        }
+
+        return Action::createFromXmlFile($fs->path('Resources/flow.xml'));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getSnippets(AppEntity $app): array
+    {
+        $fs = $this->sourceResolver->filesystemForApp($app);
+
+        if (!$fs->has('Resources/app/administration/snippet')) {
+            return [];
+        }
+
+        $snippets = [];
+        foreach ($fs->findFiles('*.json', 'Resources/app/administration/snippet') as $file) {
+            $snippets[$file->getFilenameWithoutExtension()] = $file->getContents();
+        }
+
+        return $snippets;
+    }
+
+    /**
+     * @return array<array<string, mixed>>|null
+     */
+    private function getAppConfig(AppEntity $app): ?array
+    {
+        $fs = $this->sourceResolver->filesystemForApp($app);
+
+        if (!$fs->has('Resources/config/config.xml')) {
+            return null;
+        }
+
+        return $this->configReader->read($fs->path('Resources/config/config.xml'));
     }
 
     private function removeAppAndRole(AppEntity $app, Context $context, bool $keepUserData = false, bool $softDelete = false): void
@@ -287,12 +395,14 @@ class AppLifecycle extends AbstractAppLifecycle
 
         $context->scope(Context::SYSTEM_SCOPE, function (Context $context) use ($app, $softDelete, $keepUserData): void {
             if (!$keepUserData) {
-                $config = $this->appLoader->getConfiguration($app);
+                $config = $this->getAppConfig($app);
 
                 if ($config) {
                     $this->systemConfigService->deleteExtensionConfiguration($app->getName(), $config);
                 }
             }
+
+            $this->markCustomEntitiesAsDeleted($app->getId(), $keepUserData, $context);
 
             $this->appRepository->delete([['id' => $app->getId()]], $context);
 
@@ -309,6 +419,33 @@ class AppLifecycle extends AbstractAppLifecycle
 
             $this->deleteAclRole($app->getName(), $context);
         });
+    }
+
+    private function markCustomEntitiesAsDeleted(string $appId, bool $keepUserData, Context $context): void
+    {
+        if (!$keepUserData) {
+            return;
+        }
+
+        $criteria = new Criteria();
+        $criteria->addFilter(new EqualsFilter('appId', $appId));
+
+        $customEntities = $this->customEntityRepository->search($criteria, $context)->getEntities();
+
+        $update = [];
+        foreach ($customEntities as $customEntity) {
+            $update[] = [
+                'id' => $customEntity->getId(),
+                'appId' => null,
+                'deletedAt' => new \DateTimeImmutable(),
+            ];
+        }
+
+        if (empty($update)) {
+            return;
+        }
+
+        $this->customEntityRepository->update($update, $context);
     }
 
     /**
@@ -349,8 +486,8 @@ class AppLifecycle extends AbstractAppLifecycle
 
     private function loadApp(string $id, Context $context): AppEntity
     {
-        /** @var AppEntity $app */
-        $app = $this->appRepository->search(new Criteria([$id]), $context)->first();
+        $app = $this->appRepository->search(new Criteria([$id]), $context)->getEntities()->first();
+        \assert($app !== null);
 
         return $app;
     }
@@ -360,10 +497,7 @@ class AppLifecycle extends AbstractAppLifecycle
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('name', $name));
 
-        /** @var AppEntity|null $app */
-        $app = $this->appRepository->search($criteria, $context)->first();
-
-        return $app;
+        return $this->appRepository->search($criteria, $context)->getEntities()->first();
     }
 
     private function updateModules(Manifest $manifest, string $id, string $defaultLocale, Context $context): void
@@ -398,12 +532,11 @@ class AppLifecycle extends AbstractAppLifecycle
     private function getDefaultLocale(Context $context): string
     {
         $criteria = new Criteria([Defaults::LANGUAGE_SYSTEM]);
-        $criteria->addAssociation('locale');
+        $criteria->addAssociation('translationCode');
 
-        /** @var LanguageEntity $language */
-        $language = $this->languageRepository->search($criteria, $context)->first();
-        /** @var LocaleEntity $locale */
-        $locale = $language->getLocale();
+        $language = $this->languageRepository->search($criteria, $context)->getEntities()->first();
+        $locale = $language?->getTranslationCode();
+        \assert($locale !== null);
 
         return $locale->getCode();
     }
@@ -415,14 +548,13 @@ class AppLifecycle extends AbstractAppLifecycle
             NotFilter::CONNECTION_AND,
             [new EqualsFilter('users.id', null)]
         ));
-        $roles = $this->aclRoleRepository->search($criteria, $context);
+        $roles = $this->aclRoleRepository->search($criteria, $context)->getEntities();
 
         $newPrivileges = [
             'app.' . $appName,
         ];
         $dataUpdate = [];
 
-        /** @var AclRoleEntity $role */
         foreach ($roles as $role) {
             $currentPrivileges = $role->getPrivileges();
 
@@ -448,12 +580,11 @@ class AppLifecycle extends AbstractAppLifecycle
     {
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('app.id', null));
-        $roles = $this->aclRoleRepository->search($criteria, $context);
+        $roles = $this->aclRoleRepository->search($criteria, $context)->getEntities();
 
         $appPrivileges = 'app.' . $appName;
         $dataUpdate = [];
 
-        /** @var AclRoleEntity $role */
         foreach ($roles as $role) {
             $currentPrivileges = $role->getPrivileges();
 
@@ -472,9 +603,9 @@ class AppLifecycle extends AbstractAppLifecycle
         }
     }
 
-    private function updateCustomEntities(string $appId, string $appPath, Manifest $manifest): void
+    private function updateCustomEntities(AppEntity $app, Manifest $manifest): void
     {
-        $entities = $this->customEntityLifecycleService->updateApp($appId, $appPath)?->getEntities()?->getEntities();
+        $entities = $this->customEntityLifecycleService->updateApp($app)?->getEntities()?->getEntities();
 
         foreach ($entities ?? [] as $entity) {
             $manifest->addPermissions([
@@ -488,16 +619,14 @@ class AppLifecycle extends AbstractAppLifecycle
         }
     }
 
-    private function handleConfigUpdates(AppEntity $app, Manifest $manifest, bool $install, Context $context): bool
+    private function handleConfigUpdates(AppEntity $app, Manifest $manifest, bool $install): bool
     {
-        $config = $this->appLoader->getConfiguration($app);
-        if (!$config) {
+        $config = $this->getAppConfig($app);
+        if ($config === null) {
             return false;
         }
 
-        $errors = $this->configValidator->validate($manifest, null);
-        $configError = $errors->first();
-
+        $configError = $this->configValidator->validate($manifest, null)->first();
         if ($configError) {
             // only one error can be in the returned collection
             throw AppException::invalidConfiguration($manifest->getMetadata()->getName(), $configError);
@@ -508,7 +637,7 @@ class AppLifecycle extends AbstractAppLifecycle
         return true;
     }
 
-    private function doesAllowDisabling(AppEntity $app, Context $context): bool
+    private function doesAllowDisabling(AppEntity $app): bool
     {
         $allow = true;
 
@@ -523,7 +652,9 @@ class AppLifecycle extends AbstractAppLifecycle
             foreach ($fields as $field) {
                 $restricted = $field['onDelete'] ?? null;
 
-                $allow = $restricted === AssociationField::RESTRICT ? false : $allow;
+                if ($restricted === AssociationField::RESTRICT) {
+                    $allow = false;
+                }
             }
         }
 
@@ -531,7 +662,7 @@ class AppLifecycle extends AbstractAppLifecycle
     }
 
     /**
-     * @return array<array<string, array{name: string, eventName: string, url: string, appId: string, active: bool, errorCount: int}>>
+     * @return array<array{name: string, eventName: string, url: string, appId: string, active?: bool, errorCount?: int}>
      */
     private function getWebhooks(Manifest $manifest, ?Action $flowActions, string $appId, string $defaultLocale, bool $hasAppSecret): array
     {
@@ -555,20 +686,19 @@ class AppLifecycle extends AbstractAppLifecycle
         }, $actions);
 
         if (!$hasAppSecret) {
-            /** @phpstan-ignore-next-line - return typehint with active: bool, errorCount: int does not work here because active will always be true and errorCount will always be 0 */
             return $webhooks;
         }
 
         $manifestWebhooks = $manifest->getWebhooks()?->getWebhooks() ?? [];
-        $webhooks = array_merge($webhooks, array_map(function ($webhook) use ($defaultLocale, $appId) {
+
+        return array_merge($webhooks, array_map(function (Webhook $webhook) use ($defaultLocale, $appId) {
+            /** @var array{name: string, event: string, url: string} $payload */
             $payload = $webhook->toArray($defaultLocale);
             $payload['appId'] = $appId;
             $payload['eventName'] = $webhook->getEvent();
 
             return $payload;
         }, $manifestWebhooks));
-
-        return $webhooks;
     }
 
     private function getIcon(Manifest $manifest): ?string
@@ -577,7 +707,9 @@ class AppLifecycle extends AbstractAppLifecycle
             return null;
         }
 
-        return $this->appLoader->loadFile($manifest->getPath(), $iconPath);
+        $fs = $this->sourceResolver->filesystemForManifest($manifest);
+
+        return $fs->has($iconPath) ? $fs->read($iconPath) : null;
     }
 
     /**

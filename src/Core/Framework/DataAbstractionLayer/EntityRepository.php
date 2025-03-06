@@ -25,15 +25,18 @@ use Shopware\Core\Framework\Uuid\Exception\InvalidUuidException;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Profiling\Profiler;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\VarExporter\LazyGhostTrait;
 
 /**
  * @final
  *
  * @template TEntityCollection of EntityCollection
  */
-#[Package('core')]
+#[Package('framework')]
 class EntityRepository
 {
+    use LazyGhostTrait;
+
     /**
      * @internal
      */
@@ -44,7 +47,7 @@ class EntityRepository
         private readonly EntitySearcherInterface $searcher,
         private readonly EntityAggregatorInterface $aggregator,
         private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly EntityLoadedEventFactory $eventFactory
+        private readonly EntityLoadedEventFactory $eventFactory,
     ) {
     }
 
@@ -67,28 +70,20 @@ class EntityRepository
 
     public function aggregate(Criteria $criteria, Context $context): AggregationResultCollection
     {
-        $criteria = clone $criteria;
+        if (!$criteria->getTitle()) {
+            return $this->_aggregate($criteria, $context);
+        }
 
-        $result = $this->aggregator->aggregate($this->definition, $criteria, $context);
-
-        $event = new EntityAggregationResultLoadedEvent($this->definition, $result, $context);
-        $this->eventDispatcher->dispatch($event, $event->getName());
-
-        return $result;
+        return Profiler::trace($criteria->getTitle(), fn () => $this->_aggregate($criteria, $context), 'repository');
     }
 
     public function searchIds(Criteria $criteria, Context $context): IdSearchResult
     {
-        $criteria = clone $criteria;
+        if (!$criteria->getTitle()) {
+            return $this->_searchIds($criteria, $context);
+        }
 
-        $this->eventDispatcher->dispatch(new EntitySearchedEvent($criteria, $this->definition, $context));
-
-        $result = $this->searcher->search($this->definition, $criteria, $context);
-
-        $event = new EntityIdSearchResultLoadedEvent($this->definition, $result);
-        $this->eventDispatcher->dispatch($event, $event->getName());
-
-        return $result;
+        return Profiler::trace($criteria->getTitle(), fn () => $this->_searchIds($criteria, $context), 'repository');
     }
 
     /**
@@ -161,7 +156,7 @@ class EntityRepository
         ReplicaConnection::ensurePrimary();
 
         if (!$this->definition->isVersionAware()) {
-            throw new \RuntimeException(sprintf('Entity %s is not version aware', $this->definition->getEntityName()));
+            throw new \RuntimeException(\sprintf('Entity %s is not version aware', $this->definition->getEntityName()));
         }
 
         return $this->versionManager->createVersion($this->definition, $id, WriteContext::createFromContext($context), $name, $versionId);
@@ -172,7 +167,7 @@ class EntityRepository
         ReplicaConnection::ensurePrimary();
 
         if (!$this->definition->isVersionAware()) {
-            throw new \RuntimeException(sprintf('Entity %s is not version aware', $this->definition->getEntityName()));
+            throw new \RuntimeException(\sprintf('Entity %s is not version aware', $this->definition->getEntityName()));
         }
         $this->versionManager->merge($versionId, WriteContext::createFromContext($context));
     }
@@ -276,6 +271,32 @@ class EntityRepository
         $result->addState(...$ids->getStates());
 
         $event = new EntitySearchResultLoadedEvent($this->definition, $result);
+        $this->eventDispatcher->dispatch($event, $event->getName());
+
+        return $result;
+    }
+
+    private function _aggregate(Criteria $criteria, Context $context): AggregationResultCollection
+    {
+        $criteria = clone $criteria;
+
+        $result = $this->aggregator->aggregate($this->definition, $criteria, $context);
+
+        $event = new EntityAggregationResultLoadedEvent($this->definition, $result, $context);
+        $this->eventDispatcher->dispatch($event, $event->getName());
+
+        return $result;
+    }
+
+    private function _searchIds(Criteria $criteria, Context $context): IdSearchResult
+    {
+        $criteria = clone $criteria;
+
+        $this->eventDispatcher->dispatch(new EntitySearchedEvent($criteria, $this->definition, $context));
+
+        $result = $this->searcher->search($this->definition, $criteria, $context);
+
+        $event = new EntityIdSearchResultLoadedEvent($this->definition, $result);
         $this->eventDispatcher->dispatch($event, $event->getName());
 
         return $result;

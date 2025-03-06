@@ -5,7 +5,7 @@ const { Mixin } = Shopware;
 
 /**
  * @private
- * @package buyers-experience
+ * @sw-package discovery
  */
 export default {
     template,
@@ -39,15 +39,26 @@ export default {
             };
         },
 
-        hasNavigation() {
-            return !!this.element.config.navigation.value;
+        hasNavigationArrows() {
+            return [
+                'inside',
+                'outside',
+            ].includes(this.element.config.navigationArrows.value);
         },
 
         classes() {
             return {
-                'has--navigation': this.hasNavigation,
+                'has--navigation-indent': this.element.config.navigationArrows.value === 'outside',
                 'has--border': !!this.element.config.border.value,
             };
+        },
+
+        navArrowsClasses() {
+            if (this.hasNavigationArrows) {
+                return [`has--arrow-${this.element.config.navigationArrows.value}`];
+            }
+
+            return null;
         },
 
         sliderBoxMinWidth() {
@@ -104,14 +115,22 @@ export default {
         },
 
         setSliderRowLimit() {
-            if (this.currentDeviceView === 'mobile' || this.$refs.productHolder.offsetWidth < 500) {
+            const boxWidth = this.$refs.productHolder?.offsetWidth;
+
+            if (boxWidth === undefined) {
+                return;
+            }
+
+            if (this.currentDeviceView === 'mobile' || boxWidth < 500) {
                 this.sliderBoxLimit = 1;
                 return;
             }
 
-            if (!this.element.config.elMinWidth.value ||
+            if (
+                !this.element.config.elMinWidth.value ||
                 this.element.config.elMinWidth.value === 'px' ||
-                this.element.config.elMinWidth.value.indexOf('px') === -1) {
+                this.element.config.elMinWidth.value.indexOf('px') === -1
+            ) {
                 this.sliderBoxLimit = 3;
                 return;
             }
@@ -122,7 +141,6 @@ export default {
 
             // Subtract to fake look in storefront which has more width
             const fakeLookWidth = 100;
-            const boxWidth = this.$refs.productHolder.offsetWidth;
             const elGap = 32;
             let elWidth = parseInt(this.element.config.elMinWidth.value.replace('px', ''), 10);
 

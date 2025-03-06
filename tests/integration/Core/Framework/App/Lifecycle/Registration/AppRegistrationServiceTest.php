@@ -7,14 +7,16 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 use Shopware\Core\DevOps\Environment\EnvironmentHelper;
 use Shopware\Core\Framework\Api\Util\AccessKeyHelper;
+use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\Exception\AppRegistrationException;
+use Shopware\Core\Framework\App\Exception\AppUrlChangeDetectedException;
 use Shopware\Core\Framework\App\Hmac\Guzzle\AuthMiddleware;
 use Shopware\Core\Framework\App\Lifecycle\Persister\PermissionPersister;
 use Shopware\Core\Framework\App\Lifecycle\Registration\AppRegistrationService;
 use Shopware\Core\Framework\App\Lifecycle\Registration\HandshakeFactory;
 use Shopware\Core\Framework\App\Manifest\Manifest;
-use Shopware\Core\Framework\App\Manifest\Xml\Permissions;
+use Shopware\Core\Framework\App\Manifest\Xml\Permission\Permissions;
 use Shopware\Core\Framework\App\ShopId\ShopIdProvider;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -37,16 +39,19 @@ class AppRegistrationServiceTest extends TestCase
 
     private string $shopUrl;
 
+    /**
+     * @var EntityRepository<AppCollection>
+     */
     private EntityRepository $appRepository;
 
     private ShopIdProvider $shopIdProvider;
 
     protected function setUp(): void
     {
-        $this->appRepository = $this->getContainer()->get('app.repository');
-        $this->registrator = $this->getContainer()->get(AppRegistrationService::class);
+        $this->appRepository = static::getContainer()->get('app.repository');
+        $this->registrator = static::getContainer()->get(AppRegistrationService::class);
         $this->shopUrl = (string) EnvironmentHelper::getVariable('APP_URL');
-        $this->shopIdProvider = $this->getContainer()->get(ShopIdProvider::class);
+        $this->shopIdProvider = static::getContainer()->get(ShopIdProvider::class);
     }
 
     public function testRegisterPrivateApp(): void
@@ -71,7 +76,7 @@ class AppRegistrationServiceTest extends TestCase
         static::assertNotNull($setup);
 
         $uriWithoutQuery = $registrationRequest->getUri()->withQuery('');
-        static::assertEquals($setup->getRegistrationUrl(), (string) $uriWithoutQuery);
+        static::assertSame($setup->getRegistrationUrl(), (string) $uriWithoutQuery);
         static::assertNotEmpty($registrationRequest->getHeaderLine('sw-version'));
         static::assertNotEmpty($registrationRequest->getHeaderLine(AuthMiddleware::SHOPWARE_USER_LANGUAGE));
         static::assertNotEmpty($registrationRequest->getHeaderLine(AuthMiddleware::SHOPWARE_CONTEXT_LANGUAGE));
@@ -83,27 +88,27 @@ class AppRegistrationServiceTest extends TestCase
 
         $app = $this->fetchApp($id);
 
-        static::assertEquals(TestAppServer::APP_SECRET, $app->getAppSecret());
+        static::assertSame(TestAppServer::APP_SECRET, $app->getAppSecret());
 
-        static::assertEquals(2, $this->getRequestCount());
+        static::assertSame(2, $this->getRequestCount());
 
         $confirmationReq = $this->getPastRequest(1);
-        static::assertEquals('POST', $confirmationReq->getMethod());
+        static::assertSame('POST', $confirmationReq->getMethod());
 
         $postBody = \json_decode($confirmationReq->getBody()->getContents(), true, 512, \JSON_THROW_ON_ERROR);
-        static::assertEquals($secretAccessKey, $postBody['secretKey']);
+        static::assertSame($secretAccessKey, $postBody['secretKey']);
 
         $integration = $app->getIntegration();
         static::assertNotNull($integration);
-        static::assertEquals($integration->getAccessKey(), $postBody['apiKey']);
+        static::assertSame($integration->getAccessKey(), $postBody['apiKey']);
 
-        static::assertEquals($_SERVER['APP_URL'], $postBody['shopUrl']);
-        static::assertEquals($this->shopIdProvider->getShopId(), $postBody['shopId']);
+        static::assertSame($_SERVER['APP_URL'], $postBody['shopUrl']);
+        static::assertSame($this->shopIdProvider->getShopId(), $postBody['shopId']);
 
         $json = \json_encode($postBody, \JSON_THROW_ON_ERROR);
         static::assertNotFalse($json);
 
-        static::assertEquals(
+        static::assertSame(
             \hash_hmac('sha256', $json, $appSecret),
             $confirmationReq->getHeaderLine('shopware-shop-signature')
         );
@@ -187,7 +192,7 @@ class AppRegistrationServiceTest extends TestCase
 
         $this->appendNewResponse(new Response(200, [], $appResponseBody));
 
-        $systemConfigService = $this->getContainer()->get(SystemConfigService::class);
+        $systemConfigService = static::getContainer()->get(SystemConfigService::class);
         $systemConfigService->set(ShopIdProvider::SHOP_ID_SYSTEM_CONFIG_KEY, [
             'app_url' => 'https://test.com',
             'value' => $shopId,
@@ -201,16 +206,21 @@ class AppRegistrationServiceTest extends TestCase
         $handshakeFactory = new HandshakeFactory(
             $this->shopUrl,
             $shopIdProviderMock,
-            $this->getContainer()->get(StoreClient::class),
+            static::getContainer()->get(StoreClient::class),
             Kernel::SHOPWARE_FALLBACK_VERSION
         );
 
+        $shopIdMock = $this->createMock(ShopIdProvider::class);
+        $shopIdMock->expects(static::once())
+            ->method('getShopId')
+            ->willThrowException(new AppUrlChangeDetectedException('https://test.com', 'https://new.com', $shopId));
+
         $registrator = new AppRegistrationService(
             $handshakeFactory,
-            $this->getContainer()->get('shopware.app_system.guzzle'),
-            $this->getContainer()->get('app.repository'),
+            static::getContainer()->get('shopware.app_system.guzzle'),
+            static::getContainer()->get('app.repository'),
             $this->shopUrl,
-            $this->getContainer()->get(ShopIdProvider::class),
+            $shopIdMock,
             Kernel::SHOPWARE_FALLBACK_VERSION
         );
 
@@ -284,7 +294,6 @@ class AppRegistrationServiceTest extends TestCase
             'accessToken' => 'testtoken',
             'integration' => [
                 'label' => 'test',
-                'writeAccess' => false,
                 'accessKey' => 'testkey',
                 'secretAccessKey' => 'test',
             ],
@@ -299,9 +308,11 @@ class AppRegistrationServiceTest extends TestCase
             ],
         ]], Context::createDefaultContext());
 
-        $permissionPersister = $this->getContainer()->get(PermissionPersister::class);
+        $permissionPersister = static::getContainer()->get(PermissionPersister::class);
         $permissions = Permissions::fromArray([
-            'product' => ['update'],
+            'permissions' => [
+                'product' => ['update'],
+            ],
         ]);
 
         $permissionPersister->updatePrivileges($permissions, $roleId);
@@ -334,7 +345,7 @@ class AppRegistrationServiceTest extends TestCase
 
     private function assertRequestIsSigned(RequestInterface $registrationRequest, string $secret): void
     {
-        static::assertEquals(
+        static::assertSame(
             hash_hmac('sha256', $registrationRequest->getUri()->getQuery(), $secret),
             $registrationRequest->getHeaderLine('shopware-app-signature')
         );
@@ -344,8 +355,8 @@ class AppRegistrationServiceTest extends TestCase
     {
         $criteria = new Criteria([$id]);
         $criteria->addAssociation('integration');
-        /** @var AppEntity $app */
-        $app = $this->appRepository->search($criteria, Context::createDefaultContext())->first();
+        $app = $this->appRepository->search($criteria, Context::createDefaultContext())->getEntities()->first();
+        static::assertNotNull($app);
 
         return $app;
     }

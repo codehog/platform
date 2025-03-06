@@ -3,6 +3,8 @@
 namespace Shopware\Tests\Integration\Core\Framework\MessageQueue\ScheduledTask\Scheduler;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Defaults;
@@ -13,18 +15,17 @@ use Shopware\Core\Framework\MessageQueue\ScheduledTask\ScheduledTaskDefinition;
 use Shopware\Core\Framework\MessageQueue\ScheduledTask\ScheduledTaskEntity;
 use Shopware\Core\Framework\MessageQueue\ScheduledTask\Scheduler\TaskScheduler;
 use Shopware\Core\Framework\Test\MessageQueue\fixtures\FooMessage;
-use Shopware\Core\Framework\Test\MessageQueue\fixtures\TestTask;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Tests\Integration\Core\Framework\MessageQueue\fixtures\TestTask;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\MessageQueue\ScheduledTask\Scheduler\TaskScheduler
  */
+#[CoversClass(TaskScheduler::class)]
 class TaskSchedulerTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -39,12 +40,12 @@ class TaskSchedulerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->scheduledTaskRepo = $this->getContainer()->get('scheduled_task.repository');
+        $this->scheduledTaskRepo = static::getContainer()->get('scheduled_task.repository');
         $this->messageBus = $this->createMock(MessageBusInterface::class);
 
         $this->scheduler = new TaskScheduler($this->scheduledTaskRepo, $this->messageBus, new ParameterBag());
 
-        $this->connection = $this->getContainer()->get(Connection::class);
+        $this->connection = static::getContainer()->get(Connection::class);
     }
 
     public function testScheduleTasks(): void
@@ -107,9 +108,7 @@ class TaskSchedulerTest extends TestCase
         static::assertEquals(ScheduledTaskDefinition::STATUS_SCHEDULED, $task->getStatus());
     }
 
-    /**
-     * @dataProvider nonScheduledStatus
-     */
+    #[DataProvider('nonScheduledStatus')]
     public function testScheduleTasksDoesntScheduleNotScheduledTask(string $status): void
     {
         $this->connection->executeStatement('DELETE FROM scheduled_task');
@@ -153,7 +152,7 @@ class TaskSchedulerTest extends TestCase
     public function testScheduleTasksThrowsExceptionWhenTryingToScheduleWrongClass(): void
     {
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage(sprintf(
+        $this->expectExceptionMessage(\sprintf(
             'Tried to schedule "%s", but class does not extend ScheduledTask',
             FooMessage::class
         ));

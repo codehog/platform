@@ -26,6 +26,7 @@
             <argument type="service" id="serializer"/>
             <argument type="service" id="Shopware\Core\Content\Product\ProductDefinition"/>
             <argument type="service" id="event_dispatcher"/>
+            <argument>%shopware.product_stream.indexing%</argument>
 
             <!-- needs to run before ProductStreamUpdater -->
             <tag name="shopware.entity_indexer" priority="100"/>
@@ -37,6 +38,7 @@
 
         <service id="Shopware\Core\Content\ProductStream\ScheduledTask\UpdateProductStreamMappingTaskHandler">
             <argument type="service" id="scheduled_task.repository"/>
+            <argument type="service" id="logger"/>
             <argument type="service" id="product_stream.repository"/>
             <tag name="messenger.message_handler"/>
         </service>

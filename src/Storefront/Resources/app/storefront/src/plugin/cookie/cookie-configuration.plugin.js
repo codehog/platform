@@ -15,6 +15,7 @@
  *
  * Configuration changes are pushed to the global (document) event "CookieConfiguration_Update"
  *
+ * @sw-package framework
  */
 
 /* global PluginManager */
@@ -309,7 +310,7 @@ export default class CookieConfiguration extends Plugin {
      * @private
      */
     _findParentEl(el, findClass, abortClass = null) {
-        while(!!el && !el.classList.contains(abortClass)) {
+        while (!!el && !el.classList.contains(abortClass)) {
             if (el.classList.contains(findClass)) {
                 return el;
             }

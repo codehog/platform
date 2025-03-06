@@ -1,30 +1,49 @@
-import { shallowMount } from '@vue/test-utils';
-import swCustomEntityInputField from 'src/module/sw-custom-entity/component/sw-custom-entity-input-field';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-custom-entity-input-field', swCustomEntityInputField);
-
-async function createWrapper(propsData = { type: 'string' }) {
-    return shallowMount(await Shopware.Component.build('sw-custom-entity-input-field'), {
-        propsData,
-        provide: {
+async function createWrapper(props = { type: 'string' }) {
+    return mount(await wrapTestComponent('sw-custom-entity-input-field', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-text-field': {
+                    template: '<input/>',
+                    props: [
+                        'value',
+                        'label',
+                        'placeholder',
+                        'helpText',
+                    ],
+                },
+                'mt-textarea': {
+                    template: '<input/>',
+                    props: [
+                        'modelValue',
+                        'label',
+                        'placeholder',
+                        'helpText',
+                    ],
+                },
+                'mt-number-field': {
+                    template: '<input/>',
+                    props: [
+                        'modelValue',
+                        'label',
+                        'placeholder',
+                        'helpText',
+                        'numberType',
+                    ],
+                },
+                'mt-datepicker': {
+                    template: '<input/>',
+                    props: [
+                        'modelValue',
+                        'label',
+                        'placeholder',
+                        'helpText',
+                    ],
+                },
+            },
         },
-        stubs: {
-            'sw-text-field': {
-                template: '<input/>',
-            },
-            'sw-textarea-field': {
-                template: '<input/>',
-            },
-            'sw-number-field': {
-                template: '<input/>',
-            },
-            'sw-switch-field': {
-                template: '<input/>',
-            },
-            'sw-datepicker': {
-                template: '<input/>',
-            },
-        },
+        props,
     });
 }
 
@@ -37,16 +56,17 @@ const basicMockData = {
 };
 
 /**
- * @package content
+ * @sw-package framework
  */
 describe('module/sw-custom-entity/component/sw-custom-entity-input-field', () => {
-    it('should be a Vue.JS component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
-    ['string', 'text', 'int', 'float', 'boolean', 'date'].forEach((type) => {
+    [
+        'string',
+        'text',
+        'int',
+        'float',
+        'boolean',
+        'date',
+    ].forEach((type) => {
         it(`should render basic properties correctly according to type [type="${type}"]`, async () => {
             const mockData = {
                 ...basicMockData,
@@ -56,15 +76,35 @@ describe('module/sw-custom-entity/component/sw-custom-entity-input-field', () =>
 
             await wrapper.setProps(mockData);
 
-            const inputField = wrapper.get(`.sw-custom-entity-input-field__${type}`);
-            expect(inputField.attributes().value).toBe(mockData.value);
-            expect(inputField.attributes().label).toBe(mockData.label);
-            expect(inputField.attributes().placeholder).toBe(mockData.placeholder);
-            expect(inputField.attributes()['help-text']).toBe(mockData['help-text']);
+            const inputField = wrapper.getComponent(`.sw-custom-entity-input-field__${type}`);
+            const modelValueTypes = [
+                'text',
+                'string',
+                'date',
+            ];
+            let propType = modelValueTypes.includes(type) ? 'modelValue' : 'value';
+
+            if (type === 'boolean') {
+                propType = 'checked';
+                mockData.value = true;
+                mockData.placeholder = undefined;
+            }
+
+            if (type === 'int' || type === 'float') {
+                propType = 'modelValue';
+            }
+
+            expect(inputField.props(propType)).toBe(mockData.value);
+            expect(inputField.props('label')).toBe(mockData.label);
+            expect(inputField.props('placeholder')).toBe(mockData.placeholder);
+            expect(inputField.props('helpText')).toBe(mockData['help-text']);
         });
     });
 
-    ['int', 'float'].forEach((type) => {
+    [
+        'int',
+        'float',
+    ].forEach((type) => {
         it(`should render specific properties correctly according to type [type="${type}"]`, async () => {
             const mockData = {
                 ...basicMockData,
@@ -74,8 +114,8 @@ describe('module/sw-custom-entity/component/sw-custom-entity-input-field', () =>
 
             await wrapper.setProps(mockData);
 
-            const inputField = wrapper.get(`.sw-custom-entity-input-field__${type}`);
-            expect(inputField.attributes()['number-type']).toBe(type);
+            const inputField = wrapper.getComponent(`.sw-custom-entity-input-field__${type}`);
+            expect(inputField.props('numberType')).toBe(type);
         });
     });
 });

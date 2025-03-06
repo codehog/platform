@@ -5,13 +5,13 @@ namespace Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Plugin;
 
-#[Package('core')]
+#[Package('framework')]
 class KernelPluginCollection
 {
     /**
      * @internal
      *
-     * @param Plugin[] $plugins
+     * @param array<class-string<Plugin>, Plugin> $plugins
      */
     public function __construct(private array $plugins = [])
     {
@@ -19,12 +19,7 @@ class KernelPluginCollection
 
     public function add(Plugin $plugin): void
     {
-        /** @var string|false $class */
         $class = $plugin::class;
-
-        if ($class === false) {
-            return;
-        }
 
         if ($this->has($class)) {
             return;
@@ -33,6 +28,9 @@ class KernelPluginCollection
         $this->plugins[$class] = $plugin;
     }
 
+    /**
+     * @param list<Plugin> $plugins
+     */
     public function addList(array $plugins): void
     {
         foreach ($plugins as $plugin) {
@@ -51,7 +49,7 @@ class KernelPluginCollection
     }
 
     /**
-     * @return Plugin[]
+     * @return array<class-string<Plugin>, Plugin>
      */
     public function all(): array
     {
@@ -59,7 +57,7 @@ class KernelPluginCollection
     }
 
     /**
-     * @return Plugin[]
+     * @return array<class-string<Plugin>, Plugin>
      */
     public function getActives(): array
     {

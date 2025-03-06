@@ -1,7 +1,7 @@
 import template from './sw-order-create-details-header.html.twig';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
 const { Criteria } = Shopware.Data;
@@ -10,8 +10,9 @@ const { Criteria } = Shopware.Data;
 export default {
     template,
 
+    emits: ['on-select-existing-customer'],
+
     props: {
-        // FIXME: add required attribute and or default value
         // eslint-disable-next-line vue/require-default-prop
         customer: {
             type: Object,
@@ -22,13 +23,11 @@ export default {
             required: true,
         },
 
-        // FIXME: add required attribute and or default value
         // eslint-disable-next-line vue/require-default-prop
         cartPrice: {
             type: Object,
         },
 
-        // FIXME: add required attribute and or default value
         // eslint-disable-next-line vue/require-default-prop
         currency: {
             type: Object,

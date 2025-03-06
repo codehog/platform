@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@after-sales
  */
 import string from 'src/core/service/utils/string.utils';
 import template from './sw-import-export-new-profile-wizard-general-page.html.twig';
@@ -8,6 +8,11 @@ import './sw-import-export-new-profile-wizard-general-page.scss';
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
+
+    emits: [
+        'next-allow',
+        'next-disable',
+    ],
 
     props: {
         profile: {
@@ -18,9 +23,11 @@ export default {
 
     computed: {
         inputValid() {
-            return this.isFieldFilled(this.profile.sourceEntity) &&
+            return (
+                this.isFieldFilled(this.profile.sourceEntity) &&
                 this.isFieldFilled(this.profile.type) &&
-                this.isFieldFilled(this.profile.label);
+                this.isFieldFilled(this.profile.label)
+            );
         },
     },
 

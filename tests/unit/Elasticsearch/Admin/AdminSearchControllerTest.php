@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Elasticsearch\Admin;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Promotion\PromotionEntity;
 use Shopware\Core\Framework\Api\Serializer\JsonEntityEncoder;
@@ -16,12 +17,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Admin\AdminSearchController
  */
+#[CoversClass(AdminSearchController::class)]
 class AdminSearchControllerTest extends TestCase
 {
     private AdminSearcher $searcher;
@@ -52,7 +50,7 @@ class AdminSearchControllerTest extends TestCase
         );
 
         $request = new Request();
-        $request->attributes->set('term', 'test');
+        $request->request->set('term', 'test');
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Admin elasticsearch is not enabled');
@@ -70,7 +68,7 @@ class AdminSearchControllerTest extends TestCase
         );
 
         $request = new Request();
-        $request->attributes->set('term', '   ');
+        $request->request->set('term', '   ');
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Parameter "term" is missing.');
@@ -88,7 +86,7 @@ class AdminSearchControllerTest extends TestCase
         );
 
         $request = new Request();
-        $request->attributes->set('term', 'test');
+        $request->request->set('term', 'test');
         $response = $controller->elastic($request, Context::createDefaultContext());
 
         static::assertEquals(Response::HTTP_OK, $response->getStatusCode());

@@ -1,14 +1,9 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { shallowMount } from '@vue/test-utils';
-import swProductStreamFilter from 'src/module/sw-product-stream/component/sw-product-stream-filter';
-import 'src/app/component/rule/sw-condition-base';
-
-Shopware.Component.extend('sw-product-stream-filter', 'sw-condition-base', swProductStreamFilter);
-
-const EntityDefinitionFactory = require('src/core/factory/entity-definition.factory').default;
+import { mount } from '@vue/test-utils';
+import EntityDefinitionFactory from 'src/core/factory/entity-definition.factory';
 
 async function createWrapper(privileges = []) {
     const mockEntitySchema = {
@@ -23,57 +18,55 @@ async function createWrapper(privileges = []) {
         Shopware.EntityDefinition.add(entity, mockEntitySchema[entity]);
     });
 
-    return shallowMount(await Shopware.Component.build('sw-product-stream-filter'), {
-        stubs: {
-            'sw-condition-type-select': true,
-            'sw-text-field': true,
-            'sw-context-button': true,
-            'sw-context-menu-item': true,
-            'sw-field-error': true,
-            'sw-product-stream-value': true,
-            'sw-product-stream-field-select': true,
+    return mount(await wrapTestComponent('sw-product-stream-filter', { sync: true }), {
+        props: {
+            condition: {},
         },
-        provide: {
-            conditionDataProviderService: {
-                getPlaceholderData: () => {},
-                getComponentByCondition: () => {},
-                allowedJsonAccessors: {
-                    'json.test': {
-                        value: 'json.test',
-                        type: 'string',
+        global: {
+            stubs: {
+                'sw-condition-type-select': true,
+                'sw-text-field': true,
+                'sw-context-button': true,
+                'sw-context-menu-item': true,
+                'sw-field-error': true,
+                'sw-product-stream-value': true,
+                'sw-product-stream-field-select': true,
+            },
+            provide: {
+                conditionDataProviderService: {
+                    getPlaceholderData: () => {},
+                    getComponentByCondition: () => {},
+                    allowedJsonAccessors: {
+                        'json.test': {
+                            value: 'json.test',
+                            type: 'string',
+                        },
                     },
                 },
-            },
-            availableTypes: {},
-            availableGroups: [],
-            childAssociationField: {},
-            createCondition: () => {},
-            productCustomFields: {
-                test: 'customFields.test',
-            },
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) { return true; }
-
-                    return privileges.includes(identifier);
+                availableTypes: {},
+                availableGroups: [],
+                childAssociationField: {},
+                createCondition: () => {},
+                productCustomFields: {
+                    test: 'customFields.test',
                 },
+                acl: {
+                    can: (identifier) => {
+                        if (!identifier) {
+                            return true;
+                        }
+
+                        return privileges.includes(identifier);
+                    },
+                },
+                insertNodeIntoTree: () => {},
+                removeNodeFromTree: () => {},
             },
-            insertNodeIntoTree: () => {},
-            removeNodeFromTree: () => {},
-        },
-        propsData: {
-            condition: {},
         },
     });
 }
 
 describe('src/module/sw-product-stream/component/sw-product-stream-filter', () => {
-    it('should be a Vue.JS component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should return correct tooltip settings', async () => {
         const wrapper = await createWrapper();
         const tooltipObject = wrapper.vm.getNoPermissionsTooltip();
@@ -88,13 +81,37 @@ describe('src/module/sw-product-stream/component/sw-product-stream-filter', () =
     });
 
     it.each([
-        ['true', 'sw-context-button-stub', 'product_stream.viewer'],
-        [undefined, 'sw-context-button-stub', 'product_stream.viewer, product_stream.editor'],
-        ['true', 'sw-product-stream-value-stub', 'product_stream.viewer'],
-        [undefined, 'sw-product-stream-value-stub', 'product_stream.viewer, product_stream.editor'],
-        ['true', 'sw-product-stream-field-select-stub', 'product_stream.viewer'],
-        [undefined, 'sw-product-stream-field-select-stub', 'product_stream.viewer, product_stream.editor'],
-    ])('should have %p as disabled state on \'%s\' when having %s role', async (state, element, role) => {
+        [
+            'true',
+            'sw-context-button-stub',
+            'product_stream.viewer',
+        ],
+        [
+            undefined,
+            'sw-context-button-stub',
+            'product_stream.viewer, product_stream.editor',
+        ],
+        [
+            'true',
+            'sw-product-stream-value-stub',
+            'product_stream.viewer',
+        ],
+        [
+            undefined,
+            'sw-product-stream-value-stub',
+            'product_stream.viewer, product_stream.editor',
+        ],
+        [
+            'true',
+            'sw-product-stream-field-select-stub',
+            'product_stream.viewer',
+        ],
+        [
+            undefined,
+            'sw-product-stream-field-select-stub',
+            'product_stream.viewer, product_stream.editor',
+        ],
+    ])("should have %p as disabled state on '%s' when having %s role", async (state, element, role) => {
         const roles = role.split(', ');
 
         const wrapper = await createWrapper(roles);
@@ -136,4 +153,3 @@ describe('src/module/sw-product-stream/component/sw-product-stream-filter', () =
         expect(wrapper.vm.fields).toEqual(['json.test']);
     });
 });
-

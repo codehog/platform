@@ -5,9 +5,13 @@ namespace Shopware\Storefront\Controller;
 use Shopware\Core\Checkout\Customer\Exception\BadCredentialsException;
 use Shopware\Core\Checkout\Customer\Exception\CustomerAuthThrottledException;
 use Shopware\Core\Checkout\Customer\Exception\CustomerNotFoundByHashException;
+use Shopware\Core\Checkout\Customer\Exception\CustomerNotFoundByIdException;
 use Shopware\Core\Checkout\Customer\Exception\CustomerNotFoundException;
 use Shopware\Core\Checkout\Customer\Exception\CustomerOptinNotCompletedException;
 use Shopware\Core\Checkout\Customer\Exception\CustomerRecoveryHashExpiredException;
+use Shopware\Core\Checkout\Customer\Exception\InvalidImitateCustomerTokenException;
+use Shopware\Core\Checkout\Customer\Exception\PasswordPoliciesUpdatedException;
+use Shopware\Core\Checkout\Customer\SalesChannel\AbstractImitateCustomerRoute;
 use Shopware\Core\Checkout\Customer\SalesChannel\AbstractLoginRoute;
 use Shopware\Core\Checkout\Customer\SalesChannel\AbstractLogoutRoute;
 use Shopware\Core\Checkout\Customer\SalesChannel\AbstractResetPasswordRoute;
@@ -19,9 +23,6 @@ use Shopware\Core\Framework\Routing\RoutingException;
 use Shopware\Core\Framework\Validation\DataBag\DataBag;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\Exception\ConstraintViolationException;
-use Shopware\Core\PlatformRequest;
-use Shopware\Core\System\SalesChannel\Context\SalesChannelContextServiceInterface;
-use Shopware\Core\System\SalesChannel\Context\SalesChannelContextServiceParameters;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Storefront\Checkout\Cart\SalesChannel\StorefrontCartFacade;
 use Shopware\Storefront\Framework\Routing\RequestTransformer;
@@ -32,15 +33,14 @@ use Shopware\Storefront\Page\Account\RecoverPassword\AccountRecoverPasswordPageL
 use Shopware\Storefront\Page\Account\RecoverPassword\AccountRecoverPasswordPageLoader;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * @internal
  * Do not use direct or indirect repository calls in a controller. Always use a store-api route to get or put data
  */
 #[Route(defaults: ['_routeScope' => ['storefront']])]
-#[Package('storefront')]
+#[Package('framework')]
 class AuthController extends StorefrontController
 {
     /**
@@ -52,9 +52,9 @@ class AuthController extends StorefrontController
         private readonly AbstractResetPasswordRoute $resetPasswordRoute,
         private readonly AbstractLoginRoute $loginRoute,
         private readonly AbstractLogoutRoute $logoutRoute,
+        private readonly AbstractImitateCustomerRoute $imitateCustomerRoute,
         private readonly StorefrontCartFacade $cartFacade,
-        private readonly AccountRecoverPasswordPageLoader $recoverPasswordPageLoader,
-        private readonly SalesChannelContextServiceInterface $salesChannelContextService
+        private readonly AccountRecoverPasswordPageLoader $recoverPasswordPageLoader
     ) {
     }
 
@@ -91,8 +91,14 @@ class AuthController extends StorefrontController
     #[Route(path: '/account/guest/login', name: 'frontend.account.guest.login.page', defaults: ['_noStore' => true], methods: ['GET'])]
     public function guestLoginPage(Request $request, SalesChannelContext $context): Response
     {
-        /** @var string $redirect */
-        $redirect = $request->get('redirectTo', 'frontend.account.home.page');
+        /** @var string|null $redirect */
+        $redirect = $request->get('redirectTo');
+        if (!$redirect) {
+            // page was probably called directly
+            $this->addFlash(self::DANGER, $this->trans('account.orderGuestLoginWrongCredentials'));
+
+            return $this->redirectToRoute('frontend.account.login.page');
+        }
 
         $customer = $context->getCustomer();
 
@@ -154,36 +160,23 @@ class AuthController extends StorefrontController
             $token = $this->loginRoute->login($data, $context)->getToken();
             $cartBeforeNewContext = $this->cartFacade->get($token, $context);
 
-            $newContext = $this->salesChannelContextService->get(
-                new SalesChannelContextServiceParameters(
-                    $context->getSalesChannelId(),
-                    $token,
-                    $context->getLanguageIdChain()[0],
-                    $context->getCurrencyId(),
-                    $context->getDomainId(),
-                    $context->getContext()
-                )
-            );
-
-            // Update the sales channel context for CacheResponseSubscriber
-            $request->attributes->set(PlatformRequest::ATTRIBUTE_SALES_CHANNEL_CONTEXT_OBJECT, $newContext);
-
             if (!empty($token)) {
                 $this->addCartErrors($cartBeforeNewContext);
 
                 return $this->createActionResponse($request);
             }
-        } catch (BadCredentialsException|UnauthorizedHttpException|CustomerOptinNotCompletedException|CustomerAuthThrottledException $e) {
-            if ($e instanceof CustomerOptinNotCompletedException) {
-                $errorSnippet = $e->getSnippetKey();
-            }
+        } catch (CustomerOptinNotCompletedException $e) {
+            $errorSnippet = $e->getSnippetKey();
+        } catch (CustomerAuthThrottledException $e) {
+            $waitTime = $e->getWaitTime();
+        } catch (BadCredentialsException|CustomerNotFoundException) {
+        } catch (PasswordPoliciesUpdatedException $e) {
+            $this->addFlash(self::WARNING, $this->trans('account.passwordPoliciesUpdated'));
 
-            if ($e instanceof CustomerAuthThrottledException) {
-                $waitTime = $e->getWaitTime();
-            }
+            return $this->forwardToRoute('frontend.account.recover.page');
+        } finally {
+            $data->set('password', null);
         }
-
-        $data->set('password', null);
 
         return $this->forwardToRoute(
             'frontend.account.login.page',
@@ -228,6 +221,11 @@ class AuthController extends StorefrontController
             $this->addFlash(self::DANGER, $this->trans('error.message-default'));
         } catch (RateLimitExceededException $e) {
             $this->addFlash(self::INFO, $this->trans('error.rateLimitExceeded', ['%seconds%' => $e->getWaitTime()]));
+        } catch (ConstraintViolationException $formViolations) {
+            return $this->forwardToRoute(
+                'frontend.account.recover.page',
+                ['formViolations' => $formViolations]
+            );
         }
 
         return $this->redirectToRoute('frontend.account.recover.page');
@@ -302,5 +300,22 @@ class AuthController extends StorefrontController
         }
 
         return $this->redirectToRoute('frontend.account.profile.page');
+    }
+
+    #[Route(path: '/account/login/imitate-customer', name: 'frontend.account.login.imitate-customer', methods: ['POST'])]
+    public function imitateCustomerLogin(RequestDataBag $data, SalesChannelContext $context): Response
+    {
+        try {
+            $this->imitateCustomerRoute->imitateCustomerLogin($data, $context);
+
+            return $this->redirectToRoute('frontend.account.home.page');
+        } catch (InvalidImitateCustomerTokenException|CustomerNotFoundByIdException) {
+            return $this->forwardToRoute(
+                'frontend.account.login.page',
+                [
+                    'loginError' => true,
+                ]
+            );
+        }
     }
 }

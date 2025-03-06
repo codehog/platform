@@ -7,11 +7,11 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @final
  */
-#[Package('core')]
+#[Package('framework')]
 class EqualsAnyFilter extends SingleFieldFilter
 {
     /**
-     * @param string[]|float[]|int[] $value
+     * @param list<string>|array<string, string>|list<float>|list<int> $value
      */
     public function __construct(
         protected readonly string $field,
@@ -25,7 +25,7 @@ class EqualsAnyFilter extends SingleFieldFilter
     }
 
     /**
-     * @return float[]|int[]|string[]
+     * @return list<string>|array<string, string>|list<float>|list<int>
      */
     public function getValue(): array
     {

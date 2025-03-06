@@ -1,9 +1,7 @@
-import { shallowMount } from '@vue/test-utils';
-
-import 'src/app/component/entity/sw-bulk-edit-modal';
-import 'src/app/component/data-grid/sw-data-grid';
-import 'src/app/component/base/sw-modal';
-import 'src/app/component/grid/sw-pagination';
+/**
+ * @sw-package framework
+ */
+import { mount } from '@vue/test-utils';
 
 const responses = global.repositoryFactoryMock.responses;
 
@@ -26,42 +24,66 @@ describe('src/app/component/entity/sw-bulk-edit-modal', () => {
     };
 
     const modal = async () => {
-        return shallowMount(await Shopware.Component.build('sw-bulk-edit-modal'), {
-            stubs: stubs,
-            data() {
-                return {};
-            },
-            propsData: {
-                selection: {
-                    uuid1: { id: 'uuid1', manufacturer: 'Wordify', name: 'Portia Jobson' },
-                    uuid2: { id: 'uuid2', manufacturer: 'Twitternation', name: 'Baxy Eardley' },
-                    uuid3: { id: 'uuid3', manufacturer: 'Skidoo', name: 'Arturo Staker' },
-                },
-                bulkGridEditColumns: [],
-                currencies: [],
-            },
-            provide: {
-                shortcutService: {
-                    startEventListener: () => {
+        return mount(
+            await wrapTestComponent('sw-bulk-edit-modal', {
+                sync: true,
+            }),
+            {
+                props: {
+                    selection: {
+                        uuid1: {
+                            id: 'uuid1',
+                            manufacturer: 'Wordify',
+                            name: 'Portia Jobson',
+                        },
+                        uuid2: {
+                            id: 'uuid2',
+                            manufacturer: 'Twitternation',
+                            name: 'Baxy Eardley',
+                        },
+                        uuid3: {
+                            id: 'uuid3',
+                            manufacturer: 'Skidoo',
+                            name: 'Arturo Staker',
+                        },
                     },
-                    stopEventListener: () => {
+                    bulkGridEditColumns: [],
+                    currencies: [],
+                },
+                global: {
+                    stubs: stubs,
+                    data() {
+                        return {};
+                    },
+                    provide: {
+                        shortcutService: {
+                            startEventListener: () => {},
+                            stopEventListener: () => {},
+                        },
                     },
                 },
             },
-        });
+        );
     };
 
     beforeAll(async () => {
         stubs = {
-            'sw-modal': await Shopware.Component.build('sw-modal'),
-            'sw-data-grid': await Shopware.Component.build('sw-data-grid'),
-            'sw-pagination': await Shopware.Component.build('sw-pagination'),
+            'sw-modal': await wrapTestComponent('sw-modal'),
+            'sw-data-grid': await wrapTestComponent('sw-data-grid'),
+            'sw-pagination': await wrapTestComponent('sw-pagination'),
             'sw-checkbox-field': {
                 template: '<div class="sw-checkbox-field"></div>',
             },
-            'sw-icon': true,
-            'sw-button': true,
             'sw-select-field': true,
+            'sw-loader': true,
+            'sw-context-menu-item': true,
+            'sw-context-button': true,
+            'sw-data-grid-settings': true,
+            'sw-data-grid-column-boolean': true,
+            'sw-data-grid-inline-edit': true,
+            'router-link': true,
+            'sw-data-grid-skeleton': true,
+            'sw-provide': true,
         };
     });
 

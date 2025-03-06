@@ -10,7 +10,7 @@ use Shopware\Core\Framework\Api\OAuth\User\User;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
-#[Package('core')]
+#[Package('framework')]
 class UserRepository implements UserRepositoryInterface
 {
     /**
@@ -20,21 +20,14 @@ class UserRepository implements UserRepositoryInterface
     {
     }
 
-    /**
-     * Get a user entity.
-     *
-     * @param string $username
-     * @param string $password
-     * @param string $grantType The grant type used
-     */
     public function getUserEntityByUserCredentials(
-        $username,
-        $password,
-        $grantType,
+        string $username,
+        string $password,
+        string $grantType,
         ClientEntityInterface $clientEntity
     ): ?UserEntityInterface {
         $builder = $this->connection->createQueryBuilder();
-        $user = $builder->select(['user.id', 'user.password'])
+        $user = $builder->select('user.id', 'user.password')
             ->from('user')
             ->where('username = :username')
             ->setParameter('username', $username)

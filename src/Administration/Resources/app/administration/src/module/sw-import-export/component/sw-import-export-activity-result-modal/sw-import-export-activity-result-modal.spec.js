@@ -1,14 +1,9 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@after-sales
  */
-import { shallowMount } from '@vue/test-utils';
-import swImportExportActivityResultModal from 'src/module/sw-import-export/component/sw-import-export-activity-result-modal';
-
-Shopware.Component.register('sw-import-export-activity-result-modal', swImportExportActivityResultModal);
+import { mount } from '@vue/test-utils';
 
 describe('module/sw-import-export/components/sw-import-export-activity-result-modal', () => {
-    let wrapper;
-
     function getLogEntityMock() {
         return {
             state: 'succeeded',
@@ -42,50 +37,67 @@ describe('module/sw-import-export/components/sw-import-export-activity-result-mo
         };
     }
 
-
     async function createWrapper(logEntity = getLogEntityMock()) {
-        return shallowMount(await Shopware.Component.build('sw-import-export-activity-result-modal'), {
-            propsData: {
-                logEntity,
-            },
-            provide: {
-                importExport: {},
-            },
-            stubs: {
-                'sw-modal': {
-                    template: '<div><slot></slot></div>',
+        return mount(
+            await wrapTestComponent('sw-import-export-activity-result-modal', {
+                sync: true,
+            }),
+            {
+                props: {
+                    logEntity,
                 },
-                'sw-card': {
-                    template: '<div><slot></slot></div>',
+                global: {
+                    provide: {
+                        importExport: {},
+                    },
+                    stubs: {
+                        'mt-card': {
+                            template: '<div><slot></slot></div>',
+                        },
+                        'sw-color-badge': true,
+                        'sw-grid': true,
+                        'sw-grid-column': true,
+                    },
                 },
-                'sw-color-badge': true,
-                'sw-button': true,
-                'sw-grid': true,
             },
-        });
+        );
     }
 
-    afterEach(() => {
-        if (wrapper) {
-            wrapper.destroy();
-            wrapper = null;
-        }
-    });
-
-    it('should be a vue.js component', async () => {
-        wrapper = await createWrapper();
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it.each([
-        ['Profile name', 'Default product', 'profile'],
-        ['File name', 'Default product_20211108-141453.csv', 'file-name'],
-        ['Imported records', '1', 'imported'],
-        ['Date / time', '8 November 2021 at 14:50', 'date'],
-        ['User', 'admin', 'user'],
-        ['Type', 'sw-import-export.activity.detail.importLabel', 'type'],
+        [
+            'Profile name',
+            'Default product',
+            'profile',
+        ],
+        [
+            'File name',
+            'Default product_20211108-141453.csv',
+            'file-name',
+        ],
+        [
+            'Imported records',
+            '1',
+            'imported',
+        ],
+        [
+            'Date / time',
+            '8 November 2021 at 14:50',
+            'date',
+        ],
+        [
+            'User',
+            'admin',
+            'user',
+        ],
+        [
+            'Type',
+            'sw-import-export.activity.detail.importLabel',
+            'type',
+        ],
     ])('should display %s', async (_, expectedValue, selector) => {
-        wrapper = await createWrapper();
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         const element = wrapper.find(`.sw-import-export-activity-result-modal__log-info-${selector} dd`);
 
         expect(element.text()).toBe(expectedValue);

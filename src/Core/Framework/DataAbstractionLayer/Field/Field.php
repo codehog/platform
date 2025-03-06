@@ -13,11 +13,11 @@ use Shopware\Core\Framework\DataAbstractionLayer\FieldSerializer\FieldSerializer
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\Struct;
 
-#[Package('core')]
+#[Package('framework')]
 abstract class Field extends Struct
 {
     /**
-     * @var array<string, Flag>
+     * @var array<class-string<Flag>, Flag>
      */
     protected array $flags = [];
 
@@ -71,6 +71,9 @@ abstract class Field extends Struct
         return $this;
     }
 
+    /**
+     * @param class-string<Flag> $class
+     */
     public function removeFlag(string $class): self
     {
         unset($this->flags[$class]);
@@ -78,11 +81,35 @@ abstract class Field extends Struct
         return $this;
     }
 
+    /**
+     * @param class-string<Flag> $class
+     */
     public function is(string $class): bool
     {
         return $this->getFlag($class) !== null;
     }
 
+    /**
+     * @param list<class-string<Flag>> $flagClasses List of flag classes to check
+     */
+    public function isAny(array $flagClasses): bool
+    {
+        foreach ($flagClasses as $flagClass) {
+            if ($this->is($flagClass)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @template TFlag of Flag
+     *
+     * @param class-string<TFlag> $class
+     *
+     * @return TFlag|null
+     */
     public function getFlag(string $class): ?Flag
     {
         return $this->flags[$class] ?? null;

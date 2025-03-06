@@ -1,11 +1,11 @@
 /*
- * @package inventory
+ * @sw-package inventory
  */
 
 import template from './sw-property-option-list.html.twig';
 import './sw-property-option-list.scss';
 
-const { State } = Shopware;
+const { Store, Mixin } = Shopware;
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
@@ -14,6 +14,10 @@ export default {
     inject: [
         'repositoryFactory',
         'acl',
+    ],
+
+    mixins: [
+        Mixin.getByName('listing'),
     ],
 
     props: {
@@ -38,17 +42,16 @@ export default {
             sortBy: 'name',
             sortDirection: 'ASC',
             showDeleteModal: false,
-            limit: 10,
         };
     },
 
     computed: {
         isSystemLanguage() {
-            return State.get('context').api.systemLanguageId === this.currentLanguage;
+            return Store.get('context').api.systemLanguageId === this.currentLanguage;
         },
 
         currentLanguage() {
-            return State.get('context').api.languageId;
+            return Store.get('context').api.languageId;
         },
 
         allowInlineEdit() {
@@ -64,6 +67,10 @@ export default {
 
         disableAddButton() {
             return this.propertyGroup.isLoading || !this.isSystemLanguage || !this.acl.can('property.editor');
+        },
+
+        dataSource() {
+            return this.propertyGroup.options && this.propertyGroup.options.slice(0, this.limit);
         },
     },
 
@@ -168,20 +175,24 @@ export default {
         },
 
         getGroupColumns() {
-            return [{
-                property: 'name',
-                label: this.$tc('sw-property.detail.labelOptionName'),
-                routerLink: 'sw.property.detail',
-                inlineEdit: 'string',
-                primary: true,
-            }, {
-                property: 'colorHexCode',
-                label: this.$tc('sw-property.detail.labelOptionColor'),
-            }, {
-                property: 'position',
-                label: this.$tc('sw-property.detail.labelOptionPosition'),
-                inlineEdit: 'number',
-            }];
+            return [
+                {
+                    property: 'name',
+                    label: this.$tc('sw-property.detail.labelOptionName'),
+                    routerLink: 'sw.property.detail',
+                    inlineEdit: 'string',
+                    primary: true,
+                },
+                {
+                    property: 'colorHexCode',
+                    label: this.$tc('sw-property.detail.labelOptionColor'),
+                },
+                {
+                    property: 'position',
+                    label: this.$tc('sw-property.detail.labelOptionPosition'),
+                    inlineEdit: 'number',
+                },
+            ];
         },
     },
 };

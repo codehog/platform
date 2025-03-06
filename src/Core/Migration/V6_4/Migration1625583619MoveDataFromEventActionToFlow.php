@@ -21,7 +21,7 @@ use Shopware\Core\Framework\Uuid\Uuid;
  *
  * @phpstan-import-type SequenceData from Migration1648803451FixInvalidMigrationOfBusinessEventToFlow
  */
-#[Package('core')]
+#[Package('framework')]
 class Migration1625583619MoveDataFromEventActionToFlow extends MigrationStep
 {
     private const RECIPIENT_TYPE_DEFAULT = 'default';
@@ -301,7 +301,7 @@ class Migration1625583619MoveDataFromEventActionToFlow extends MigrationStep
                 'salesChannelIds' => $salesChannelIds,
                 'numberSalesChannel' => \count($salesChannelIds),
             ],
-            ['salesChannelIds' => ArrayParameterType::STRING]
+            ['salesChannelIds' => ArrayParameterType::BINARY]
         );
 
         if (!$ruleId) {
@@ -366,7 +366,7 @@ class Migration1625583619MoveDataFromEventActionToFlow extends MigrationStep
                 'languageId' => Uuid::fromHexToBytes(Defaults::LANGUAGE_SYSTEM),
                 'salesChannelIds' => Uuid::fromHexToBytesList($salesChannelIds),
             ],
-            ['salesChannelIds' => ArrayParameterType::STRING]
+            ['salesChannelIds' => ArrayParameterType::BINARY]
         );
 
         $result = 'Match one of saleschannels';

@@ -15,7 +15,7 @@ function getStoreApiService(client = null, loginService = null) {
 }
 
 /**
- * @package merchant-services
+ * @sw-package framework
  */
 describe('storeService', () => {
     it('is registered correctly', async () => {

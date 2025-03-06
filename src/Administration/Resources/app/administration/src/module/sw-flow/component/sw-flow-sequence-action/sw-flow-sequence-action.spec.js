@@ -1,19 +1,14 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swFlowSequenceAction from 'src/module/sw-flow/component/sw-flow-sequence-action';
-import 'src/app/component/form/select/base/sw-single-select';
-import 'src/app/component/form/select/base/sw-grouped-single-select';
-import 'src/app/component/form/select/base/sw-select-base';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/form/select/base/sw-select-result-list';
+import { mount } from '@vue/test-utils';
 
 import { ACTION } from 'src/module/sw-flow/constant/flow.constant';
 import FlowBuilderService from 'src/module/sw-flow/service/flow-builder.service';
 
 import EntityCollection from 'src/core/data/entity-collection.data';
+import { createPinia, setActivePinia } from 'pinia';
 
-import Vuex from 'vuex';
-import flowState from 'src/module/sw-flow/state/flow.state';
+/**
+ * @sw-package after-sales
+ */
 
 Shopware.Service().register('shopwareDiscountCampaignService', () => {
     return { isDiscountCampaignActive: jest.fn(() => true) };
@@ -22,8 +17,6 @@ Shopware.Service().register('shopwareDiscountCampaignService', () => {
 Shopware.Service().register('flowBuilderService', () => {
     return new FlowBuilderService();
 });
-
-Shopware.Component.register('sw-flow-sequence-action', swFlowSequenceAction);
 
 const sequenceFixture = {
     id: '2',
@@ -70,171 +63,201 @@ function getSequencesCollection(collection = []) {
     );
 }
 
+const pinia = createPinia();
+
 async function createWrapper(propsData = {}, appFlowResponseData = [], flag = '') {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
-
-    const wrapper = shallowMount(await Shopware.Component.build('sw-flow-sequence-action'), {
-        localVue,
-        stubs: {
-            'sw-icon': {
-                template: '<div class="sw-icon" v-on="$listeners"></div>',
-            },
-            'sw-context-button': true,
-            'sw-context-menu-item': {
-                template: `
-                    <div class="sw-context-menu-item" v-on="$listeners">
-                      <slot></slot>
-                    </div>
-                `,
-            },
-            'sw-single-select': await Shopware.Component.build('sw-single-select'),
-            'sw-grouped-single-select': await Shopware.Component.build('sw-grouped-single-select'),
-            'sw-select-base': await Shopware.Component.build('sw-select-base'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-select-result-list': await Shopware.Component.build('sw-select-result-list'),
-            'sw-popover': {
-                template: '<div class="sw-popover"><slot></slot></div>',
-            },
-            'sw-select-result': {
-                props: ['item', 'index'],
-                template: `<li class="sw-select-result" @click.stop="onClickResult">
-                                <slot></slot>
-                           </li>`,
-                methods: {
-                    onClickResult() {
-                        this.$parent.$parent.$emit('item-select', this.item);
+    return mount(
+        await wrapTestComponent('sw-flow-sequence-action', {
+            sync: true,
+        }),
+        {
+            global: {
+                plugins: [pinia],
+                stubs: {
+                    'sw-context-button': await wrapTestComponent('sw-context-button'),
+                    'sw-context-menu': await wrapTestComponent('sw-context-menu'),
+                    'sw-context-menu-item': await wrapTestComponent('sw-context-menu-item'),
+                    'sw-single-select': await wrapTestComponent('sw-single-select'),
+                    'sw-grouped-single-select': await wrapTestComponent('sw-grouped-single-select'),
+                    'sw-select-base': await wrapTestComponent('sw-select-base'),
+                    'sw-block-field': await wrapTestComponent('sw-block-field'),
+                    'sw-base-field': await wrapTestComponent('sw-base-field'),
+                    'sw-select-result-list': await wrapTestComponent('sw-select-result-list'),
+                    'sw-popover': {
+                        template: '<div class="sw-popover"><slot></slot></div>',
                     },
-                },
-            },
-            'sw-highlight-text': {
-                props: ['text'],
-                template: '<div class="sw-highlight-text">{{ this.text }}</div>',
-            },
-            'sw-field-error': true,
-            'sw-flow-sequence-modal': {
-                props: ['sequence'],
-                template: `<div class="sw-flow-sequence-modal" @click="onSaveActionSuccess">
-                             <slot></slot>
-                           </div>`,
-                methods: {
-                    onSaveActionSuccess() {
-                        this.$emit('process-finish', {
-                            ...this.sequence,
-                            config: {
-                                entity: 'Customer',
-                                tagIds: ['123'],
+                    'sw-select-result': {
+                        props: [
+                            'item',
+                            'index',
+                        ],
+                        template: `
+                        <li class="sw-select-result" @click.stop="onClickResult">
+                            <slot></slot>
+                        </li>`,
+                        methods: {
+                            onClickResult() {
+                                this.$parent.$parent.$emit('item-select', this.item);
                             },
-                        });
-                    },
-                },
-            },
-            'sw-flow-sequence-action-error': true,
-        },
-        propsData: {
-            sequence: sequenceFixture,
-            ...propsData,
-        },
-
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    if (flag === 'appFlowAction') {
-                        return {
-                            create: () => {
-                                return {};
-                            },
-                            search: () => Promise.resolve(appFlowResponseData),
-                        };
-                    }
-
-                    return {
-                        create: () => {
-                            return {};
                         },
-                        search: () => Promise.resolve([]),
-                    };
+                    },
+                    'sw-highlight-text': {
+                        props: ['text'],
+                        template: '<div class="sw-highlight-text">{{ this.text }}</div>',
+                    },
+                    'sw-field-error': true,
+                    'sw-flow-sequence-modal': {
+                        props: ['sequence'],
+                        template: `
+                        <div class="sw-flow-sequence-modal" @click="onSaveActionSuccess">
+                            <slot></slot>
+                        </div>`,
+                        methods: {
+                            onSaveActionSuccess() {
+                                this.$emit('process-finish', {
+                                    ...this.sequence,
+                                    config: {
+                                        entity: 'Customer',
+                                        tagIds: ['123'],
+                                    },
+                                });
+                            },
+                        },
+                    },
+                    'sw-flow-sequence-action-error': true,
+                    'sw-loader': true,
+                    'sw-inheritance-switch': true,
+                    'sw-ai-copilot-badge': true,
+                    'sw-help-text': true,
+                    'router-link': true,
+                },
+
+                provide: {
+                    repositoryFactory: {
+                        create: () => {
+                            if (flag === 'appFlowAction') {
+                                return {
+                                    create: () => {
+                                        return {};
+                                    },
+                                    search: () => Promise.resolve(appFlowResponseData),
+                                };
+                            }
+
+                            return {
+                                create: () => {
+                                    return {};
+                                },
+                                search: () => Promise.resolve([]),
+                            };
+                        },
+                    },
+
+                    flowBuilderService: Shopware.Service('flowBuilderService'),
                 },
             },
 
-            flowBuilderService: Shopware.Service('flowBuilderService'),
+            props: {
+                sequence: sequenceFixture,
+                ...propsData,
+            },
         },
-    });
-    wrapper.vm.$refs = {
-        contextButton: [
-            {
-                $el: {
-                    contains: () => true,
-                },
-            },
-            {
-                $el: {
-                    contains: () => true,
-                },
-            },
-        ],
-    };
-
-    return wrapper;
+    );
 }
 
 describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
-    beforeAll(() => {
-        Shopware.State.registerModule('swFlowState', {
-            ...flowState,
-            state: {
-                flow: {
-                    eventName: '',
-                    sequences: getSequencesCollection([{ ...sequenceFixture }]),
-                },
-                invalidSequences: [],
-                mailTemplates: [],
-                triggerEvent: {
-                    data: {
-                        customer: '',
-                        order: '',
-                    },
-                    customerAware: true,
-                    orderAware: true,
-                    extensions: [],
-                    mailAware: true,
-                    name: 'checkout.customer.login',
-                    aware: [
-                        'Shopware\\Core\\Framework\\Event\\CustomerAware',
-                        'Shopware\\Core\\Framework\\Event\\OrderAware',
-                        'Shopware\\Core\\Framework\\Event\\MailAware',
-                    ],
-                },
-                triggerActions: [
-                    { name: 'action.add.order.tag', requirements: ['Shopware\\Core\\Framework\\Event\\OrderAware'], extensions: [] },
-                    { name: 'action.add.customer.tag', requirements: ['Shopware\\Core\\Framework\\Event\\CustomerAware'], extensions: [] },
-                    { name: 'action.remove.customer.tag', requirements: ['Shopware\\Core\\Framework\\Event\\CustomerAware'], extensions: [] },
-                    { name: 'action.remove.order.tag', requirements: ['Shopware\\Core\\Framework\\Event\\OrderAware'], extensions: [] },
-                    { name: 'action.mail.send', requirements: ['Shopware\\Core\\Framework\\Event\\MailAware'], extensions: [] },
-                    { name: 'action.set.order.state', requirements: ['Shopware\\Core\\Framework\\Event\\OrderAware'], extensions: [] },
-                    { name: 'telegram.send.message', requirements: ['Shopware\\Core\\Framework\\Event\\CustomerAware'], extensions: [] },
-                    { name: 'action.stop.flow', requirements: [], extensions: [] },
-                ],
-                appActions: [],
-                originAvailableActions: [],
+    beforeEach(() => {
+        setActivePinia(pinia);
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection([{ ...sequenceFixture }]));
+        Shopware.Store.get('swFlow').triggerEvent = {
+            data: {
+                customer: '',
+                order: '',
             },
-        });
+            customerAware: true,
+            orderAware: true,
+            extensions: [],
+            mailAware: true,
+            name: 'checkout.customer.login',
+            aware: [
+                'Shopware\\Core\\Framework\\Event\\CustomerAware',
+                'Shopware\\Core\\Framework\\Event\\OrderAware',
+                'Shopware\\Core\\Framework\\Event\\MailAware',
+            ],
+        };
+        Shopware.Store.get('swFlow').triggerActions = [
+            {
+                name: 'action.add.order.tag',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\OrderAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'action.add.customer.tag',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\CustomerAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'action.remove.customer.tag',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\CustomerAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'action.remove.order.tag',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\OrderAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'action.mail.send',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\MailAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'action.set.order.state',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\OrderAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'telegram.send.message',
+                requirements: [
+                    'Shopware\\Core\\Framework\\Event\\CustomerAware',
+                ],
+                extensions: [],
+            },
+            {
+                name: 'action.stop.flow',
+                requirements: [],
+                extensions: [],
+            },
+        ];
     });
 
     it('should able to add an action', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
+        await flushPromises();
 
         const actionItems = wrapper.findAll('.sw-select-result');
-        await actionItems.at(0).trigger('click');
+        await actionItems[0].trigger('click');
 
         const modal = wrapper.find('.sw-flow-sequence-modal');
         await modal.trigger('click');
 
-        const sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        const sequencesState = Shopware.Store.get('swFlow').sequences;
 
         const newSequence = {
             ...wrapper.props().sequence,
@@ -248,7 +271,7 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
     });
 
     it('should show action list correctly', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -276,12 +299,16 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
+        await flushPromises();
 
         const actionItems = wrapper.findAll('.sw-select-result');
         await actionItems.at(0).trigger('click');
+        await flushPromises();
+
         const modalElement = wrapper.find('.sw-flow-sequence-modal');
 
         expect(modalElement.exists()).toBeTruthy();
@@ -294,13 +321,14 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 actionName: ACTION.STOP_FLOW,
             },
         });
+        await flushPromises();
 
         const addAction = wrapper.find('.sw-flow-sequence-action__add-action');
         expect(addAction.exists()).toBeFalsy();
     });
 
     it('should able to remove action container', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -312,20 +340,24 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
 
-        let sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        let sequencesState = Shopware.Store.get('swFlow').sequences;
         expect(sequencesState).toHaveLength(3);
 
+        await wrapper.find('.sw-context-button__button').trigger('click');
+        await flushPromises();
 
         const deleteContainer = wrapper.find('.sw-flow-sequence-action__delete-action-container');
         await deleteContainer.trigger('click');
+        await flushPromises();
 
-        sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        sequencesState = Shopware.Store.get('swFlow').sequences;
         expect(sequencesState).toHaveLength(1);
     });
 
     it('should able to remove an action', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -337,20 +369,26 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
 
-        let sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        let sequencesState = Shopware.Store.get('swFlow').sequences;
         expect(sequencesState).toHaveLength(3);
 
-        const deleteActions = wrapper.findAll('.sw-flow-sequence-action__delete-action');
-        await deleteActions.at(0).trigger('click');
+        const contextMenu = await wrapper.findAll('.sw-flow-sequence-action__context-button');
+        await contextMenu[1].trigger('click');
+        await flushPromises();
 
-        sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        const deleteActions = wrapper.findAll('.sw-flow-sequence-action__delete-action');
+        await deleteActions[0].trigger('click');
+        await flushPromises();
+
+        sequencesState = Shopware.Store.get('swFlow').sequences;
         expect(sequencesState).toHaveLength(2);
         expect(sequencesState[0]).toEqual(sequencesFixture[0]);
     });
 
     it('should set error for single select if action name is empty', async () => {
-        Shopware.State.commit('swFlowState/setInvalidSequences', ['2']);
+        Shopware.Store.get('swFlow').invalidSequences = ['2'];
 
         const wrapper = await createWrapper();
         await wrapper.setProps({
@@ -358,20 +396,19 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 ...sequenceFixture,
             },
         });
+        await flushPromises();
 
-        const actionSelection = wrapper.find('.sw-flow-sequence-action__selection-action');
+        const actionSelection = wrapper.findComponent('.sw-flow-sequence-action__selection-action');
         expect(actionSelection.classes()).toContain('has--error');
-        expect(actionSelection.attributes('error')).toBeTruthy();
+
+        expect(actionSelection.find('sw-field-error-stub').exists()).toBe(true);
     });
 
     it('should remove error for after select an action name', async () => {
-        Shopware.State.commit(
-            'swFlowState/setSequences',
-            getSequencesCollection([{ ...sequenceFixture }]),
-        );
-        Shopware.State.commit('swFlowState/setInvalidSequences', ['2']);
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection([{ ...sequenceFixture }]));
+        Shopware.Store.get('swFlow').invalidSequences = ['2'];
 
-        let invalidSequences = Shopware.State.get('swFlowState').invalidSequences;
+        let invalidSequences = Shopware.Store.get('swFlow').invalidSequences;
         expect(invalidSequences).toEqual(['2']);
 
         const wrapper = await createWrapper();
@@ -380,21 +417,26 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 ...sequenceFixture,
             },
         });
+        await flushPromises();
 
-        const actionSelection = wrapper.find('.sw-flow-sequence-action__selection-action');
+        const actionSelection = wrapper.findComponent('.sw-flow-sequence-action__selection-action');
         expect(actionSelection.classes()).toContain('has--error');
-        expect(actionSelection.attributes('error')).toBeTruthy();
+
+        expect(actionSelection.find('sw-field-error-stub').exists()).toBe(true);
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
+        await flushPromises();
 
         const actionItems = wrapper.findAll('.sw-select-result');
         await actionItems.at(0).trigger('click');
+        await flushPromises();
 
         const modal = wrapper.find('.sw-flow-sequence-modal');
         await modal.trigger('click');
+        await flushPromises();
 
-        invalidSequences = Shopware.State.get('swFlowState').invalidSequences;
+        invalidSequences = Shopware.Store.get('swFlow').invalidSequences;
         expect(invalidSequences).toEqual([]);
         expect(actionSelection.exists()).toBeTruthy();
     });
@@ -406,22 +448,22 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 actionName: ACTION.ADD_TAG,
             },
         });
+        await flushPromises();
 
-        expect(wrapper.find('.sw-flow-sequence-action__context-button').attributes().disabled).toBeFalsy();
-        expect(wrapper.find('.sw-flow-sequence-action__context-button').attributes().disabled).toBeFalsy();
+        expect(wrapper.find('.sw-flow-sequence-action__context-button').classes()).not.toContain('is--disabled');
         expect(wrapper.find('.sw-flow-sequence-action__select').exists()).toBeTruthy();
 
         await wrapper.setProps({
             disabled: true,
         });
+        await flushPromises();
 
-        expect(wrapper.find('.sw-flow-sequence-action__context-button').attributes().disabled).toBeTruthy();
-        expect(wrapper.find('.sw-flow-sequence-action__context-button').attributes().disabled).toBeTruthy();
+        expect(wrapper.find('.sw-flow-sequence-action__context-button').classes()).toContain('is--disabled');
         expect(wrapper.find('.sw-flow-sequence-action__add-action').exists()).toBeFalsy();
     });
 
     it('should able to show move an action', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -439,13 +481,19 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        wrapper.showMoveOption = true;
+        await flushPromises();
+
+        const contextMenu = await wrapper.findAll('.sw-flow-sequence-action__context-button');
+        await contextMenu[1].trigger('click');
+        await flushPromises();
 
         expect(wrapper.find('.sw-flow-sequence-action__move-down').exists()).toBeTruthy();
         expect(wrapper.find('.sw-flow-sequence-action__move-up').exists()).toBeTruthy();
     });
 
     it('should not able to show move an action if has only action', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -454,13 +502,14 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
 
         expect(wrapper.find('.sw-flow-sequence-action__move-down').exists()).toBeFalsy();
         expect(wrapper.find('.sw-flow-sequence-action__move-up').exists()).toBeFalsy();
     });
 
     it('should not able to show move an action if has stop flow action', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -475,13 +524,14 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
 
         expect(wrapper.find('.sw-flow-sequence-action__move-down').exists()).toBeFalsy();
         expect(wrapper.find('.sw-flow-sequence-action__move-up').exists()).toBeFalsy();
     });
 
     it('should able to show move down an action', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -499,20 +549,27 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
+
+        const contextMenu = await wrapper.findAll('.sw-flow-sequence-action__context-button');
+        await contextMenu[1].trigger('click');
+        await flushPromises();
 
         const moveDownAction = wrapper.find('.sw-flow-sequence-action__move-down');
         expect(moveDownAction.exists()).toBeTruthy();
 
-        const sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        const sequencesState = Shopware.Store.get('swFlow').sequences;
         expect(sequencesState[0].position).toBe(1);
         expect(sequencesState[1].position).toBe(2);
         await moveDownAction.trigger('click');
+        await flushPromises();
+
         expect(sequencesState[0].position).toBe(1);
         expect(sequencesState[1].position).toBe(7);
     });
 
     it('should reset position after deleting action', async () => {
-        Shopware.State.commit('swFlowState/setSequences', getSequencesCollection(sequencesFixture));
+        Shopware.Store.get('swFlow').setSequences(getSequencesCollection(sequencesFixture));
 
         const wrapper = await createWrapper({
             sequence: {
@@ -524,18 +581,25 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 },
             },
         });
+        await flushPromises();
+
+        const contextMenu = await wrapper.findAll('.sw-flow-sequence-action__context-button');
+        await contextMenu[1].trigger('click');
+        await flushPromises();
 
         // delete the first action with position 1
         const deleteActions = wrapper.findAll('.sw-flow-sequence-action__delete-action');
-        await deleteActions.at(0).trigger('click');
 
-        const sequencesState = Shopware.State.getters['swFlowState/sequences'];
+        await deleteActions.at(0).trigger('click');
+        await flushPromises();
+
+        const sequencesState = Shopware.Store.get('swFlow').sequences;
         expect(sequencesState).toHaveLength(2);
         expect(sequencesState[0].position).toBe(1);
     });
 
     it('should correct label in set order state description', async () => {
-        Shopware.State.commit('swFlowState/setStateMachineState', [
+        Shopware.Store.get('swFlow').stateMachineState = [
             {
                 technicalName: 'in_progress',
                 stateMachine: {
@@ -554,7 +618,7 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                     name: 'In Progress',
                 },
             },
-        ]);
+        ];
 
         const wrapper = await createWrapper({
             sequence: {
@@ -571,15 +635,19 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
             },
         });
 
+        await flushPromises();
+
         const description = wrapper.find('.sw-flow-sequence-action__action-description');
         expect(description.text()).toContain('sw-flow.modals.status.labelOrderStatus: In Progress');
     });
 
     it('should group flow builder actions', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
+        await flushPromises();
 
         const actionItems = await wrapper.findAll('.sw-grouped-single-select__group-separator');
 
@@ -593,24 +661,32 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
             {
                 label: 'Telegram send message',
                 name: 'telegram.send.message',
-                swIcon: 'default-communication-speech-bubbles',
-                requirements: ['customerAware', 'orderAware'],
+                swIcon: 'regular-envelope',
+                requirements: [
+                    'customerAware',
+                    'orderAware',
+                ],
             },
         ];
 
-        Shopware.State.commit('swFlowState/setAppActions', [{
-            label: 'Telegram send message',
-            name: 'telegram.send.message',
-            swIcon: 'default-communication-speech-bubbles',
-            requirements: ['customerAware', 'orderAware'],
-        }]);
+        Shopware.Store.get('swFlow').setAppActions([
+            {
+                label: 'Telegram send message',
+                name: 'telegram.send.message',
+                swIcon: 'regular-envelope',
+                requirements: [
+                    'customerAware',
+                    'orderAware',
+                ],
+            },
+        ]);
 
         const wrapper = await createWrapper({}, appFlowResponse, 'appFlowAction');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const actionItems = wrapper.findAll('.sw-select-result');
 
@@ -624,7 +700,10 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 label: 'Telegram send message',
                 name: 'telegram.send.message',
                 swIcon: 'default-communication-speech-bubbles',
-                requirements: ['customerAware', 'orderAware'],
+                requirements: [
+                    'customerAware',
+                    'orderAware',
+                ],
                 app: {
                     active: false,
                     name: 'FlowAppSystem',
@@ -632,16 +711,18 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
             },
         ];
 
-        Shopware.State.commit('swFlowState/setAppActions', [{
-            name: 'telegram.send.message',
-        }]);
+        Shopware.Store.get('swFlow').setAppActions([
+            {
+                name: 'telegram.send.message',
+            },
+        ]);
 
         const wrapper = await createWrapper({}, appFlowResponse, 'appFlowAction');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const disabledAction = await wrapper.find('.sw-flow-sequence-action__disabled');
         expect(disabledAction.exists()).toBeTruthy();
@@ -653,18 +734,23 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 label: 'Telegram send message',
                 name: 'telegram.send.message',
                 swIcon: 'default-communication-speech-bubbles',
-                requirements: ['customerAware', 'orderAware'],
+                requirements: [
+                    'customerAware',
+                    'orderAware',
+                ],
             },
         ];
 
         const wrapper = await await createWrapper({}, appFlowResponse, 'appFlowAction');
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
+        await flushPromises();
 
         const actionItems = wrapper.findAll('.sw-select-result');
         await actionItems.at(3).trigger('click');
+        await flushPromises();
 
         const modalElement = wrapper.find('.sw-flow-sequence-modal');
         expect(modalElement.exists()).toBeTruthy();
@@ -676,7 +762,10 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 label: 'Telegram send message',
                 name: 'telegram.send.message',
                 swIcon: 'default-communication-speech-bubbles',
-                requirements: ['customerAware', 'orderAware'],
+                requirements: [
+                    'customerAware',
+                    'orderAware',
+                ],
                 app: {
                     active: false,
                     name: 'FlowAppSystem',
@@ -684,14 +773,15 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
             },
         ];
 
-        const wrapper = await await createWrapper({}, appFlowResponse, 'appFlowAction');
-        await wrapper.vm.$nextTick();
+        const wrapper = await createWrapper({}, appFlowResponse, 'appFlowAction');
+        await flushPromises();
 
         const actionSelect = wrapper.find('.sw-single-select__selection');
         await actionSelect.trigger('click');
+        await flushPromises();
 
         const disabledAction = wrapper.find('.sw-flow-sequence-action__disabled');
-        expect(disabledAction.attributes()['tooltip-id']).toBeTruthy();
+        expect(disabledAction.attributes()['tooltip-mock-message']).toBeTruthy();
     });
 
     it('should correct actions label', async () => {
@@ -700,7 +790,10 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
                 label: 'Telegram send message',
                 name: 'telegram.send.message',
                 swIcon: 'default-communication-speech-bubbles',
-                requirements: ['customerAware', 'orderAware'],
+                requirements: [
+                    'customerAware',
+                    'orderAware',
+                ],
                 app: {
                     active: false,
                     name: 'FlowAppSystem',
@@ -716,20 +809,24 @@ describe('src/module/sw-flow/component/sw-flow-sequence-action', () => {
             },
         ];
 
-        const wrapper = await createWrapper({
-            sequence: {
-                id: '2',
-                ruleId: null,
-                parentId: '1',
-                position: 1,
-                displayGroup: 1,
-                trueCase: false,
-                config: {
-                    message: 'message',
+        const wrapper = await createWrapper(
+            {
+                sequence: {
+                    id: '2',
+                    ruleId: null,
+                    parentId: '1',
+                    position: 1,
+                    displayGroup: 1,
+                    trueCase: false,
+                    config: {
+                        message: 'message',
+                    },
+                    actionName: 'telegram.send.message',
                 },
-                actionName: 'telegram.send.message',
             },
-        }, appFlowResponse, 'appFlowAction');
+            appFlowResponse,
+            'appFlowAction',
+        );
 
         await wrapper.vm.$nextTick();
         const description = wrapper.find('.sw-flow-sequence-action__action-description');

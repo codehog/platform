@@ -4,9 +4,9 @@ import template from './sw-snippet-field-edit-modal.html.twig';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  * @status ready
  * @description The modal component used to edit snippet values in `<sw-snippet-field>`.
  * @example-type code-only
@@ -28,6 +28,11 @@ Component.register('sw-snippet-field-edit-modal', {
         'repositoryFactory',
     ],
 
+    emits: [
+        'modal-close',
+        'save',
+    ],
+
     props: {
         snippets: {
             type: Array,
@@ -47,9 +52,15 @@ Component.register('sw-snippet-field-edit-modal', {
         fieldType: {
             type: String,
             required: true,
-            validValues: ['text', 'textarea'],
+            validValues: [
+                'text',
+                'textarea',
+            ],
             validator(value) {
-                return ['text', 'textarea'].includes(value);
+                return [
+                    'text',
+                    'textarea',
+                ].includes(value);
             },
         },
     },
@@ -69,7 +80,7 @@ Component.register('sw-snippet-field-edit-modal', {
         },
 
         currentAuthor() {
-            return `user/${Shopware.State.get('session').currentUser.username}`;
+            return `user/${Shopware.Store.get('session').currentUser.username}`;
         },
 
         snippetRepository() {
@@ -94,7 +105,7 @@ Component.register('sw-snippet-field-edit-modal', {
             this.isLoading = true;
 
             this.snippetSets.forEach((snippetSet) => {
-                const existingSnippet = this.snippets.find(item => item.setId === snippetSet.id);
+                const existingSnippet = this.snippets.find((item) => item.setId === snippetSet.id);
                 const snippet = this.snippetRepository.create(Shopware.Context.api);
 
                 if (existingSnippet) {
@@ -152,14 +163,10 @@ Component.register('sw-snippet-field-edit-modal', {
 
                 if (snippet.origin !== snippet.value) {
                     // Only save if values differs from origin
-                    responses.push(
-                        this.snippetRepository.save(snippet, Shopware.Context.api),
-                    );
+                    responses.push(this.snippetRepository.save(snippet, Shopware.Context.api));
                 } else if (snippet.hasOwnProperty('id') && snippet.id !== null) {
                     // There's no need to keep a snippet which is exactly like the file-snippet, so delete
-                    responses.push(
-                        this.snippetRepository.delete(snippet.id, Shopware.Context.api),
-                    );
+                    responses.push(this.snippetRepository.delete(snippet.id, Shopware.Context.api));
                 }
             });
 

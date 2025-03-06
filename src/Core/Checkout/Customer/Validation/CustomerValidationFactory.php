@@ -10,7 +10,7 @@ use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerValidationFactory implements DataValidationFactoryInterface
 {
     /**
@@ -53,7 +53,7 @@ class CustomerValidationFactory implements DataValidationFactoryInterface
     private function addConstraints(DataValidationDefinition $definition): void
     {
         $definition
-            ->add('email', new NotBlank(), new Email())
+            ->add('email', new NotBlank(), new Email(null, 'VIOLATION::INVALID_EMAIL_FORMAT_ERROR'))
             ->add('active', new Type('boolean'));
     }
 

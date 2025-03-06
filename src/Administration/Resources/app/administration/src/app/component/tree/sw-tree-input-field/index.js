@@ -4,9 +4,8 @@ import './sw-tree-input-field.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
  * @private
  * @status ready
  * @example-type code-only
@@ -17,8 +16,9 @@ const { Component } = Shopware;
 Component.register('sw-tree-input-field', {
     template,
 
+    emits: ['new-item-create'],
+
     props: {
-        // FIXME: add default value
         // eslint-disable-next-line vue/require-default-prop
         currentValue: {
             type: String,

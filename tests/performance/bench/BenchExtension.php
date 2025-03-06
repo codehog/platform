@@ -35,7 +35,6 @@ class BenchExtension implements ExtensionInterface
             ->setForceInstall(static::parseEnvVar('FORCE_INSTALL', true))
             ->setForceInstallPlugins(static::parseEnvVar('FORCE_INSTALL_PLUGINS', true))
             ->setPlatformEmbedded(static::parseEnvVar('PLATFORM_EMBEDDED'))
-            ->setBypassFinals(static::parseEnvVar('BYPASS_FINALS'))
             ->setEnableCommercial(static::parseEnvVar('ENABLE_COMMERCIAL'))
             ->setLoadEnvFile(static::parseEnvVar('LOAD_ENV_FILE', true))
             ->setProjectDir($_ENV['PROJECT_DIR'] ?? null)
@@ -44,7 +43,7 @@ class BenchExtension implements ExtensionInterface
         (new Fixtures())->load(__DIR__ . '/data.json');
 
         // TODO: Resolve autoloading to [Commercial]/tests/performance/bench so native phpbench `core.extensions` can be used
-        $fixturePath = $bootstrapper->getProjectDir() . '/custom/plugins/SwagCommercial/tests/performance/bench/Common';
+        $fixturePath = $bootstrapper->getPluginPath('SwagCommercial') . '/tests/performance/bench/Common';
         $symfonyContainer = KernelLifecycleManager::getKernel()->getContainer();
         $container->register('symfony-container', fn () => $symfonyContainer);
         $runGroup = $this->getRunGroup();
@@ -95,12 +94,13 @@ class BenchExtension implements ExtensionInterface
         if (is_file($fixturePath) && preg_match('/\.php$/', basename($fixturePath))) {
             yield $fixturePath;
         } elseif (is_dir($fixturePath)) {
-            /** @var string[] $directory */
             $directory = scandir($fixturePath);
-            foreach ($directory as $subName) {
-                if (!preg_match('/^\.+$/', $subName)) {
-                    foreach ($this->findFixtures($fixturePath . \DIRECTORY_SEPARATOR . $subName) as $fixture) {
-                        yield $fixture;
+            if (\is_array($directory)) {
+                foreach ($directory as $subName) {
+                    if (!preg_match('/^\.+$/', $subName)) {
+                        foreach ($this->findFixtures($fixturePath . \DIRECTORY_SEPARATOR . $subName) as $fixture) {
+                            yield $fixture;
+                        }
                     }
                 }
             }

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Shopware\WebInstaller\Tests\Controller;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Shopware\WebInstaller\Controller\FinishController;
@@ -13,22 +14,21 @@ use Twig\Environment;
 
 /**
  * @internal
- *
- * @covers \Shopware\WebInstaller\Controller\FinishController
  */
+#[CoversClass(FinishController::class)]
 class FinishControllerTest extends TestCase
 {
     public function testRendersTemplate(): void
     {
         $controller = new FinishController();
-        $controller->setContainer($this->getContainer());
+        $controller->setContainer($this->buildContainer());
 
         $response = $controller->default(new Request(), '');
 
         static::assertSame('finish.html.twig', $response->getContent());
     }
 
-    private function getContainer(): ContainerInterface
+    private function buildContainer(): ContainerInterface
     {
         $container = new Container();
 

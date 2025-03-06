@@ -7,39 +7,51 @@ use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\Asset\UrlPackage;
 use Symfony\Component\Asset\VersionStrategy\VersionStrategyInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 
-#[Package('core')]
+#[Package('framework')]
 class FallbackUrlPackage extends UrlPackage
 {
     /**
      * @internal
      *
-     * @param string|string[] $baseUrls
+     * @param string|list<string> $baseUrls
      */
     public function __construct(
         string|array $baseUrls,
-        VersionStrategyInterface $versionStrategy
+        VersionStrategyInterface $versionStrategy,
+        private readonly ?RequestStack $requestStack = null
     ) {
-        $baseUrls = iterator_to_array($this->applyFallback($baseUrls), false);
-        parent::__construct($baseUrls, $versionStrategy);
+        if (!\is_array($baseUrls)) {
+            $baseUrls = (array) $baseUrls;
+        }
+
+        parent::__construct($this->applyFallback($baseUrls), $versionStrategy);
     }
 
-    private function applyFallback(array $baseUrls): \Generator
+    /**
+     * @param list<string> $baseUrls
+     *
+     * @return list<string>
+     */
+    private function applyFallback(array $baseUrls): array
     {
-        $request = Request::createFromGlobals();
-        $basePath = $request->getSchemeAndHttpHost() . $request->getBasePath();
-        $requestUrl = rtrim($basePath, '/') . '/';
+        $request = $this->requestStack?->getMainRequest() ?? new Request(server: $_SERVER);
 
-        if ($request->getHost() === '' && EnvironmentHelper::getVariable('APP_URL')) {
+        if ($request->getHost() === '') {
             $requestUrl = EnvironmentHelper::getVariable('APP_URL');
+        } else {
+            $basePath = $request->getSchemeAndHttpHost() . $request->getBasePath();
+            $requestUrl = rtrim($basePath, '/') . '/';
         }
 
-        foreach ($baseUrls as $url) {
+        foreach ($baseUrls as &$url) {
             if ($url === '') {
-                yield $requestUrl;
-            } else {
-                yield $url;
+                $url = $requestUrl;
             }
         }
+        unset($url);
+
+        return $baseUrls;
     }
 }

@@ -3,23 +3,32 @@
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\SalesChannel;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Event\CheckoutOrderPlacedCriteriaEvent;
 use Shopware\Core\Checkout\Cart\Rule\AlwaysValidRule;
+use Shopware\Core\Checkout\Cart\SalesChannel\CartOrderRoute;
+use Shopware\Core\Checkout\Customer\CustomerCollection;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionCollection;
 use Shopware\Core\Content\Product\Aggregate\ProductVisibility\ProductVisibilityDefinition;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
-use Shopware\Core\Framework\Test\IdsCollection;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Sorting\FieldSorting;
+use Shopware\Core\Framework\Routing\RoutingException;
 use Shopware\Core\Framework\Test\TestCaseBase\CountryAddToSalesChannelTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelApiTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\PlatformRequest;
 use Shopware\Core\System\Salutation\SalutationDefinition;
+use Shopware\Core\System\TaxProvider\TaxProviderCollection;
+use Shopware\Core\Test\Integration\PaymentHandler\TestPaymentHandler;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Payment\Handler\MockPaymentHandler\PreparedTestPaymentHandler;
-use Shopware\Tests\Integration\Core\Checkout\Payment\Handler\MockPaymentHandler\SyncTestPaymentHandler;
 use Shopware\Tests\Unit\Core\Checkout\Cart\TaxProvider\_fixtures\TestConstantTaxRateProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,11 +36,9 @@ use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * @internal
- *
- * @group store-api
- *
- * @covers \Shopware\Core\Checkout\Cart\SalesChannel\CartOrderRoute
  */
+#[CoversClass(CartOrderRoute::class)]
+#[Group('store-api')]
 class CartOrderRouteTest extends TestCase
 {
     use CountryAddToSalesChannelTestBehaviour;
@@ -42,11 +49,24 @@ class CartOrderRouteTest extends TestCase
 
     private IdsCollection $ids;
 
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
     private EntityRepository $productRepository;
 
+    /**
+     * @var EntityRepository<CustomerCollection>
+     */
     private EntityRepository $customerRepository;
 
+    /**
+     * @var EntityRepository<TaxProviderCollection>
+     */
     private EntityRepository $taxProviderRepository;
+
+    private string $validSalutationId;
+
+    private string $validCountryId;
 
     protected function setUp(): void
     {
@@ -57,12 +77,44 @@ class CartOrderRouteTest extends TestCase
         ]);
 
         $this->browser->setServerParameter('HTTP_SW_CONTEXT_TOKEN', $this->ids->create('token'));
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->customerRepository = $this->getContainer()->get('customer.repository');
-        $this->taxProviderRepository = $this->getContainer()->get('tax_provider.repository');
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->customerRepository = static::getContainer()->get('customer.repository');
+        $this->taxProviderRepository = static::getContainer()->get('tax_provider.repository');
+        $this->validSalutationId = $this->getValidSalutationId();
+        $this->validCountryId = $this->getValidCountryId($this->ids->get('sales-channel'));
 
-        PreparedTestPaymentHandler::$preOrderPaymentStruct = null;
-        PreparedTestPaymentHandler::$fail = false;
+        $shippingMethodRepository = static::getContainer()->get('shipping_method.repository');
+        $shippingMethodRepository->create([
+            [
+                'id' => $this->ids->get('shipping-method'),
+                'name' => 'test',
+                'technicalName' => 'test',
+                'active' => true,
+                'deliveryTimeId' => static::getContainer()->get('delivery_time.repository')->searchIds(new Criteria(), Context::createDefaultContext())->firstId(),
+                'prices' => [
+                    [
+                        'currencyId' => Defaults::CURRENCY,
+                        'calculation' => 1,
+                        'quantityStart' => 1,
+                        'quantityEnd' => 100,
+                        'currencyPrice' => [
+                            [
+                                'gross' => 0,
+                                'net' => 0,
+                                'linked' => false,
+                                'currencyId' => Defaults::CURRENCY,
+                            ],
+                        ],
+                    ],
+                ],
+                'salesChannels' => [
+                    ['id' => $this->ids->get('sales-channel')],
+                ],
+                'salesChannelDefaultAssignments' => [
+                    ['id' => $this->ids->get('sales-channel')],
+                ],
+            ],
+        ], Context::createDefaultContext());
 
         $this->createTestData();
     }
@@ -80,7 +132,7 @@ class CartOrderRouteTest extends TestCase
         $response = \json_decode($this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
 
         static::assertArrayHasKey('errors', $response);
-        static::assertSame('CHECKOUT__CUSTOMER_NOT_LOGGED_IN', $response['errors'][0]['code']);
+        static::assertSame(RoutingException::CUSTOMER_NOT_LOGGED_IN_CODE, $response['errors'][0]['code']);
     }
 
     public function testOrderEmptyCart(): void
@@ -349,7 +401,7 @@ class CartOrderRouteTest extends TestCase
          * - check for new context token
          * - cart should contain both products
          */
-        $connection = $this->getContainer()->get(Connection::class);
+        $connection = static::getContainer()->get(Connection::class);
         $this->productRepository->create([
             [
                 'id' => $this->ids->create('p2'),
@@ -392,8 +444,8 @@ class CartOrderRouteTest extends TestCase
         $data = \json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         static::assertCount(1, $data['lineItems']);
 
-        $interval = new \DateInterval($this->getContainer()->getParameter('shopware.api.store.context_lifetime'));
-        $intervalInSeconds = (new \DateTime())->setTimeStamp(0)->add($interval)->getTimeStamp();
+        $interval = new \DateInterval(static::getContainer()->getParameter('shopware.api.store.context_lifetime'));
+        $intervalInSeconds = (new \DateTime())->setTimestamp(0)->add($interval)->getTimestamp();
         $intervalInDays = $intervalInSeconds / 86400 + 1;
 
         // expire $originalToken context
@@ -490,8 +542,7 @@ class CartOrderRouteTest extends TestCase
 
     public function testPreparedPaymentStructForwarded(): void
     {
-        $this->createCustomerAndLogin(null, null, PreparedTestPaymentHandler::class);
-        PreparedTestPaymentHandler::$preOrderPaymentStruct = null;
+        $this->createCustomerAndLogin();
 
         $this->browser
             ->request(
@@ -513,8 +564,16 @@ class CartOrderRouteTest extends TestCase
                 '/store-api/checkout/order'
             );
 
-        static::assertNotNull(PreparedTestPaymentHandler::$preOrderPaymentStruct);
-        static::assertSame(PreparedTestPaymentHandler::TEST_STRUCT_CONTENT, PreparedTestPaymentHandler::$preOrderPaymentStruct->all());
+        $criteria = new Criteria();
+        $criteria->addSorting(new FieldSorting('createdAt', FieldSorting::DESCENDING));
+        $criteria->setLimit(1);
+
+        /** @var EntityRepository<OrderTransactionCollection> $transactionRepo */
+        $transactionRepo = static::getContainer()->get('order_transaction.repository');
+        $transaction = $transactionRepo->search($criteria, Context::createDefaultContext())->getEntities()->first();
+
+        static::assertNotNull($transaction);
+        static::assertContains('testValue', $transaction->getValidationData());
     }
 
     public function testTaxProviderAppliedIfGiven(): void
@@ -591,7 +650,7 @@ class CartOrderRouteTest extends TestCase
         $email = Uuid::randomHex() . '@example.com';
         $password = 'shopware';
 
-        $this->createCustomerAndLogin($email, $password, PreparedTestPaymentHandler::class, true);
+        $this->createCustomerAndLogin($email, $password, true);
 
         // Fill product
         $this->browser
@@ -628,7 +687,7 @@ class CartOrderRouteTest extends TestCase
 
     public function testOrderToNotSpecifiedWithoutExistingSalutation(): void
     {
-        $connection = $this->getContainer()->get(Connection::class);
+        $connection = static::getContainer()->get(Connection::class);
 
         $email = Uuid::randomHex() . '@example.com';
         $password = 'shopware';
@@ -643,7 +702,7 @@ class CartOrderRouteTest extends TestCase
         $salutations = $connection->fetchAllKeyValue('SELECT salutation_key, id FROM salutation');
         static::assertArrayNotHasKey(SalutationDefinition::NOT_SPECIFIED, $salutations);
 
-        $this->createCustomerAndLogin($email, $password, PreparedTestPaymentHandler::class, true);
+        $this->createCustomerAndLogin($email, $password, true);
 
         // Fill product
         $this->browser
@@ -679,7 +738,7 @@ class CartOrderRouteTest extends TestCase
 
     protected function catchEvent(string $eventName, ?Event &$eventResult): void
     {
-        $this->addEventListener($this->getContainer()->get('event_dispatcher'), $eventName, static function (Event $event) use (&$eventResult): void {
+        $this->addEventListener(static::getContainer()->get('event_dispatcher'), $eventName, static function (Event $event) use (&$eventResult): void {
             $eventResult = $event;
         });
     }
@@ -705,18 +764,20 @@ class CartOrderRouteTest extends TestCase
         ], Context::createDefaultContext());
     }
 
-    /**
-     * @param class-string $paymentHandler
-     */
     private function createCustomerAndLogin(
         ?string $email = null,
         ?string $password = null,
-        string $paymentHandler = SyncTestPaymentHandler::class,
         bool $invalidSalutationId = false
     ): void {
         $email ??= Uuid::randomHex() . '@example.com';
         $password ??= 'shopware';
-        $this->createCustomer($password, $email, $paymentHandler, $invalidSalutationId);
+        $this->createCustomer(
+            $password,
+            $email,
+            $invalidSalutationId,
+            $this->validSalutationId,
+            $this->validCountryId
+        );
 
         $this->login($email, $password);
     }
@@ -742,14 +803,12 @@ class CartOrderRouteTest extends TestCase
         $this->browser->setServerParameter('HTTP_SW_CONTEXT_TOKEN', $contextToken);
     }
 
-    /**
-     * @param class-string $paymentHandler
-     */
     private function createCustomer(
         string $password,
         ?string $email = null,
-        string $paymentHandler = SyncTestPaymentHandler::class,
-        bool $invalidSalutaionId = false
+        bool $invalidSalutaionId = false,
+        ?string $validSalutationId = null,
+        ?string $validCountryId = null
     ): string {
         $customerId = Uuid::randomHex();
         $addressId = Uuid::randomHex();
@@ -765,15 +824,16 @@ class CartOrderRouteTest extends TestCase
                     'street' => 'Musterstraße 1',
                     'city' => 'Schöppingen',
                     'zipcode' => '12345',
-                    'salutationId' => $this->getValidSalutationId(),
-                    'countryId' => $this->getValidCountryId($this->ids->get('sales-channel')),
+                    'salutationId' => $validSalutationId ?? $this->getValidSalutationId(),
+                    'countryId' => $validCountryId ?? $this->getValidCountryId($this->ids->get('sales-channel')),
                 ],
                 'defaultBillingAddressId' => $addressId,
-                'defaultPaymentMethod' => [
+                'lastPaymentMethod' => [
                     'name' => 'Invoice',
+                    'technicalName' => Uuid::randomHex(),
                     'active' => true,
                     'description' => 'Default payment method',
-                    'handlerIdentifier' => $paymentHandler,
+                    'handlerIdentifier' => TestPaymentHandler::class,
                     'salesChannels' => [
                         [
                             'id' => $this->ids->get('sales-channel'),
@@ -785,7 +845,7 @@ class CartOrderRouteTest extends TestCase
                 'password' => $password,
                 'firstName' => 'Max',
                 'lastName' => 'Mustermann',
-                'salutationId' => ($invalidSalutaionId ? null : $this->getValidSalutationId()),
+                'salutationId' => ($invalidSalutaionId ? null : $validSalutationId ?? $this->getValidSalutationId()),
                 'customerNumber' => '12345',
             ],
         ], Context::createDefaultContext());

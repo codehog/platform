@@ -7,9 +7,9 @@ use Shopware\Core\Framework\ShopwareHttpException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * @internal only for use by the app-system, will be considered internal from v6.4.0 onward
+ * @internal only for use by the app-system
  */
-#[Package('core')]
+#[Package('framework')]
 class AppUrlChangeStrategyNotFoundHttpException extends ShopwareHttpException
 {
     public function __construct(AppUrlChangeStrategyNotFoundException $previous)

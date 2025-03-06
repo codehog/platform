@@ -6,7 +6,7 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\MessageQueue\AsyncMessageInterface;
 
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
 class ImportExportMessage implements AsyncMessageInterface
 {
     /**

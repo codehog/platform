@@ -1,3 +1,7 @@
+/**
+ * @sw-package framework
+ */
+
 import template from './sw-range-filter.html.twig';
 import './sw-range-filter.scss';
 
@@ -5,12 +9,14 @@ const { Component } = Shopware;
 const { Criteria } = Shopware.Data;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-range-filter', {
     template,
 
     inject: ['feature'],
+
+    emits: ['filter-update'],
 
     props: {
         value: {
@@ -26,11 +32,12 @@ Component.register('sw-range-filter', {
         isShowDivider: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
     },
+
+    computed: {},
 
     watch: {
         value: {

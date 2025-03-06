@@ -2,10 +2,13 @@
 
 namespace Shopware\Tests\Unit\Storefront\Page\Checkout;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\Hook\CartAware;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Test\Generator;
 use Shopware\Storefront\Page\Checkout\Cart\CheckoutCartPage;
 use Shopware\Storefront\Page\Checkout\Cart\CheckoutCartPageLoadedHook;
 use Shopware\Storefront\Page\Checkout\Confirm\CheckoutConfirmPage;
@@ -16,17 +19,15 @@ use Shopware\Storefront\Page\Checkout\Offcanvas\OffcanvasCartPage;
 use Shopware\Storefront\Page\Checkout\Register\CheckoutRegisterPage;
 use Shopware\Storefront\Page\Checkout\Register\CheckoutRegisterPageLoadedHook;
 use Shopware\Storefront\Page\PageLoadedHook;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\Generator;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Page\Checkout\Cart\CheckoutCartPageLoadedHook
- * @covers \Shopware\Storefront\Page\Checkout\Confirm\CheckoutConfirmPageLoadedHook
- * @covers \Shopware\Storefront\Page\Checkout\Offcanvas\CheckoutInfoWidgetLoadedHook
- * @covers \Shopware\Storefront\Page\Checkout\Offcanvas\CheckoutOffcanvasWidgetLoadedHook
- * @covers \Shopware\Storefront\Page\Checkout\Register\CheckoutRegisterPageLoadedHook
  */
+#[CoversClass(CheckoutCartPageLoadedHook::class)]
+#[CoversClass(CheckoutConfirmPageLoadedHook::class)]
+#[CoversClass(CheckoutInfoWidgetLoadedHook::class)]
+#[CoversClass(CheckoutOffcanvasWidgetLoadedHook::class)]
+#[CoversClass(CheckoutRegisterPageLoadedHook::class)]
 class CheckoutPageLoadedHookTest extends TestCase
 {
     /**
@@ -34,7 +35,7 @@ class CheckoutPageLoadedHookTest extends TestCase
      */
     public static function dataProviderHooks(): array
     {
-        $salesChannelContext = Generator::createSalesChannelContext();
+        $salesChannelContext = Generator::generateSalesChannelContext();
 
         return [
             [new CheckoutCartPageLoadedHook((new CheckoutCartPage())->assign(['cart' => new Cart(Uuid::randomHex())]), $salesChannelContext)],
@@ -45,9 +46,7 @@ class CheckoutPageLoadedHookTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider dataProviderHooks
-     */
+    #[DataProvider('dataProviderHooks')]
     public function testNameRespectsCartSource(PageLoadedHook&CartAware $hook): void
     {
         $hook->getCart()->setSource('test');
@@ -55,9 +54,7 @@ class CheckoutPageLoadedHookTest extends TestCase
         static::assertStringEndsWith('-loaded-test', $hook->getName());
     }
 
-    /**
-     * @dataProvider dataProviderHooks
-     */
+    #[DataProvider('dataProviderHooks')]
     public function testNameWithoutCartSource(PageLoadedHook&CartAware $hook): void
     {
         static::assertStringEndsWith('-loaded', $hook->getName());

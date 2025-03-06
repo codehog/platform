@@ -1,13 +1,8 @@
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import swOrderNestedLineItemsModal from 'src/module/sw-order/component/sw-order-nested-line-items-modal';
-import swOrderNestedLineItemsRow from 'src/module/sw-order/component/sw-order-nested-line-items-row';
+import { mount } from '@vue/test-utils';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
-
-Shopware.Component.register('sw-order-nested-line-items-modal', swOrderNestedLineItemsModal);
-Shopware.Component.register('sw-order-nested-line-items-row', swOrderNestedLineItemsRow);
 
 const localCurrency = 'EUR';
 
@@ -67,47 +62,65 @@ const mockChildrenCollection = [
 ];
 
 async function createWrapper() {
-    const localVue = createLocalVue();
+    return mount(
+        await wrapTestComponent('sw-order-nested-line-items-modal', {
+            sync: true,
+        }),
+        {
+            props: {
+                order: {
+                    currency: {
+                        isoCode: localCurrency,
+                    },
+                },
+                lineItem: mockParent,
+                context: {},
+            },
+            global: {
+                provide: {
+                    shortcutService: {
+                        startEventListener: () => {},
+                        stopEventListener: () => {},
+                    },
+                    repositoryFactory: {
+                        create: () => ({
+                            search: (criteria) => {
+                                const parentIds = criteria.filters
+                                    .find((filter) => filter.field === 'parentId')
+                                    .value.split('|');
+                                const entities = mockChildrenCollection.filter((entity) =>
+                                    parentIds.includes(entity.parentId),
+                                );
 
-    return shallowMount(await Shopware.Component.build('sw-order-nested-line-items-modal'), {
-        localVue,
-        propsData: {
-            order: {
-                currency: {
-                    shortName: localCurrency,
+                                // children association mock
+                                entities.forEach((entity) => {
+                                    entity.children = mockChildrenCollection.filter((child) => child.parentId === entity.id);
+                                });
+
+                                return Promise.resolve(entities);
+                            },
+                        }),
+                    },
+                },
+                stubs: {
+                    'sw-modal': await wrapTestComponent('sw-modal', {
+                        sync: true,
+                    }),
+                    'sw-loader': await wrapTestComponent('sw-loader', {
+                        sync: true,
+                    }),
+                    'sw-order-nested-line-items-row': await wrapTestComponent('sw-order-nested-line-items-row', {
+                        sync: true,
+                    }),
+                    'sw-loader-deprecated': true,
+                    'router-link': true,
+                },
+                mocks: {
+                    $tc: (snippet) => snippet,
                 },
             },
-            lineItem: mockParent,
-            context: {},
         },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: (criteria) => {
-                        const parentIds = criteria.filters.find(filter => filter.field === 'parentId')
-                            .value.split('|');
-                        const entities = mockChildrenCollection.filter(entity => parentIds.includes(entity.parentId));
-
-                        // children association mock
-                        entities.forEach((entity) => {
-                            entity.children = mockChildrenCollection.filter(child => child.parentId === entity.id);
-                        });
-
-                        return Promise.resolve(entities);
-                    },
-                }),
-            },
-        },
-        stubs: {
-            'sw-modal': true,
-            'sw-loader': true,
-            'sw-button': true,
-            'sw-order-nested-line-items-row': await Shopware.Component.build('sw-order-nested-line-items-row'),
-        },
-        mocks: {
-            $tc: snippet => snippet,
-        },
-    });
+    );
 }
 
 describe('src/module/sw-order/component/sw-order-nested-line-items-modal', () => {
@@ -136,9 +149,9 @@ describe('src/module/sw-order/component/sw-order-nested-line-items-modal', () =>
     });
 
     it('should render the items in the correct order with correct indentation class and properties', async () => {
+        const currencyFilter = Shopware.Filter.getByName('currency');
         const wrapper = await createWrapper();
         await flushPromises();
-        const currencyFilter = Shopware.Filter.getByName('currency');
 
         const content = wrapper.findAll('.sw-order-nested-line-items-row__content');
 
@@ -150,63 +163,72 @@ describe('src/module/sw-order/component/sw-order-nested-line-items-modal', () =>
                 unitPrice: 10,
                 totalPrice: 100,
                 taxRate: 1,
-            }, {
+            },
+            {
                 label: 'lineItem 1.1',
                 nestingLevel: 2,
                 quantity: 11,
                 unitPrice: 110,
                 totalPrice: 1100,
                 taxRate: 1.1,
-            }, {
+            },
+            {
                 label: 'lineItem 1.1.1',
                 nestingLevel: 3,
                 quantity: 111,
                 unitPrice: 1110,
                 totalPrice: 11100,
                 taxRate: 1.11,
-            }, {
+            },
+            {
                 label: 'lineItem 1.1.1.1',
                 nestingLevel: 4,
                 quantity: 1111,
                 unitPrice: 11110,
                 totalPrice: 111100,
                 taxRate: 1.111,
-            }, {
+            },
+            {
                 label: 'lineItem 1.1.1.1.1',
                 nestingLevel: 5,
                 quantity: 11111,
                 unitPrice: 111110,
                 totalPrice: 1111100,
                 taxRate: 1.1111,
-            }, {
+            },
+            {
                 label: 'lineItem 1.1.2',
                 nestingLevel: 3,
                 quantity: 112,
                 unitPrice: 1120,
                 totalPrice: 11200,
                 taxRate: 1.12,
-            }, {
+            },
+            {
                 label: 'lineItem 1.2',
                 nestingLevel: 2,
                 quantity: 12,
                 unitPrice: 120,
                 totalPrice: 1200,
                 taxRate: 1.2,
-            }, {
+            },
+            {
                 label: 'lineItem 1.3',
                 nestingLevel: 2,
                 quantity: 13,
                 unitPrice: 130,
                 totalPrice: 1300,
                 taxRate: 1.3,
-            }, {
+            },
+            {
                 label: 'lineItem 2',
                 nestingLevel: 1,
                 quantity: 2,
                 unitPrice: 20,
                 totalPrice: 200,
                 taxRate: 2,
-            }, {
+            },
+            {
                 label: 'lineItem 2.1',
                 nestingLevel: 2,
                 quantity: 21,
@@ -228,9 +250,9 @@ describe('src/module/sw-order/component/sw-order-nested-line-items-modal', () =>
 
             expect(currentNestingLevels).toHaveLength(data.nestingLevel - 1);
             expect(currentLabel.text()).toContain(data.label);
-            expect(currentUnitPrice.text()).toContain(currencyFilter(data.unitPrice, localCurrency));
+            expect(currentUnitPrice.text()).toContain(`${currencyFilter(data.unitPrice, localCurrency)}`);
             expect(currentQuantity.text()).toContain(`${data.quantity}`);
-            expect(currentTotalPrice.text()).toContain(currencyFilter(data.totalPrice, localCurrency));
+            expect(currentTotalPrice.text()).toContain(`${currencyFilter(data.totalPrice, localCurrency)}`);
             expect(currentTax.text()).toContain(`${data.taxRate} %`);
         });
     });

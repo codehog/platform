@@ -3,22 +3,22 @@
 namespace Shopware\Tests\Unit\Core\Framework\App\Lifecycle;
 
 use Composer\InstalledVersions;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Shopware\Core\Framework\App\AppEntity;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Shopware\Core\Framework\App\AppException;
 use Shopware\Core\Framework\App\Lifecycle\AppLoader;
-use Shopware\Core\System\SystemConfig\Util\ConfigReader;
+use Shopware\Core\Framework\App\Manifest\Xml\Setup\Setup;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\App\Lifecycle\AppLoader
- * @covers \Shopware\Core\Framework\App\Lifecycle\AbstractAppLoader
  */
+#[CoversClass(AppLoader::class)]
 class AppLoaderTest extends TestCase
 {
     /**
-     * @var array<mixed>
+     * @var array<string, mixed>
      */
     private array $packages;
 
@@ -37,94 +37,6 @@ class AppLoaderTest extends TestCase
         InstalledVersions::reload($this->packages);
     }
 
-    public function testGetConfigWhenNotExists(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('non-existing');
-
-        static::assertNull($appLoader->getConfiguration($appEntity));
-    }
-
-    public function testGetConfig(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('../_fixtures/');
-
-        static::assertNotNull($appLoader->getConfiguration($appEntity));
-    }
-
-    public function testGetCMSNotExistent(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('non-existing');
-
-        static::assertNull($appLoader->getCmsExtensions($appEntity));
-    }
-
-    public function testGetCMS(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('../_fixtures/');
-
-        static::assertNotNull($appLoader->getCmsExtensions($appEntity));
-    }
-
-    public function testGetSnippets(): void
-    {
-        $expectedSnippet = [];
-        $expectedSnippet['en-GB'] = file_get_contents(__DIR__ . '/../_fixtures/Resources/app/administration/snippet/en-GB.json');
-
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('../_fixtures/');
-
-        $snippets = $appLoader->getSnippets($appEntity);
-        static::assertEquals($expectedSnippet, $snippets);
-    }
-
-    public function testSnippetsMissing(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('non-existing');
-
-        static::assertSame([], $appLoader->getSnippets($appEntity));
-    }
-
     public function testLoadAppByComposer(): void
     {
         $packages = InstalledVersions::getAllRawData();
@@ -132,7 +44,7 @@ class AppLoaderTest extends TestCase
         $modified = $packages[0];
         static::assertIsArray($modified);
         $modified['versions'] = [
-            // Points to path that does not exists
+            // Points to path that does not exist
             'swag/app' => [
                 'dev_requirement' => false,
                 'type' => AppLoader::COMPOSER_TYPE,
@@ -142,11 +54,7 @@ class AppLoaderTest extends TestCase
 
         InstalledVersions::reload($modified);
 
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
+        $appLoader = $this->getAppLoader();
 
         $apps = $appLoader->load();
         static::assertCount(1, $apps);
@@ -159,77 +67,82 @@ class AppLoaderTest extends TestCase
         static::assertEquals('test', $app->getMetadata()->getName());
         static::assertEquals('1.0.0', $app->getMetadata()->getVersion());
 
-        static::expectException(AppException::class);
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('App test is managed by Composer and cannot be deleted');
         $appLoader->deleteApp('test');
     }
 
-    public function testGetFlowActions(): void
+    public function testLoadAppByComposerWithInvalidAppManifest(): void
     {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
+        $packages = InstalledVersions::getAllRawData();
+        $modified = $packages[0];
+        static::assertIsArray($modified);
 
-        $appEntity = new AppEntity();
-        $appEntity->setPath('../_fixtures/');
-
-        $flowActions = $appLoader->getFlowActions($appEntity);
-        static::assertNotNull($flowActions);
-        static::assertNotNull($flowActions->getActions());
-    }
-
-    public function testGetFlowActionsWithFileNotExist(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('../_fixtures/flow/');
-
-        $flowActions = $appLoader->getFlowActions($appEntity);
-        static::assertNull($flowActions);
-    }
-
-    public function testGetFlowEvents(): void
-    {
-        $appLoader = new AppLoader(
-            __DIR__,
-            __DIR__,
-            new ConfigReader()
-        );
-
-        $appEntity = new AppEntity();
-        $appEntity->setPath('../_fixtures/');
-
-        $expected = [
-            'name' => 'swag.before.open_the_doors',
-            'aware' => ['customerAware'],
+        $modified['versions'] = [
+            'swag/invalidManifestApp' => [
+                'dev_requirement' => false,
+                'type' => AppLoader::COMPOSER_TYPE,
+                'install_path' => __DIR__ . '/_fixtures/invalidManifestApp',
+            ],
         ];
 
-        $events = $appLoader->getFlowEvents($appEntity);
-        static::assertNotNull($events);
-        static::assertNotNull($events->getCustomEvents());
-        $customEvents = $events->getCustomEvents();
-        $events = $customEvents->getCustomEvents();
-        static::assertEquals($expected, $events[0]->toArray('en-GB'));
-    }
+        InstalledVersions::reload($modified);
 
-    public function testGetFlowEventsWithFileNotExist(): void
-    {
+        $loggerMock = $this->createMock(LoggerInterface::class);
+        $loggerMock->expects(static::once())->method('error');
+
         $appLoader = new AppLoader(
             __DIR__,
-            __DIR__,
-            new ConfigReader()
+            $loggerMock
         );
 
-        $appEntity = new AppEntity();
-        $appEntity->setPath(__DIR__ . '/../_fixtures/flow/');
+        $appLoader->load();
+    }
 
-        $events = $appLoader->getFlowEvents($appEntity);
-        static::assertNull($events);
+    public function testLoadShouldLoadOnlyValidPlugin(): void
+    {
+        $loggerMock = $this->createMock(LoggerInterface::class);
+        $loggerMock->expects(static::exactly(2))->method('error');
+
+        $appLoader = new AppLoader(
+            __DIR__ . '/_fixtures/appDirValidationTest',
+            $loggerMock
+        );
+
+        $result = $appLoader->load();
+
+        static::assertCount(2, $result);
+        static::assertArrayHasKey('ValidManifestApp', $result);
+        static::assertArrayHasKey('ValidAppWithLocalManifest', $result);
+    }
+
+    public function testLoadLocalManifest(): void
+    {
+        $loggerMock = $this->createMock(LoggerInterface::class);
+        $loggerMock->expects(static::exactly(2))->method('error');
+
+        $appLoader = new AppLoader(
+            __DIR__ . '/_fixtures/appDirValidationTest',
+            $loggerMock
+        );
+
+        $result = $appLoader->load();
+
+        static::assertArrayHasKey('ValidAppWithLocalManifest', $result);
+
+        $localManifestApp = $result['ValidAppWithLocalManifest'];
+
+        static::assertSame($localManifestApp->getMetadata()->getPrivacy(), 'https://overrided.com/privacy');
+        static::assertInstanceOf(Setup::class, $setup = $localManifestApp->getSetup());
+        static::assertSame($setup->getRegistrationUrl(), 'https://overrided.com/auth');
+        static::assertSame($setup->getSecret(), 'APP_SECRET');
+    }
+
+    private function getAppLoader(): AppLoader
+    {
+        return new AppLoader(
+            __DIR__,
+            new NullLogger()
+        );
     }
 }

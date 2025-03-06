@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Integration\Core\Framework\App\Command;
 
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\Command\UninstallAppCommand;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -17,13 +18,13 @@ class UninstallAppCommandTest extends TestCase
     use IntegrationTestBehaviour;
 
     /**
-     * @var EntityRepository
+     * @var EntityRepository<AppCollection>
      */
-    private $appRepository;
+    private EntityRepository $appRepository;
 
     protected function setUp(): void
     {
-        $this->appRepository = $this->getContainer()->get('app.repository');
+        $this->appRepository = static::getContainer()->get('app.repository');
     }
 
     public function testUninstall(): void
@@ -36,7 +37,6 @@ class UninstallAppCommandTest extends TestCase
             'accessToken' => 'test',
             'integration' => [
                 'label' => 'test',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],
@@ -45,22 +45,22 @@ class UninstallAppCommandTest extends TestCase
             ],
         ]], Context::createDefaultContext());
 
-        $commandTester = new CommandTester($this->getContainer()->get(UninstallAppCommand::class));
+        $commandTester = new CommandTester(static::getContainer()->get(UninstallAppCommand::class));
 
         $commandTester->execute(['name' => 'SwagApp']);
 
-        static::assertEquals(0, $commandTester->getStatusCode());
+        static::assertSame(0, $commandTester->getStatusCode());
 
         static::assertStringContainsString('[OK] App uninstalled successfully.', $commandTester->getDisplay());
     }
 
     public function testUninstallWithNotFoundApp(): void
     {
-        $commandTester = new CommandTester($this->getContainer()->get(UninstallAppCommand::class));
+        $commandTester = new CommandTester(static::getContainer()->get(UninstallAppCommand::class));
 
         $commandTester->execute(['name' => 'SwagApp']);
 
-        static::assertEquals(1, $commandTester->getStatusCode());
+        static::assertSame(1, $commandTester->getStatusCode());
 
         static::assertStringContainsString('[ERROR] No app with name "SwagApp" installed.', $commandTester->getDisplay());
     }

@@ -4,13 +4,14 @@ namespace Shopware\Elasticsearch\Product;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 class SearchFieldConfig
 {
     public function __construct(
         private readonly string $field,
-        private readonly int $ranking,
-        private readonly bool $tokenize
+        private float $ranking,
+        private readonly bool $tokenize,
+        private readonly bool $andLogic = false
     ) {
     }
 
@@ -19,7 +20,7 @@ class SearchFieldConfig
         return $this->tokenize;
     }
 
-    public function getRanking(): int
+    public function getRanking(): float
     {
         return $this->ranking;
     }
@@ -32,5 +33,15 @@ class SearchFieldConfig
     public function isCustomField(): bool
     {
         return str_contains($this->field, 'customFields');
+    }
+
+    public function isAndLogic(): bool
+    {
+        return $this->andLogic;
+    }
+
+    public function setRanking(float $ranking): void
+    {
+        $this->ranking = $ranking;
     }
 }

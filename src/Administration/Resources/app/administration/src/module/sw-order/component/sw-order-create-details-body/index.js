@@ -1,15 +1,19 @@
 import template from './sw-order-create-details-body.html.twig';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
+    emits: [
+        'on-edit-billing-address',
+        'on-edit-shipping-address',
+    ],
+
     props: {
-        // FIXME: add required attribute and or default value
         // eslint-disable-next-line vue/require-default-prop
         customer: {
             type: Object,

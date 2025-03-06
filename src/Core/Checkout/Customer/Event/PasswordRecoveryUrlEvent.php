@@ -9,7 +9,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Contracts\EventDispatcher\Event;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class PasswordRecoveryUrlEvent extends Event implements ShopwareSalesChannelEvent
 {
     public function __construct(
@@ -43,7 +43,7 @@ class PasswordRecoveryUrlEvent extends Event implements ShopwareSalesChannelEven
 
     public function getSalesChannelId(): string
     {
-        return $this->salesChannelContext->getSalesChannel()->getId();
+        return $this->salesChannelContext->getSalesChannelId();
     }
 
     public function getHash(): string

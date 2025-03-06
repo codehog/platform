@@ -4,15 +4,20 @@ import './sw-text-editor-table-toolbar.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
+ * @deprecated tag:v6.8.0 - Will be removed, use mt-text-editor instead.
  *
  * @private
  */
 Component.register('sw-text-editor-table-toolbar', {
     template,
 
+    emits: [
+        'table-modify',
+        'table-delete',
+    ],
+
     props: {
-        // FIXME: add property type
         // eslint-disable-next-line vue/require-prop-types
         selection: {
             required: false,

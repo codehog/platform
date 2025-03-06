@@ -5,7 +5,7 @@ namespace Shopware\Core\Content\ProductStream\ScheduledTask;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\MessageQueue\ScheduledTask\ScheduledTask;
 
-#[Package('business-ops')]
+#[Package('inventory')]
 class UpdateProductStreamMappingTask extends ScheduledTask
 {
     public static function getTaskName(): string
@@ -15,6 +15,6 @@ class UpdateProductStreamMappingTask extends ScheduledTask
 
     public static function getDefaultInterval(): int
     {
-        return 86400; // 24 hours
+        return self::DAILY;
     }
 }

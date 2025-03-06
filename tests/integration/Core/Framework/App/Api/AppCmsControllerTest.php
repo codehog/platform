@@ -4,7 +4,7 @@ namespace Shopware\Tests\Integration\Core\Framework\App\Api;
 
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Test\TestCaseBase\AdminApiTestBehaviour;
-use Shopware\Tests\Integration\Core\Framework\App\AppSystemTestBehaviour;
+use Shopware\Core\Test\AppSystemTestBehaviour;
 use Shopware\Tests\Integration\Core\Framework\App\GuzzleTestClientBehaviour;
 
 /**
@@ -23,7 +23,7 @@ class AppCmsControllerTest extends TestCase
 
         $response = $this->getBrowser()->getResponse();
         static::assertNotFalse($response->getContent());
-        static::assertEquals(200, $response->getStatusCode());
+        static::assertSame(200, $response->getStatusCode());
 
         $json = \file_get_contents(__DIR__ . '/_fixtures/expectedCmsBlocks.json');
         static::assertNotFalse($json);

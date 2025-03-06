@@ -6,7 +6,7 @@ const { Context, Mixin, Filter } = Shopware;
 /**
  * @status ready
  * @description The <u>sw-media-modal-delete</u> component is used to validate the delete action.
- * @package content
+ * @sw-package discovery
  * @example-type code-only
  * @component-example
  * <sw-media-modal-delete :itemsToDelete="[items]">
@@ -18,6 +18,11 @@ export default {
 
     inject: ['repositoryFactory'],
 
+    emits: [
+        'media-delete-modal-close',
+        'media-delete-modal-items-delete',
+    ],
+
     mixins: [
         Mixin.getByName('notification'),
     ],
@@ -27,7 +32,7 @@ export default {
             required: true,
             type: Array,
             validator(value) {
-                return (value.length !== 0);
+                return value.length !== 0;
             },
         },
     },
@@ -55,9 +60,7 @@ export default {
             if (this.mediaItems.length > 0 && this.folders.length > 0) {
                 return {
                     successOverall: 'global.sw-media-modal-delete.notification.successOverall.message.mediaAndFolder',
-                    errorOverall: this.$tc(
-                        'global.sw-media-modal-delete.notification.errorOverall.message.mediaAndFolder',
-                    ),
+                    errorOverall: this.$tc('global.sw-media-modal-delete.notification.errorOverall.message.mediaAndFolder'),
                     modalTitle: this.$tc('global.default.warning'),
                     deleteMessage: this.$tc(
                         'global.sw-media-modal-delete.deleteMessage.mediaAndFolder',
@@ -75,14 +78,10 @@ export default {
                     successOverall: 'global.sw-media-modal-delete.notification.successOverall.message.media',
                     errorOverall: this.$tc('global.sw-media-modal-delete.notification.errorOverall.message.media'),
                     modalTitle: this.$tc('global.default.warning'),
-                    deleteMessage: this.$tc(
-                        'global.sw-media-modal-delete.deleteMessage.media',
-                        this.mediaItems.length,
-                        {
-                            name: this.mediaNameFilter(this.mediaItems[0]),
-                            count: this.mediaItems.length,
-                        },
-                    ),
+                    deleteMessage: this.$tc('global.sw-media-modal-delete.deleteMessage.media', this.mediaItems.length, {
+                        name: this.mediaNameFilter(this.mediaItems[0]),
+                        count: this.mediaItems.length,
+                    }),
                 };
             }
 
@@ -90,14 +89,10 @@ export default {
                 successOverall: 'global.sw-media-modal-delete.notification.successOverall.message.folder',
                 errorOverall: this.$tc('global.sw-media-modal-delete.notification.errorOverall.message.folder'),
                 modalTitle: this.$tc('global.default.warning'),
-                deleteMessage: this.$tc(
-                    'global.sw-media-modal-delete.deleteMessage.folder',
-                    this.folders.length,
-                    {
-                        name: this.folders[0].name,
-                        count: this.folders.length,
-                    },
-                ),
+                deleteMessage: this.$tc('global.sw-media-modal-delete.deleteMessage.folder', this.folders.length, {
+                    name: this.folders[0].name,
+                    count: this.folders.length,
+                }),
             };
         },
 
@@ -109,7 +104,7 @@ export default {
         mediaInUsages() {
             if (this.mediaItems.length <= 1) return [];
 
-            return this.mediaItems.filter(mediaItem => this._checkInUsage(mediaItem));
+            return this.mediaItems.filter((mediaItem) => this._checkInUsage(mediaItem));
         },
     },
 
@@ -150,7 +145,8 @@ export default {
 
             item.isLoading = true;
 
-            return repository.delete(item.id, Context.api)
+            return repository
+                .delete(item.id, Context.api)
                 .then(() => {
                     return true;
                 })
@@ -158,9 +154,13 @@ export default {
                     const isMedia = item.getEntityName() === 'media';
                     const errorSnippet = 'global.sw-media-modal-delete.notification.errorSingle.message';
 
-                    const message = isMedia ?
-                        this.$tc(`${errorSnippet}.media`, 1, { name: this.mediaNameFilter(item) }) :
-                        this.$tc(`${errorSnippet}.folder`, 1, { name: item.name });
+                    const message = isMedia
+                        ? this.$tc(`${errorSnippet}.media`, 1, {
+                              name: this.mediaNameFilter(item),
+                          })
+                        : this.$tc(`${errorSnippet}.folder`, 1, {
+                              name: item.name,
+                          });
 
                     this.createNotificationError({
                         message,
@@ -180,41 +180,41 @@ export default {
 
             const deletions = await Promise.all(deleteSelections);
 
-            const amounts = deletions.reduce((acc, isSuccess) => {
-                acc.success = isSuccess ? acc.success += 1 : acc.success;
-                acc.failure = isSuccess ? acc.failure : acc.failure += 1;
+            const amounts = deletions.reduce(
+                (acc, isSuccess) => {
+                    acc.success = isSuccess ? (acc.success += 1) : acc.success;
+                    acc.failure = isSuccess ? acc.failure : (acc.failure += 1);
 
-                return acc;
-            }, { success: 0, failure: 0 });
+                    return acc;
+                },
+                { success: 0, failure: 0 },
+            );
 
             if (amounts.success > 0) {
                 this.updateSuccessNotification(amounts.success, amounts.failure, deletions.length);
             }
 
-            this.$emit(
-                'media-delete-modal-items-delete',
-                {
-                    mediaIds: this.mediaItems.map((media) => { return media.id; }),
-                    folderIds: this.folders.map((folder) => { return folder.id; }),
-                },
-            );
+            this.$emit('media-delete-modal-items-delete', {
+                mediaIds: this.mediaItems.map((media) => {
+                    return media.id;
+                }),
+                folderIds: this.folders.map((folder) => {
+                    return folder.id;
+                }),
+            });
         },
 
         async updateSuccessNotification(successAmount, failureAmount, totalAmount) {
             const notification = {
-                message: this.$tc(
-                    this.snippets.successOverall,
-                    successAmount,
-                    {
-                        count: successAmount,
-                        total: totalAmount,
-                    },
-                ),
+                message: this.$tc(this.snippets.successOverall, successAmount, {
+                    count: successAmount,
+                    total: totalAmount,
+                }),
                 growl: successAmount + failureAmount === totalAmount,
             };
 
             if (this.notificationId !== null) {
-                await Shopware.State.dispatch('notification/updateNotification', {
+                await Shopware.Store.get('notification').updateNotification({
                     uuid: this.notificationId,
                     ...notification,
                 });
@@ -226,7 +226,7 @@ export default {
                 return;
             }
 
-            const newNotificationId = await Shopware.State.dispatch('notification/createNotification', {
+            const newNotificationId = await Shopware.Store.get('notification').createNotification({
                 variant: 'success',
                 ...notification,
             });
@@ -237,7 +237,7 @@ export default {
         },
 
         _checkInUsage(mediaItem) {
-            if (mediaItem.avatarUsers) {
+            if (mediaItem.avatarUsers?.[0]) {
                 return true;
             }
 

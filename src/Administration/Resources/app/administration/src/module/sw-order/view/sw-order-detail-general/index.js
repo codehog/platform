@@ -1,20 +1,44 @@
 import template from './sw-order-detail-general.html.twig';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-const { Utils, Mixin } = Shopware;
+const { Utils, Mixin, Store } = Shopware;
 const { format, array } = Utils;
-const { mapGetters, mapState } = Shopware.Component.getComponentHelper();
 const { cloneDeep } = Shopware.Utils.object;
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
-    inject: [
-        'acl',
+    inject: {
+        swOrderDetailOnSaveAndReload: {
+            from: 'swOrderDetailOnSaveAndReload',
+            default: null,
+        },
+        swOrderDetailOnSaveEdits: {
+            from: 'swOrderDetailOnSaveEdits',
+            default: null,
+        },
+        swOrderDetailOnRecalculateAndReload: {
+            from: 'swOrderDetailOnRecalculateAndReload',
+            default: null,
+        },
+        swOrderDetailOnSaveAndRecalculate: {
+            from: 'swOrderDetailOnSaveAndRecalculate',
+            default: null,
+        },
+        acl: {
+            from: 'acl',
+            default: null,
+        },
+    },
+
+    emits: [
+        'save-and-recalculate',
+        'save-edits',
+        'recalculate-and-reload',
     ],
 
     mixins: [
@@ -33,15 +57,18 @@ export default {
         },
     },
 
-    computed: {
-        ...mapGetters('swOrderDetail', [
-            'isLoading',
-        ]),
+    data() {
+        return {
+            shippingCosts: null,
+        };
+    },
 
-        ...mapState('swOrderDetail', [
-            'order',
-            'versionContext',
-        ]),
+    computed: {
+        isLoading: () => Store.get('swOrderDetail').isLoading,
+
+        order: () => Store.get('swOrderDetail').order,
+
+        versionContext: () => Store.get('swOrderDetail').versionContext,
 
         delivery() {
             return this.order.deliveries[0];
@@ -53,19 +80,25 @@ export default {
 
         shippingCostsDetail() {
             const calcTaxes = this.sortByTaxRate(cloneDeep(this.order.shippingCosts.calculatedTaxes));
-            const formattedTaxes = `${calcTaxes.map(
-                calcTax => `${this.$tc('sw-order.detailBase.shippingCostsTax', 0, {
-                    taxRate: calcTax.taxRate,
-                    tax: format.currency(calcTax.tax, this.order.currency.shortName),
-                })}`,
-            ).join('<br>')}`;
+            const formattedTaxes = `${calcTaxes
+                .map(
+                    (calcTax) =>
+                        `${this.$tc(
+                            'sw-order.detailBase.shippingCostsTax',
+                            {
+                                taxRate: calcTax.taxRate,
+                                tax: format.currency(calcTax.tax, this.order.currency.isoCode),
+                            },
+                            0,
+                        )}`,
+                )
+                .join('<br>')}`;
 
             return `${this.$tc('sw-order.detailBase.tax')}<br>${formattedTaxes}`;
         },
 
         sortedCalculatedTaxes() {
-            return this.sortByTaxRate(cloneDeep(this.order.price.calculatedTaxes))
-                .filter(price => price.tax !== 0);
+            return this.sortByTaxRate(cloneDeep(this.order.price.calculatedTaxes)).filter((price) => price.tax !== 0);
         },
 
         taxStatus() {
@@ -73,8 +106,10 @@ export default {
         },
 
         displayRounded() {
-            return this.order.totalRounding.interval !== 0.01
-                || this.order.totalRounding.decimals !== this.order.itemRounding.decimals;
+            return (
+                this.order.totalRounding.interval !== 0.01 ||
+                this.order.totalRounding.decimals !== this.order.itemRounding.decimals
+            );
         },
 
         orderTotal() {
@@ -101,22 +136,39 @@ export default {
             });
         },
 
-        onShippingChargeEdited(amount) {
-            this.delivery.shippingCosts.unitPrice = amount;
-            this.delivery.shippingCosts.totalPrice = amount;
+        onShippingChargeEdited() {
+            this.delivery.shippingCosts.unitPrice = this.shippingCosts;
+            this.delivery.shippingCosts.totalPrice = this.shippingCosts;
+
             this.saveAndRecalculate();
+        },
+
+        onShippingChargeUpdated(amount) {
+            this.shippingCosts = amount;
         },
 
         saveAndRecalculate() {
             this.$emit('save-and-recalculate');
+
+            if (this.swOrderDetailOnSaveAndRecalculate) {
+                this.swOrderDetailOnSaveAndRecalculate();
+            }
         },
 
         onSaveEdits() {
             this.$emit('save-edits');
+
+            if (this.swOrderDetailOnSaveEdits) {
+                this.swOrderDetailOnSaveEdits();
+            }
         },
 
         recalculateAndReload() {
             this.$emit('recalculate-and-reload');
+
+            if (this.swOrderDetailOnRecalculateAndReload) {
+                this.swOrderDetailOnRecalculateAndReload();
+            }
         },
     },
 };

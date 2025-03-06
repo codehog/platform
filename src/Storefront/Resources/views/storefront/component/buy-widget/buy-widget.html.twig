@@ -52,15 +52,17 @@
             {% endblock %}
 
             {% block buy_widget_rich_snippets_release_date %}
-                <meta itemprop="releaseDate"
-                      content="{{ product.releaseDate|format_date(pattern='Y-MM-dd') }}">
+                {% if product.releaseDate %}
+                    <meta itemprop="releaseDate"
+                          content="{{ product.releaseDate|format_date(pattern='Y-MM-dd') }}">
+                {% endif %}
             {% endblock %}
         {% endblock %}
 
         {% block buy_widget_buy_container %}
             <div itemprop="offers"
                  itemscope
-                 itemtype="{% if product.calculatedPrices|length > 1 %}http://schema.org/AggregateOffer{% else %}http://schema.org/Offer{% endif %}">
+                 itemtype="{% if product.calculatedPrices|length > 1 %}https://schema.org/AggregateOffer{% else %}https://schema.org/Offer{% endif %}">
                 {% block buy_widget_data %}
                     {% block buy_widget_data_rich_snippet_url %}
                         <meta itemprop="url"
@@ -100,21 +102,22 @@
 
                     {% block buy_widget_tax %}
                         <div class="product-detail-tax-container">
-                            {% if context.taxState == "gross" %}
-                                {% set taxText = "general.grossTaxInformation"|trans|sw_sanitize %}
+                            {% if context.taxState == 'gross' %}
+                                {% set taxText = 'general.grossTaxInformation'|trans|sw_sanitize %}
                             {% else %}
-                                {% set taxText = "general.netTaxInformation"|trans|sw_sanitize %}
+                                {% set taxText = 'general.netTaxInformation'|trans|sw_sanitize %}
                             {% endif %}
 
                             <p class="product-detail-tax">
                                 {% block buy_widget_tax_link %}
-                                    <a class="product-detail-tax-link"
-                                       href="{{ path('frontend.cms.page', { id: config('core.basicInformation.shippingPaymentInfoPage') }) }}"
-                                       title="{{ taxText }}"
-                                       data-bs-toggle="modal"
-                                       data-url="{{ path('frontend.cms.page', { id: config('core.basicInformation.shippingPaymentInfoPage') }) }}">
+                                    {% set cmsPath = path('frontend.cms.page', { id: config('core.basicInformation.shippingPaymentInfoPage') }) %}
+
+                                    <button class="btn btn-link-inline"
+                                            type="button"
+                                            data-ajax-modal="true"
+                                            data-url="{{ cmsPath }}">
                                         {{ taxText }}
-                                    </a>
+                                    </button>
                                 {% endblock %}
                             </p>
                         </div>
@@ -125,13 +128,14 @@
 
                             {% if remoteClickOptions is not defined %}
                                 {% set remoteClickOptions = {
-                                    selector: "#review-tab-" ~ product.id,
-                                    scrollToElement: true
+                                    selector: '#review-tab-' ~ product.id,
+                                    scrollToElement: true,
+                                    excludedViewports: ['XS']
                                 } %}
                             {% endif %}
 
                             {% if reviewTabHref is not defined %}
-                                {% set reviewTabHref = "#review-tab-" ~ product.id ~ "-pane" %}
+                                {% set reviewTabHref = '#review-tab-' ~ product.id ~ '-pane' %}
                             {% endif %}
 
                             <div class="product-detail-reviews">
@@ -141,21 +145,15 @@
                                     style: 'text-primary'
                                 } %}
                                 <a
-                                    data-bs-toggle="tab"
                                     class="product-detail-reviews-link"
-                                    {# @deprecated tag:v6.6.0 - Registering plugin on selector "data-offcanvas-tabs" is deprecated. Use "data-off-canvas-tabs" instead #}
-                                    {% if feature('v6.6.0.0') %}
-                                        data-off-canvas-tabs="true"
-                                    {% else %}
-                                        data-offcanvas-tabs="true"
-                                    {% endif %}
+                                    data-off-canvas-tabs="true"
                                     data-remote-click="true"
-                                    data-remote-click-options='{{ remoteClickOptions|json_encode }}'
+                                    data-remote-click-options="{{ remoteClickOptions|json_encode }}"
                                     href="{{ reviewTabHref }}"
                                     aria-controls="review-tab-pane"
                                 >
                                     {{ totalReviews }}
-                                    {{ "detail.reviewLinkText"|trans({'%count%': totalReviews})|sw_sanitize }}
+                                    {{ 'detail.reviewLinkText'|trans({'%count%': totalReviews})|sw_sanitize }}
                                 </a>
                             </div>
                         {% endif %}
@@ -190,7 +188,7 @@
             {% block buy_widget_wishlist %}
                 {% sw_include '@Storefront/storefront/component/product/card/wishlist.html.twig' with {
                     showText: true,
-                    size: 'md',
+                    size: 'sm',
                     productId: product.id
                 } %}
             {% endblock %}
@@ -201,7 +199,7 @@
                 <div class="product-detail-ordernumber-container">
                     {% block buy_widget_ordernumber_label %}
                         <span class="product-detail-ordernumber-label">
-                            {{ "detail.productNumberLabel"|trans|sw_sanitize }}
+                            {{ 'detail.productNumberLabel'|trans|sw_sanitize }}
                         </span>
                     {% endblock %}
 

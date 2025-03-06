@@ -12,53 +12,34 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\StateMachine\Aggregation\StateMachineState\StateMachineStateEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class OrderTransactionEntity extends Entity
 {
     use EntityCustomFieldsTrait;
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $orderId;
+    protected string $orderId;
 
-    /**
-     * @var string
-     */
-    protected $orderVersionId;
+    protected string $orderVersionId;
 
-    /**
-     * @var string
-     */
-    protected $paymentMethodId;
+    protected string $paymentMethodId;
 
-    /**
-     * @var CalculatedPrice
-     */
-    protected $amount;
+    protected CalculatedPrice $amount;
 
-    /**
-     * @var PaymentMethodEntity|null
-     */
-    protected $paymentMethod;
+    protected ?PaymentMethodEntity $paymentMethod = null;
 
-    /**
-     * @var OrderEntity|null
-     */
-    protected $order;
+    protected ?OrderEntity $order = null;
 
-    /**
-     * @var StateMachineStateEntity|null
-     */
-    protected $stateMachineState;
+    protected ?StateMachineStateEntity $stateMachineState = null;
 
-    /**
-     * @var string
-     */
-    protected $stateId;
+    protected string $stateId;
 
     protected ?OrderTransactionCaptureCollection $captures = null;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $validationData = [];
 
     public function getOrderId(): string
     {
@@ -148,5 +129,21 @@ class OrderTransactionEntity extends Entity
     public function setOrderVersionId(string $orderVersionId): void
     {
         $this->orderVersionId = $orderVersionId;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getValidationData(): array
+    {
+        return $this->validationData;
+    }
+
+    /**
+     * @param array<string, mixed> $validationData
+     */
+    public function setValidationData(array $validationData): void
+    {
+        $this->validationData = $validationData;
     }
 }

@@ -8,48 +8,57 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('buyers-experience')]
+#[Package('discovery')]
 class MediaThumbnailSizeEntity extends Entity
 {
     use EntityCustomFieldsTrait;
     use EntityIdTrait;
 
     /**
-     * @var int
+     * @var int<1, max>
      */
-    protected $width;
+    protected int $width;
 
     /**
-     * @var int
+     * @var int<1, max>
      */
-    protected $height;
+    protected int $height;
+
+    protected ?MediaFolderConfigurationCollection $mediaFolderConfigurations = null;
 
     /**
-     * @var MediaFolderConfigurationCollection|null
+     * @return int<1, max>
      */
-    protected $mediaFolderConfigurations;
-
     public function getWidth(): int
     {
         return $this->width;
     }
 
+    /**
+     * @param int<1, max> $width
+     */
     public function setWidth(int $width): void
     {
         $this->width = $width;
     }
 
+    /**
+     * @return int<1, max>
+     */
     public function getHeight(): int
     {
         return $this->height;
     }
 
+    /**
+     * @param int<1, max> $height
+     */
     public function setHeight(int $height): void
     {
         $this->height = $height;
     }
 
-    public function getMediaFolderConfigurations(): MediaFolderConfigurationCollection
+    public function getMediaFolderConfigurations(): ?MediaFolderConfigurationCollection
     {
         return $this->mediaFolderConfigurations;
     }

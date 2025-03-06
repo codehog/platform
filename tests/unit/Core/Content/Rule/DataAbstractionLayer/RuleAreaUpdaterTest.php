@@ -4,8 +4,10 @@ namespace Shopware\Tests\Unit\Core\Content\Rule\DataAbstractionLayer;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Statement;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Rule\DataAbstractionLayer\RuleAreaUpdater;
@@ -32,18 +34,17 @@ use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityWriteGatewayInterfa
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Validation\PreWriteValidationEvent;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\WriteContext;
 use Shopware\Core\Framework\Event\NestedEventCollection;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Collector\RuleConditionRegistry;
 use Shopware\Core\Framework\Uuid\Uuid;
-use Shopware\Tests\Unit\Common\Stubs\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @covers \Shopware\Core\Content\Rule\DataAbstractionLayer\RuleAreaUpdater
  */
+#[Package('fundamentals@after-sales')]
+#[CoversClass(RuleAreaUpdater::class)]
 class RuleAreaUpdaterTest extends TestCase
 {
     private Connection&MockObject $connection;
@@ -57,6 +58,8 @@ class RuleAreaUpdaterTest extends TestCase
     protected function setUp(): void
     {
         $this->connection = $this->createMock(Connection::class);
+        $this->connection->method('getDatabasePlatform')->willReturn(new MySQLPlatform());
+
         $this->conditionRegistry = $this->createMock(RuleConditionRegistry::class);
 
         $registry = new StaticDefinitionInstanceRegistry(
@@ -80,7 +83,8 @@ class RuleAreaUpdaterTest extends TestCase
             $this->connection,
             $this->definition,
             $this->conditionRegistry,
-            $cacheInvalidator
+            $cacheInvalidator,
+            $registry
         );
     }
 
@@ -106,14 +110,22 @@ class RuleAreaUpdaterTest extends TestCase
             . 'EXISTS(SELECT 1 FROM rule_condition WHERE (`rule_id` = `rule`.`id`) AND (`type` IN (:flowTypes))) AS flowCondition '
             . 'FROM rule WHERE `rule`.`id` IN (:ids)',
             ['ids' => Uuid::fromHexToBytesList([$id]), 'flowTypes' => ['orderTags']],
-            ['ids' => ArrayParameterType::STRING, 'flowTypes' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY, 'flowTypes' => ArrayParameterType::STRING]
         )->willReturn($resultStatement);
 
         $statement = $this->createMock(Statement::class);
-        $statement->expects(static::once())->method('executeStatement')->with([
-            'areas' => json_encode([RuleAreas::PRODUCT_AREA, RuleAreas::PROMOTION_AREA, RuleAreas::PAYMENT_AREA, RuleAreas::SHIPPING_AREA]),
-            'id' => Uuid::fromHexToBytes($id),
-        ]);
+        $params = [
+            ['areas', json_encode([RuleAreas::PRODUCT_AREA, RuleAreas::PROMOTION_AREA, RuleAreas::PAYMENT_AREA, RuleAreas::SHIPPING_AREA])],
+            ['id', Uuid::fromHexToBytes($id)],
+        ];
+        $matcher = static::exactly(\count($params));
+        $statement->expects($matcher)
+            ->method('bindValue')
+            ->willReturnCallback(function (string $key, $value) use ($matcher, $params): void {
+                self::assertSame($params[$matcher->numberOfInvocations() - 1][0], $key);
+                self::assertSame($params[$matcher->numberOfInvocations() - 1][1], $value);
+            });
+        $statement->expects(static::once())->method('executeStatement')->willReturn(1);
         $this->connection->method('prepare')->willReturn($statement);
 
         $this->conditionRegistry->method('getFlowRuleNames')->willReturn(['orderTags']);
@@ -193,10 +205,9 @@ class RuleAreaUpdaterTest extends TestCase
 }
 
 /**
- * @package business-ops
- *
  * @internal
  */
+#[Package('fundamentals@after-sales')]
 class RuleAreaDefinitionTest extends RuleDefinition
 {
     public function getEntityName(): string
@@ -217,10 +228,9 @@ class RuleAreaDefinitionTest extends RuleDefinition
 }
 
 /**
- * @package business-ops
- *
  * @internal
  */
+#[Package('fundamentals@after-sales')]
 class RuleAreaTestOneToOne extends EntityDefinition
 {
     public function getEntityName(): string
@@ -237,10 +247,9 @@ class RuleAreaTestOneToOne extends EntityDefinition
 }
 
 /**
- * @package business-ops
- *
  * @internal
  */
+#[Package('fundamentals@after-sales')]
 class RuleAreaTestOneToMany extends EntityDefinition
 {
     public function getEntityName(): string
@@ -258,10 +267,9 @@ class RuleAreaTestOneToMany extends EntityDefinition
 }
 
 /**
- * @package business-ops
- *
  * @internal
  */
+#[Package('fundamentals@after-sales')]
 class RuleAreaTestManyToOne extends EntityDefinition
 {
     public function getEntityName(): string
@@ -278,10 +286,9 @@ class RuleAreaTestManyToOne extends EntityDefinition
 }
 
 /**
- * @package business-ops
- *
  * @internal
  */
+#[Package('fundamentals@after-sales')]
 class RuleAreaTestManyToMany extends EntityDefinition
 {
     public function getEntityName(): string

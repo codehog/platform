@@ -29,6 +29,18 @@ All available Hooks that can be used to load additional data.
 | **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br> |
 | **Stoppable**          | `false`                  |
 
+#### product-reviews-widget-loaded
+
+| <!-- -->               | <!-- -->                                |
+|:-----------------------|:----------------------------------------|
+| **Name**               | product-reviews-widget-loaded                         |
+| **Since**              | 6.6.9.0                        |
+| **Class**              | `Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewsWidgetLoadedHook`                      |
+| **Description**        | Triggered when the ProductReviewsWidget is loaded<br>                  |
+| **Available Data**     | reviews: [`Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewResult`](https://github.com/shopware/platform/blob/trunk/src/Core/Content/Product/SalesChannel/Review/ProductReviewResult.php)<br>context: [`Shopware\Core\Framework\Context`](https://github.com/shopware/platform/blob/trunk/src/Core/Framework/Context.php)<br>salesChannelContext: [`Shopware\Core\System\SalesChannel\SalesChannelContext`](https://github.com/shopware/platform/blob/trunk/src/Core/System/SalesChannel/SalesChannelContext.php)<br>        |
+| **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br> |
+| **Stoppable**          | `false`                  |
+
 #### customer-group-registration-page-loaded
 
 | <!-- -->               | <!-- -->                                |
@@ -110,18 +122,6 @@ All available Hooks that can be used to load additional data.
 | **Class**              | `Shopware\Storefront\Page\Account\Overview\AccountOverviewPageLoadedHook`                      |
 | **Description**        | Triggered when the AccountOverviewPage is loaded<br>                  |
 | **Available Data**     | page: [`Shopware\Storefront\Page\Account\Overview\AccountOverviewPage`](https://github.com/shopware/platform/blob/trunk/src/Storefront/Page/Account/Overview/AccountOverviewPage.php)<br>context: [`Shopware\Core\Framework\Context`](https://github.com/shopware/platform/blob/trunk/src/Core/Framework/Context.php)<br>salesChannelContext: [`Shopware\Core\System\SalesChannel\SalesChannelContext`](https://github.com/shopware/platform/blob/trunk/src/Core/System/SalesChannel/SalesChannelContext.php)<br>        |
-| **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br>[request](./miscellaneous-script-services-reference.md#RequestFacade)<br> |
-| **Stoppable**          | `false`                  |
-
-#### account-payment-method-page-loaded
-
-| <!-- -->               | <!-- -->                                |
-|:-----------------------|:----------------------------------------|
-| **Name**               | account-payment-method-page-loaded                         |
-| **Since**              | 6.4.8.0                        |
-| **Class**              | `Shopware\Storefront\Page\Account\PaymentMethod\AccountPaymentMethodPageLoadedHook`                      |
-| **Description**        | Triggered when the AccountPaymentMethodPage is loaded<br>                  |
-| **Available Data**     | page: [`Shopware\Storefront\Page\Account\PaymentMethod\AccountPaymentMethodPage`](https://github.com/shopware/platform/blob/trunk/src/Storefront/Page/Account/PaymentMethod/AccountPaymentMethodPage.php)<br>context: [`Shopware\Core\Framework\Context`](https://github.com/shopware/platform/blob/trunk/src/Core/Framework/Context.php)<br>salesChannelContext: [`Shopware\Core\System\SalesChannel\SalesChannelContext`](https://github.com/shopware/platform/blob/trunk/src/Core/System/SalesChannel/SalesChannelContext.php)<br>        |
 | **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br>[request](./miscellaneous-script-services-reference.md#RequestFacade)<br> |
 | **Stoppable**          | `false`                  |
 
@@ -341,18 +341,6 @@ All available Hooks that can be used to load additional data.
 | **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br>[request](./miscellaneous-script-services-reference.md#RequestFacade)<br> |
 | **Stoppable**          | `false`                  |
 
-#### product-reviews-loaded
-
-| <!-- -->               | <!-- -->                                |
-|:-----------------------|:----------------------------------------|
-| **Name**               | product-reviews-loaded                         |
-| **Since**              | 6.4.8.0                        |
-| **Class**              | `Shopware\Storefront\Page\Product\Review\ProductReviewsWidgetLoadedHook`                      |
-| **Description**        | Triggered when the ProductReviewsWidget is loaded<br>                  |
-| **Available Data**     | reviews: [`Shopware\Storefront\Page\Product\Review\ReviewLoaderResult`](https://github.com/shopware/platform/blob/trunk/src/Storefront/Page/Product/Review/ReviewLoaderResult.php)<br>context: [`Shopware\Core\Framework\Context`](https://github.com/shopware/platform/blob/trunk/src/Core/Framework/Context.php)<br>salesChannelContext: [`Shopware\Core\System\SalesChannel\SalesChannelContext`](https://github.com/shopware/platform/blob/trunk/src/Core/System/SalesChannel/SalesChannelContext.php)<br>        |
-| **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br>[request](./miscellaneous-script-services-reference.md#RequestFacade)<br> |
-| **Stoppable**          | `false`                  |
-
 #### search-page-loaded
 
 | <!-- -->               | <!-- -->                                |
@@ -437,11 +425,11 @@ All available Hooks that can be used to load additional data.
 | **Available Services** | [repository](./data-loading-script-services-reference.md#RepositoryFacade)<br>[config](./miscellaneous-script-services-reference.md#SystemConfigFacade)<br>[store](./data-loading-script-services-reference.md#SalesChannelRepositoryFacade)<br>[request](./miscellaneous-script-services-reference.md#RequestFacade)<br> |
 | **Stoppable**          | `false`                  |
 
-#### country-sate-data-pagelet-loaded
+#### country-state-data-pagelet-loaded
 
 | <!-- -->               | <!-- -->                                |
 |:-----------------------|:----------------------------------------|
-| **Name**               | country-sate-data-pagelet-loaded                         |
+| **Name**               | country-state-data-pagelet-loaded                         |
 | **Since**              | 6.4.8.0                        |
 | **Class**              | `Shopware\Storefront\Pagelet\Country\CountryStateDataPageletLoadedHook`                      |
 | **Description**        | Triggered when the CountryStateDataPagelet is loaded<br>                  |

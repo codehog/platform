@@ -1,16 +1,14 @@
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_cms_list_item %}
 <div
     class="sw-cms-list-item"
     :class="componentClasses"
+    :title="page && page.translated.name"
 >
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_cms_list_item_options %}
     <slot name="contextMenu"></slot>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_cms_list_item_image %}
     <div
         v-if="page"
@@ -40,7 +38,6 @@
     </div>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_cms_list_item_info %}
     <div class="sw-cms-list-item__info">
         <div
@@ -58,11 +55,11 @@
         >
             {{ page.translated.name }}
         </div>
-        <sw-icon
+        <mt-icon
             v-if="page && page.locked"
             class="sw-cms-list-item__locked"
             name="solid-lock"
-            small
+            size="16px"
         />
     </div>
     {% endblock %}

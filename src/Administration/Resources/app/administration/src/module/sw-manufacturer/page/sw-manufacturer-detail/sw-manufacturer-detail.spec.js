@@ -1,16 +1,13 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { createLocalVue, mount } from '@vue/test-utils';
-import swManufacturerDetail from 'src/module/sw-manufacturer/page/sw-manufacturer-detail';
-
-Shopware.Component.register('sw-manufacturer-detail', swManufacturerDetail);
+import { mount } from '@vue/test-utils';
 
 const mockProductId = 'MOCK_PRODUCT_ID';
 let productGetShouldFail = false;
 const productManufacturerRepositoryMock = {
-    get: () => {
+    get: async () => {
         if (productGetShouldFail) {
             return Promise.reject();
         }
@@ -18,6 +15,7 @@ const productManufacturerRepositoryMock = {
             id: mockProductId,
         });
     },
+    create: async () => Promise.resolve({}),
 };
 
 const mockCustomFieldSetId = 'MOCK_CUSTOM_FIELD_SET_ID';
@@ -29,86 +27,86 @@ const customFieldSetRepositoryMock = {
         }
         return Promise.resolve([{ id: mockCustomFieldSetId }]);
     },
+    create: () => Promise.resolve({}),
 };
 
 const defaultRepositoryMock = {
     search: () => Promise.resolve({}),
+    create: () => Promise.resolve({}),
 };
 
 async function createWrapper(privileges = []) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-
-    return mount(await Shopware.Component.build('sw-manufacturer-detail'), {
-        localVue,
-        data() {
-            return {
-                isLoading: false,
-                manufacturer: {
-                    mediaId: null,
-                    link: 'https://google.com/doodles',
-                    name: 'What does it means?(TM)',
-                    description: null,
-                    customFields: null,
-                    apiAlias: null,
-                    id: 'id',
+    return mount(await wrapTestComponent('sw-manufacturer-detail', { sync: true }), {
+        global: {
+            data() {
+                return {
+                    isLoading: false,
+                    manufacturer: {
+                        mediaId: null,
+                        link: 'https://google.com/doodles',
+                        name: 'What does it means?(TM)',
+                        description: null,
+                        customFields: null,
+                        apiAlias: null,
+                        id: 'id',
+                    },
+                };
+            },
+            stubs: {
+                'sw-page': {
+                    template: '<div><slot name="smart-bar-actions"></slot><slot name="content">CONTENT</slot></div>',
                 },
-            };
-        },
-        stubs: {
-            'sw-page': {
-                template: '<div><slot name="smart-bar-actions"></slot><slot name="content">CONTENT</slot></div>',
+                'sw-media-upload-v2': true,
+                'mt-text-editor': {
+                    template: '<div class="mt-text-editor"/>',
+                },
+                'mt-card': {
+                    template: '<div class="mt-card"><slot /></div>',
+                },
+                'sw-text-field': {
+                    template: '<div class="sw-field"/>',
+                },
+                'sw-card-view': {
+                    template: '<div><slot /></div>',
+                },
+                'sw-custom-field-set-renderer': true,
+                'sw-upload-listener': true,
+                'sw-button-process': true,
+                'sw-language-info': true,
+                'sw-empty-state': true,
+                'sw-container': await wrapTestComponent('sw-container'),
+                'sw-skeleton': true,
+                'sw-language-switch': true,
+                'sw-context-menu-item': true,
+                'sw-sidebar-media-item': true,
+                'sw-sidebar': true,
             },
-            'sw-media-upload-v2': {
-                props: ['disabled'],
-                template: '<div></div>',
-            },
-            'sw-text-editor': {
-                template: '<div class="sw-text-editor"/>',
-            },
-            'sw-card': {
-                template: '<div class="sw-card"><slot /></div>',
-            },
-            'sw-text-field': {
-                template: '<div class="sw-field"/>',
-            },
-            'sw-card-view': {
-                template: '<div><slot /></div>',
-            },
-            'sw-custom-field-set-renderer': true,
-            'sw-upload-listener': true,
-            'sw-button-process': true,
-            'sw-language-info': true,
-            'sw-empty-state': true,
-            'sw-container': true,
-            'sw-button': true,
-            'sw-skeleton': true,
-        },
-        provide: {
-            acl: {
-                can: key => (key ? privileges.includes(key) : true),
-            },
-            stateStyleDataProviderService: {},
-            repositoryFactory: {
-                create: (repositoryName) => {
-                    switch (repositoryName) {
-                        case 'product_manufacturer':
-                            return productManufacturerRepositoryMock;
-                        case 'media':
-                            return defaultRepositoryMock;
-                        case 'custom_field_set':
-                            return customFieldSetRepositoryMock;
-                        default:
-                            throw new Error(`${repositoryName} Repository not found`);
-                    }
+            provide: {
+                acl: {
+                    can: (key) => (key ? privileges.includes(key) : true),
+                },
+                stateStyleDataProviderService: {},
+                repositoryFactory: {
+                    create: (repositoryName) => {
+                        switch (repositoryName) {
+                            case 'product_manufacturer':
+                                return productManufacturerRepositoryMock;
+                            case 'media':
+                                return defaultRepositoryMock;
+                            case 'custom_field_set':
+                                return customFieldSetRepositoryMock;
+                            default:
+                                throw new Error(`${repositoryName} Repository not found`);
+                        }
+                    },
                 },
             },
-        },
-        mocks: {
-            $route: {},
-        },
-        propsData: {
-            manufacturerId: 'id',
+            mocks: {
+                $route: {},
+            },
+            propsData: {
+                manufacturerId: 'id',
+            },
         },
     });
 }
@@ -142,7 +140,6 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
         expect(addButton.attributes().disabled).toBeTruthy();
     });
 
-
     it('should be able to edit the manufacturer', async () => {
         const wrapper = await createWrapper([
             'product_manufacturer.editor',
@@ -151,14 +148,13 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
 
         const logoUpload = wrapper.find('.sw-manufacturer-detail__logo-upload');
         expect(logoUpload.exists()).toBeTruthy();
-        expect(logoUpload.props().disabled).toBeFalsy();
+        expect(logoUpload.attributes('disabled')).toBeFalsy();
 
-        const elements = wrapper.findAll('.sw-field');
-        expect(elements.wrappers).toHaveLength(2);
-        elements.wrappers.forEach(el => expect(el.attributes().disabled).toBeUndefined());
+        const elements = wrapper.findAll('.mt-field');
+        expect(elements).toHaveLength(2);
+        elements.forEach((el) => expect(el.attributes().disabled).toBeUndefined());
 
-
-        const textEditor = wrapper.find('.sw-text-editor');
+        const textEditor = wrapper.find('.mt-text-editor');
         expect(textEditor.exists()).toBeTruthy();
         expect(textEditor.attributes().disabled).toBeUndefined();
     });
@@ -169,13 +165,13 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
 
         const logoUpload = wrapper.find('.sw-manufacturer-detail__logo-upload');
         expect(logoUpload.exists()).toBeTruthy();
-        expect(logoUpload.props().disabled).toBeTruthy();
+        expect(logoUpload.attributes('disabled')).toBeTruthy();
 
-        const elements = wrapper.findAll('.sw-field');
-        expect(elements.wrappers).toHaveLength(2);
-        elements.wrappers.forEach(el => expect(el.attributes().disabled).toBe('disabled'));
+        const elements = wrapper.findAllComponents('.mt-field');
+        expect(elements).toHaveLength(2);
+        elements.forEach((el) => expect(el.props().disabled).toBe(true));
 
-        const textEditor = wrapper.find('.sw-text-editor');
+        const textEditor = wrapper.find('.mt-text-editor');
         expect(textEditor.exists()).toBeTruthy();
         expect(textEditor.attributes().disabled).toBeTruthy();
     });
@@ -185,6 +181,10 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
         customFieldSetSearchShouldFail = false;
 
         const wrapper = await createWrapper();
+        await wrapper.setProps({
+            manufacturerId: 'id-123',
+        });
+
         wrapper.vm.createNotificationError = jest.fn();
 
         await flushPromises();
@@ -195,7 +195,9 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
             message: 'global.notification.notificationLoadingDataErrorMessage',
         });
 
-        expect(wrapper.vm.customFieldSets).toEqual([{ id: 'MOCK_CUSTOM_FIELD_SET_ID' }]);
+        expect(wrapper.vm.customFieldSets).toEqual([
+            { id: 'MOCK_CUSTOM_FIELD_SET_ID' },
+        ]);
     });
 
     it('should set loading to false if only the custom field set request fails', async () => {
@@ -203,6 +205,9 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
         customFieldSetSearchShouldFail = true;
 
         const wrapper = await createWrapper();
+        await wrapper.setProps({
+            manufacturerId: 'id-123',
+        });
         wrapper.vm.createNotificationError = jest.fn();
 
         await flushPromises();
@@ -219,6 +224,9 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-detail', () => {
         customFieldSetSearchShouldFail = true;
 
         const wrapper = await createWrapper();
+        await wrapper.setProps({
+            manufacturerId: 'id-123',
+        });
         wrapper.vm.createNotificationError = jest.fn();
 
         await flushPromises();

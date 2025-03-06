@@ -25,23 +25,23 @@ class AppLocaleProviderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->localeProvider = $this->getContainer()->get(AppLocaleProvider::class);
-        $this->userRepository = $this->getContainer()->get('user.repository');
+        $this->localeProvider = static::getContainer()->get(AppLocaleProvider::class);
+        $this->userRepository = static::getContainer()->get('user.repository');
     }
 
     public function testGetLocaleWithSystemSource(): void
     {
         $locale = $this->localeProvider->getLocaleFromContext(Context::createDefaultContext());
 
-        static::assertEquals('en-GB', $locale);
+        static::assertSame('en-GB', $locale);
     }
 
     public function testGetLocaleWithSalesChannelSource(): void
     {
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
         $locale = $this->localeProvider->getLocaleFromContext($context->getContext());
 
-        static::assertEquals('en-GB', $locale);
+        static::assertSame('en-GB', $locale);
     }
 
     public function testGetLocaleFromContextReturnsLocaleFromUser(): void
@@ -67,14 +67,14 @@ class AppLocaleProviderTest extends TestCase
 
         $locale = $this->localeProvider->getLocaleFromContext($context);
 
-        static::assertEquals($userLocale, $locale);
+        static::assertSame($userLocale, $locale);
     }
 
     public function testGetLocaleFromContextReturnsEnglishForSystemContext(): void
     {
         $locale = $this->localeProvider->getLocaleFromContext(Context::createDefaultContext());
 
-        static::assertEquals('en-GB', $locale);
+        static::assertSame('en-GB', $locale);
     }
 
     public function testGetLocaleFromContextReturnsEnglishForIntegrations(): void
@@ -83,6 +83,6 @@ class AppLocaleProviderTest extends TestCase
             Context::createDefaultContext(new AdminApiSource(null, Uuid::randomHex()))
         );
 
-        static::assertEquals('en-GB', $locale);
+        static::assertSame('en-GB', $locale);
     }
 }

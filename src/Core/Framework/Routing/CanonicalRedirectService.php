@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('core')]
+#[Package('framework')]
 class CanonicalRedirectService
 {
     /**
@@ -42,7 +42,7 @@ class CanonicalRedirectService
         $queryString = $request->getQueryString();
 
         if ($queryString) {
-            $canonical = sprintf('%s?%s', $canonical, $queryString);
+            $canonical = \sprintf('%s?%s', $canonical, $queryString);
         }
 
         return new RedirectResponse($canonical, Response::HTTP_MOVED_PERMANENTLY);

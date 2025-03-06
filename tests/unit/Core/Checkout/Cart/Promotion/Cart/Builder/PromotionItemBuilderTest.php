@@ -2,6 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Promotion\Cart\Builder;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
@@ -13,8 +16,8 @@ use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscountPrice\PromotionD
 use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscountPrice\PromotionDiscountPriceEntity;
 use Shopware\Core\Checkout\Promotion\Cart\PromotionItemBuilder;
 use Shopware\Core\Checkout\Promotion\Cart\PromotionProcessor;
-use Shopware\Core\Checkout\Promotion\Exception\UnknownPromotionDiscountTypeException;
 use Shopware\Core\Checkout\Promotion\PromotionEntity;
+use Shopware\Core\Checkout\Promotion\PromotionException;
 use Shopware\Core\Content\Rule\RuleCollection;
 use Shopware\Core\Content\Rule\RuleEntity;
 use Shopware\Core\Framework\Context;
@@ -25,9 +28,8 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Promotion\Cart\PromotionItemBuilder
  */
+#[CoversClass(PromotionItemBuilder::class)]
 class PromotionItemBuilderTest extends TestCase
 {
     private PromotionEntity $promotion;
@@ -41,6 +43,7 @@ class PromotionItemBuilderTest extends TestCase
     {
         $this->promotion = new PromotionEntity();
         $this->promotion->setId('PR-1');
+        $this->promotion->setPriority(1);
         $this->promotion->setUseCodes(false);
         $this->promotion->setUseIndividualCodes(false);
         $this->promotion->setUseSetGroups(false);
@@ -55,11 +58,10 @@ class PromotionItemBuilderTest extends TestCase
      * This test verifies that the immutable LineItem Type from
      * the constructor is correctly used in the LineItem.
      *
-     * @group promotions
-     *
      * @throws CartException
-     * @throws UnknownPromotionDiscountTypeException
+     * @throws PromotionException
      */
+    #[Group('promotions')]
     public function testLineItemType(): void
     {
         $currencyFactor = random_int(0, mt_getrandmax()) / mt_getrandmax();
@@ -71,6 +73,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_PERCENTAGE);
         $discount->setValue(50);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $item = $builder->buildDiscountLineItem('', $this->promotion, $discount, 'C1', $currencyFactor);
 
@@ -84,11 +87,10 @@ class PromotionItemBuilderTest extends TestCase
      * id for the key, then we get duplicate key entries which leads to
      * errors like "line item not stackable".
      *
-     * @group promotions
-     *
      * @throws CartException
-     * @throws UnknownPromotionDiscountTypeException
+     * @throws PromotionException
      */
+    #[Group('promotions')]
     public function testLineItemKey(): void
     {
         $builder = new PromotionItemBuilder();
@@ -100,6 +102,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_PERCENTAGE);
         $discount->setValue(50);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $item = $builder->buildDiscountLineItem('', $this->promotion, $discount, 'C1', $currencyFactor);
 
@@ -112,11 +115,10 @@ class PromotionItemBuilderTest extends TestCase
      * code from the promotion, because it might not be this one but one
      * of its thousand individual codes...thus its provided as separate argument
      *
-     * @group promotions
-     *
      * @throws CartException
-     * @throws UnknownPromotionDiscountTypeException
+     * @throws PromotionException
      */
+    #[Group('promotions')]
     public function testLineItemReferenceId(): void
     {
         $discount = new PromotionDiscountEntity();
@@ -126,6 +128,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_PERCENTAGE);
         $discount->setValue(50);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $item = (new PromotionItemBuilder())->buildDiscountLineItem('individual-123', $this->promotion, $discount, 'C1', $currencyFactor);
 
@@ -137,11 +140,10 @@ class PromotionItemBuilderTest extends TestCase
      * definition if our promotion is based on percentage values.
      * Also, we must not have a filter rule for this, if our eligible item ID list is empty.
      *
-     * @group promotions
-     *
      * @throws CartException
-     * @throws UnknownPromotionDiscountTypeException
+     * @throws PromotionException
      */
+    #[Group('promotions')]
     public function testPriceTypePercentage(): void
     {
         $builder = new PromotionItemBuilder();
@@ -153,6 +155,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_PERCENTAGE);
         $discount->setValue(10);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $item = $builder->buildDiscountLineItem('', $this->promotion, $discount, 'C1', $currencyFactor);
 
@@ -166,11 +169,10 @@ class PromotionItemBuilderTest extends TestCase
      * definition if our promotion is based on absolute values.
      * Also, we must not have a filter rule for this, if our eligible item ID list is empty.
      *
-     * @group promotions
-     *
      * @throws CartException
-     * @throws UnknownPromotionDiscountTypeException
+     * @throws PromotionException
      */
+    #[Group('promotions')]
     public function testPriceTypeAbsolute(): void
     {
         $builder = new PromotionItemBuilder();
@@ -182,6 +184,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_ABSOLUTE);
         $discount->setValue(50);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $item = $builder->buildDiscountLineItem('', $this->promotion, $discount, 'C1', $currencyFactor);
 
@@ -193,9 +196,8 @@ class PromotionItemBuilderTest extends TestCase
     /**
      * This test verifies that the correct discount filter
      * is set in the discountItemBuilder
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDiscountTargetFilter(): void
     {
         $builder = new PromotionItemBuilder();
@@ -208,6 +210,9 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setValue(50);
         $discount->setConsiderAdvancedRules(true);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setSorterKey('PRICE_ASC');
+        $discount->setApplierKey('ALL');
+        $discount->setUsageKey('UNLIMITED');
 
         $amount = 100;
         $operator = '=';
@@ -234,9 +239,8 @@ class PromotionItemBuilderTest extends TestCase
     /**
      * This test verifies that the correct discount filter
      * is set in the discountItemBuilder
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDiscountTargetFilterIfDiscountRulesShouldBeIgnored(): void
     {
         $currencyFactor = random_int(0, mt_getrandmax()) / mt_getrandmax();
@@ -272,9 +276,8 @@ class PromotionItemBuilderTest extends TestCase
     /**
      * This test verifies that the correct discount filter
      * is set in the discountItemBuilder if discount rules are empty
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDiscountTargetFilterIfDiscountRulesAreEmpty(): void
     {
         $builder = new PromotionItemBuilder();
@@ -287,6 +290,9 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setValue(50);
         $discount->setConsiderAdvancedRules(true);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setSorterKey('PRICE_ASC');
+        $discount->setApplierKey('ALL');
+        $discount->setUsageKey('UNLIMITED');
 
         $ruleCollection = new RuleCollection();
         $discount->setDiscountRules($ruleCollection);
@@ -300,9 +306,8 @@ class PromotionItemBuilderTest extends TestCase
     /**
      * This test verifies that the correct currency price value is applied to
      * discount
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDiscountCurrencyCustomPrices(): void
     {
         $builder = new PromotionItemBuilder();
@@ -316,6 +321,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_ABSOLUTE);
         $discount->setValue($standardDiscountValue);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $currency = new CurrencyEntity();
         $currency->setId('C1');
@@ -345,9 +351,8 @@ class PromotionItemBuilderTest extends TestCase
     /**
      * This test verifies that the currency price is calculated by factor if currency couldn't be found in
      * advanced discount prices.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDiscountCurrencyCustomPricesMissingAdvancedPrice(): void
     {
         $builder = new PromotionItemBuilder();
@@ -361,6 +366,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType(PromotionDiscountEntity::TYPE_ABSOLUTE);
         $discount->setValue($standardDiscountValue);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $currency = new CurrencyEntity();
         $currency->setId('C1');
@@ -396,13 +402,11 @@ class PromotionItemBuilderTest extends TestCase
      * Please note that factors and absolute price definitions will only
      * be available on "amount" discounts...so no percentage...
      *
-     * @group promotions
-     *
-     * @dataProvider getDefaultCurrencyDataProvider
-     *
      * @throws CartException
-     * @throws UnknownPromotionDiscountTypeException
+     * @throws PromotionException
      */
+    #[DataProvider('getDefaultCurrencyDataProvider')]
+    #[Group('promotions')]
     public function testDefaultCurrencyFactor(string $type): void
     {
         $discount = new PromotionDiscountEntity();
@@ -410,6 +414,7 @@ class PromotionItemBuilderTest extends TestCase
         $discount->setType($type);
         $discount->setValue(50);
         $discount->setScope(PromotionDiscountEntity::SCOPE_CART);
+        $discount->setConsiderAdvancedRules(false);
 
         $builder = new PromotionItemBuilder();
 

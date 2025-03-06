@@ -2,21 +2,21 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Struct;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Struct\ArrayStruct;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Struct\ArrayStruct
  */
+#[CoversClass(ArrayStruct::class)]
 class ArrayStructTest extends TestCase
 {
     /**
      * @param array<string|int, mixed> $dataSet
-     *
-     * @dataProvider hasDataProvider
      */
+    #[DataProvider('hasDataProvider')]
     public function testHas(array $dataSet, int|string $searchFor, bool $expectFound): void
     {
         $arrayStruct = new ArrayStruct($dataSet);
@@ -25,9 +25,8 @@ class ArrayStructTest extends TestCase
 
     /**
      * @param array<string|int, mixed> $dataSet
-     *
-     * @dataProvider hasDataProvider
      */
+    #[DataProvider('hasDataProvider')]
     public function testOffsetExists(array $dataSet, int|string $searchFor, bool $expectFound): void
     {
         $arrayStruct = new ArrayStruct($dataSet);
@@ -45,6 +44,10 @@ class ArrayStructTest extends TestCase
 
     public function testOffsetSet(): void
     {
+        /**
+         * @var ArrayStruct<array<string, mixed>> $arrayStruct Overwriting the type is necessary, as PHPStan is determining the type
+         *                                        during instantiation and that will change afterwards.
+         */
         $arrayStruct = new ArrayStruct([]);
         static::assertCount(0, $arrayStruct->all());
 
@@ -86,6 +89,10 @@ class ArrayStructTest extends TestCase
 
     public function testAssign(): void
     {
+        /**
+         * @var ArrayStruct<array<string, mixed>> $arrayStruct Overwriting the type is necessary, as PHPStan is determining the type
+         *                                        during instantiation and that will change afterwards.
+         */
         $arrayStruct = new ArrayStruct(['a' => 'value', 'b' => ['array_value']]);
 
         static::assertSame('value', $arrayStruct->get('a'));

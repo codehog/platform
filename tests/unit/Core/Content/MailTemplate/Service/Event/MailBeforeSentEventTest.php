@@ -3,21 +3,23 @@
 namespace Shopware\Tests\Unit\Core\Content\MailTemplate\Service\Event;
 
 use Monolog\Level;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Event\CheckoutOrderPlacedEvent;
 use Shopware\Core\Content\Flow\Dispatching\StorableFlow;
 use Shopware\Core\Content\Flow\Dispatching\Storer\ScalarValuesStorer;
 use Shopware\Core\Content\MailTemplate\Service\Event\MailBeforeSentEvent;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\MailTemplate\Service\Event\MailBeforeSentEvent
  */
+#[CoversClass(MailBeforeSentEvent::class)]
+#[Package('after-sales')]
 class MailBeforeSentEventTest extends TestCase
 {
     public function testScalarValuesCorrectly(): void
@@ -59,7 +61,7 @@ class MailBeforeSentEventTest extends TestCase
             CheckoutOrderPlacedEvent::EVENT_NAME
         );
 
-        static::assertSame(Level::Info->value, $event->getLogLevel());
+        static::assertSame(Level::Info, $event->getLogLevel());
         static::assertSame('mail.after.create.message', $event->getName());
         static::assertSame($context, $event->getContext());
         static::assertSame([

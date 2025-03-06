@@ -3,6 +3,7 @@
 namespace Shopware\Storefront\Theme;
 
 use Shopware\Core\Framework\Adapter\Cache\CacheInvalidator;
+use Shopware\Core\Framework\Adapter\Translation\Translator;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Storefront\Framework\Routing\CachedDomainLoader;
 use Shopware\Storefront\Theme\Event\ThemeAssignedEvent;
@@ -13,7 +14,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * @internal
  */
-#[Package('storefront')]
+#[Package('framework')]
 class CachedResolvedConfigLoaderInvalidator implements EventSubscriberInterface
 {
     /**
@@ -21,7 +22,6 @@ class CachedResolvedConfigLoaderInvalidator implements EventSubscriberInterface
      */
     public function __construct(
         private readonly CacheInvalidator $cacheInvalidator,
-        private readonly bool $fineGrainedCache
     ) {
     }
 
@@ -41,29 +41,18 @@ class CachedResolvedConfigLoaderInvalidator implements EventSubscriberInterface
     {
         $tags = [CachedResolvedConfigLoader::buildName($event->getThemeId())];
 
-        if (!$this->fineGrainedCache) {
-            $this->cacheInvalidator->invalidate(['shopware.theme']);
-
-            return;
-        }
-
-        $keys = array_keys($event->getConfig());
-
-        foreach ($keys as $key) {
-            $tags[] = ThemeConfigValueAccessor::buildName($key);
-        }
-
         $this->cacheInvalidator->invalidate($tags);
     }
 
     public function assigned(ThemeAssignedEvent $event): void
     {
-        $this->cacheInvalidator->invalidate([CachedResolvedConfigLoader::buildName($event->getThemeId())]);
-        $this->cacheInvalidator->invalidate([CachedDomainLoader::CACHE_KEY]);
-
         $salesChannelId = $event->getSalesChannelId();
 
-        $this->cacheInvalidator->invalidate(['translation.catalog.' . $salesChannelId], true);
+        $this->cacheInvalidator->invalidate([
+            CachedResolvedConfigLoader::buildName($event->getThemeId()),
+            CachedDomainLoader::CACHE_KEY,
+            Translator::tag($salesChannelId),
+        ]);
     }
 
     public function reset(ThemeConfigResetEvent $event): void

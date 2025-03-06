@@ -4,20 +4,24 @@ namespace Shopware\Tests\Integration\Core\Framework\Store\Services;
 
 use Doctrine\DBAL\Connection;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Api\Context\AdminApiSource;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Store\Exception\StoreSessionExpiredException;
 use Shopware\Core\Framework\Store\Services\StoreSessionExpiredMiddleware;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
-use Shopware\Core\System\User\UserEntity;
+use Shopware\Core\System\User\UserCollection;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * @internal
  */
+#[Package('checkout')]
 class StoreSessionExpiredMiddlewareTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -27,7 +31,7 @@ class StoreSessionExpiredMiddlewareTest extends TestCase
         $response = new Response(200, [], '{"payload":"data"}');
 
         $middleware = new StoreSessionExpiredMiddleware(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             new RequestStack()
         );
 
@@ -41,7 +45,7 @@ class StoreSessionExpiredMiddlewareTest extends TestCase
         $response = new Response(401, [], '{"payload":"data"}');
 
         $middleware = new StoreSessionExpiredMiddleware(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             new RequestStack()
         );
 
@@ -50,15 +54,13 @@ class StoreSessionExpiredMiddlewareTest extends TestCase
         static::assertSame($response, $handledResponse);
     }
 
-    /**
-     * @dataProvider provideRequestStacks
-     */
+    #[DataProvider('provideRequestStacks')]
     public function testThrowsIfApiRespondsWithTokenExpiredException(RequestStack $requestStack): void
     {
         $response = new Response(401, [], '{"code":"ShopwarePlatformException-1"}');
 
         $middleware = new StoreSessionExpiredMiddleware(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             $requestStack
         );
 
@@ -70,9 +72,10 @@ class StoreSessionExpiredMiddlewareTest extends TestCase
     {
         $response = new Response(401, [], '{"code":"ShopwarePlatformException-1"}');
 
-        $userRepository = $this->getContainer()->get('user.repository');
-        /** @var UserEntity $adminUser */
-        $adminUser = $userRepository->search(new Criteria(), Context::createDefaultContext())->first();
+        /** @var EntityRepository<UserCollection> $userRepository */
+        $userRepository = static::getContainer()->get('user.repository');
+        $adminUser = $userRepository->search(new Criteria(), Context::createDefaultContext())->getEntities()->first();
+        static::assertNotNull($adminUser);
         $userRepository->update([[
             'id' => $adminUser->getId(),
             'store_token' => 's3cr3t',
@@ -92,14 +95,15 @@ class StoreSessionExpiredMiddlewareTest extends TestCase
         $requestStack->push($request);
 
         $middleware = new StoreSessionExpiredMiddleware(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             $requestStack
         );
 
         $this->expectException(StoreSessionExpiredException::class);
         $middleware($response);
 
-        $adminUser = $userRepository->search(new Criteria([$adminUser->getId()]), Context::createDefaultContext())->first();
+        $adminUser = $userRepository->search(new Criteria([$adminUser->getId()]), Context::createDefaultContext())->getEntities()->first();
+        static::assertNotNull($adminUser);
         static::assertNull($adminUser->getStoreToken());
     }
 

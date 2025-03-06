@@ -1,16 +1,23 @@
 import Plugin from 'src/plugin-system/plugin.class';
-import DomAccess from 'src/helper/dom-access.helper';
 
 /**
  * @package checkout
  */
 export default class AddToWishlistPlugin extends Plugin {
+    static options = {
+        texts: {
+            add: 'Add to wishlist',
+            remove: 'Remove from wishlist',
+        },
+    };
+
     init() {
         this.classList = {
             isLoading: 'product-wishlist-loading',
             addedState: 'product-wishlist-added',
             notAddedState: 'product-wishlist-not-added',
         };
+        this.textsElement = this.el.querySelector('.product-wishlist-btn-content');
 
         this._getWishlistStorage();
 
@@ -28,7 +35,7 @@ export default class AddToWishlistPlugin extends Plugin {
      * @private
      */
     _getWishlistStorage() {
-        const wishlistBasketElement = DomAccess.querySelector(document, '#wishlist-basket', false);
+        const wishlistBasketElement = document.querySelector('#wishlist-basket');
 
         if (!wishlistBasketElement) {
             return;
@@ -42,13 +49,15 @@ export default class AddToWishlistPlugin extends Plugin {
      */
     _registerEvents() {
         this.el.addEventListener('click', this._onClick.bind(this));
+
+        this._wishlistStorage.$emitter.subscribe('Wishlist/onLoginRedirect', this.initStateClasses.bind(this));
     }
 
     initStateClasses() {
         if (this._wishlistStorage.has(this.options.productId)) {
-            this._addActiveStateClasses();
+            this._addActiveState();
         } else {
-            this._removeActiveStateClasses();
+            this._removeActiveState();
         }
 
         this.el.classList.remove(this.classList.isLoading);
@@ -68,28 +77,36 @@ export default class AddToWishlistPlugin extends Plugin {
 
         if (this._wishlistStorage.has(this.options.productId)) {
             this._wishlistStorage.remove(this.options.productId, this.options.router.remove);
-
-            this._removeActiveStateClasses();
         } else {
             this._wishlistStorage.add(this.options.productId, this.options.router.add);
-
-            this._addActiveStateClasses();
         }
     }
 
     /**
      * @private
      */
-    _addActiveStateClasses() {
+    _addActiveState() {
         this.el.classList.remove(this.classList.notAddedState);
         this.el.classList.add(this.classList.addedState);
+
+        this.el.setAttribute('title', this.options.texts.remove);
+
+        if (this.textsElement) {
+            this.textsElement.innerHTML = this.options.texts.remove;
+        }
     }
 
     /**
      * @private
      */
-    _removeActiveStateClasses() {
+    _removeActiveState() {
         this.el.classList.remove(this.classList.addedState);
         this.el.classList.add(this.classList.notAddedState);
+
+        this.el.setAttribute('title', this.options.texts.add);
+
+        if (this.textsElement) {
+            this.textsElement.innerHTML = this.options.texts.add;
+        }
     }
 }

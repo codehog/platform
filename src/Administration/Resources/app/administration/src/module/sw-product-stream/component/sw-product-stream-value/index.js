@@ -1,5 +1,5 @@
 /*
- * @package business-ops
+ * @sw-package inventory
  */
 
 import template from './sw-product-stream-value.html.twig';
@@ -18,6 +18,12 @@ export default {
         'productCustomFields',
         'acl',
         'feature',
+    ],
+
+    emits: [
+        'empty-change',
+        'type-change',
+        'boolean-change',
     ],
 
     props: {
@@ -57,6 +63,10 @@ export default {
             return this.repositoryFactory.create(this.definition.entity);
         },
 
+        entityCustomFieldRepository() {
+            return this.repositoryFactory.create(this.getCustomFieldEntityName(this.fieldName));
+        },
+
         componentClasses() {
             return [
                 this.growthClass,
@@ -84,9 +94,11 @@ export default {
         },
 
         isMultiSelectValue() {
-            return this.actualCondition.type === 'equalsAny' ||
+            return (
+                this.actualCondition.type === 'equalsAny' ||
                 this.actualCondition.type === 'equalsAll' ||
-                this.actualCondition.type === 'notEqualsAll';
+                this.actualCondition.type === 'notEqualsAll'
+            );
         },
 
         filterType: {
@@ -131,14 +143,12 @@ export default {
             if (this.fieldType === null) {
                 return [];
             }
-            return this.conditionDataProviderService
-                .getOperatorSet(this.fieldType)
-                .map((operator) => {
-                    return {
-                        label: this.$tc(operator.label),
-                        value: operator.identifier,
-                    };
-                });
+            return this.conditionDataProviderService.getOperatorSet(this.fieldType).map((operator) => {
+                return {
+                    label: this.$tc(operator.label),
+                    value: operator.identifier,
+                };
+            });
         },
 
         relativeTimeOperators() {
@@ -156,8 +166,14 @@ export default {
 
         productStateOptions() {
             return [
-                { label: this.$tc('sw-product-stream.filter.values.productStates.physical'), value: 'is-physical' },
-                { label: this.$tc('sw-product-stream.filter.values.productStates.digital'), value: 'is-download' },
+                {
+                    label: this.$tc('sw-product-stream.filter.values.productStates.physical'),
+                    value: 'is-physical',
+                },
+                {
+                    label: this.$tc('sw-product-stream.filter.values.productStates.digital'),
+                    value: 'is-download',
+                },
             ];
         },
 
@@ -175,9 +191,12 @@ export default {
             }
 
             if (this.fieldDefinition.type === 'uuid') {
-                const isManyToOneFkField = Object.keys(this.definition.filterProperties((field) => {
-                    return field.localField === this.fieldName && field.relation === 'many_to_one';
-                })).length > 0;
+                const isManyToOneFkField =
+                    Object.keys(
+                        this.definition.filterProperties((field) => {
+                            return field.localField === this.fieldName && field.relation === 'many_to_one';
+                        }),
+                    ).length > 0;
 
                 if (isManyToOneFkField) {
                     return 'empty';
@@ -243,22 +262,32 @@ export default {
         },
 
         gte: {
-            get() { return this.actualCondition.parameters ? this.actualCondition.parameters.gte : null; },
-            set(value) { this.actualCondition.parameters.gte = value; },
+            get() {
+                return this.actualCondition.parameters ? this.actualCondition.parameters.gte : null;
+            },
+            set(value) {
+                this.actualCondition.parameters.gte = value;
+            },
         },
 
         lte: {
-            get() { return this.actualCondition.parameters ? this.actualCondition.parameters.lte : null; },
-            set(value) { this.actualCondition.parameters.lte = value; },
+            get() {
+                return this.actualCondition.parameters ? this.actualCondition.parameters.lte : null;
+            },
+            set(value) {
+                this.actualCondition.parameters.lte = value;
+            },
         },
 
         operator: {
             get() {
-                return this.actualCondition.parameters ?
-                    this.getParameterType(this.actualCondition.parameters.operator) :
-                    null;
+                return this.actualCondition.parameters
+                    ? this.getParameterType(this.actualCondition.parameters.operator)
+                    : null;
             },
-            set(value) { this.actualCondition.parameters.operator = this.getParameterName(value); },
+            set(value) {
+                this.actualCondition.parameters.operator = this.getParameterName(value);
+            },
         },
 
         emptyValue: {
@@ -272,13 +301,20 @@ export default {
                     return;
                 }
 
-                this.$emit('empty-change', { type: value ? 'equals' : 'notEquals' });
+                this.$emit('empty-change', {
+                    type: value ? 'equals' : 'notEquals',
+                });
             },
         },
 
         stringValue: {
             get() {
-                if (['int', 'float'].includes(this.fieldType)) {
+                if (
+                    [
+                        'int',
+                        'float',
+                    ].includes(this.fieldType)
+                ) {
                     return Number.parseFloat(this.actualCondition.value);
                 }
                 if (typeof this.actualCondition.value !== 'string') {
@@ -343,6 +379,20 @@ export default {
             return criteria;
         },
 
+        customFieldCriteria() {
+            if (this.isProductEntity) {
+                return this.productCriteria;
+            }
+
+            const criteria = new Criteria(1, 25);
+
+            if (typeof this.searchTerm === 'string' && this.searchTerm.length > 0) {
+                criteria.addQuery(Criteria.contains('name', this.searchTerm), 500);
+            }
+
+            return criteria;
+        },
+
         visibilitiesLabelCallback() {
             return (item) => {
                 if (!item) {
@@ -356,10 +406,14 @@ export default {
                 return `${item.salesChannel.translated.name}: ${item.product.translated.name}`;
             };
         },
+
+        isProductEntity() {
+            return this.getCustomFieldEntityName(this.fieldName) === 'product';
+        },
     },
 
     mounted() {
-        this.childComponents = this.$children;
+        this.childComponents = this.$refs;
     },
 
     methods: {
@@ -460,7 +514,10 @@ export default {
         },
 
         setBooleanValue(value) {
-            this.$emit('boolean-change', { type: +value ? 'equals' : 'notEquals', value });
+            this.$emit('boolean-change', {
+                type: +value ? 'equals' : 'notEquals',
+                value,
+            });
         },
 
         setSearchTerm(value) {
@@ -477,6 +534,20 @@ export default {
             }
 
             return Object.values(category.breadcrumb).join(' / ');
+        },
+
+        isEntityCustomField(fieldName) {
+            const strippedFieldName = fieldName?.replace(/customFields\./, '');
+            const customField = this.productCustomFields[strippedFieldName];
+
+            return customField?.config?.customFieldType === 'entity';
+        },
+
+        getCustomFieldEntityName(fieldName) {
+            const strippedFieldName = fieldName.replace(/customFields\./, '');
+            const customField = this.productCustomFields[strippedFieldName];
+
+            return customField.config.entity;
         },
     },
 };

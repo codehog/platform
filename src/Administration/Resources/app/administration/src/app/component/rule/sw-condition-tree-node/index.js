@@ -5,7 +5,7 @@ const { Component } = Shopware;
 
 /**
  * @private
- * @package business-ops
+ * @sw-package fundamentals@after-sales
  */
 Component.register('sw-condition-tree-node', {
     template,

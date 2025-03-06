@@ -1,34 +1,40 @@
-import 'src/app/component/filter/sw-date-filter';
-import 'src/app/component/filter/sw-base-filter';
-import 'src/app/component/filter/sw-range-filter';
+/**
+ * @sw-package framework
+ */
 
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
 const { Criteria } = Shopware.Data;
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-date-filter'), {
-        stubs: {
-            'sw-base-filter': await Shopware.Component.build('sw-base-filter'),
-            'sw-range-filter': await Shopware.Component.build('sw-range-filter'),
-            'sw-single-select': true,
-            'sw-datepicker': {
-                props: ['value'],
-                template: `
+    return mount(await wrapTestComponent('sw-date-filter', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-base-filter': await wrapTestComponent('sw-base-filter', {
+                    sync: true,
+                }),
+                'sw-range-filter': await wrapTestComponent('sw-range-filter', {
+                    sync: true,
+                }),
+                'sw-single-select': true,
+                'mt-datepicker': {
+                    props: ['modelValue'],
+                    template: `
                     <div class="sw-field--datepicker">
-                        <input type="text" ref="flatpickrInput" :value="value" @input="onChange">
+                        <input type="text" ref="flatpickrInput" :value="modelValue" @input="onChange">
                     </div>`,
-                methods: {
-                    onChange(e) {
-                        this.$emit('input', e.target.value);
+                    methods: {
+                        onChange(e) {
+                            this.$emit('update:modelValue', e.target.value);
+                        },
                     },
                 },
-            },
-            'sw-container': {
-                template: '<div class="sw-container"><slot></slot></div>',
+                'sw-container': {
+                    template: '<div class="sw-container"><slot></slot></div>',
+                },
             },
         },
-        propsData: {
+        props: {
             filter: {
                 property: 'releaseDate',
                 name: 'releaseDate',
@@ -55,6 +61,7 @@ describe('src/app/component/filter/sw-date-filter', () => {
 
         await input.setValue('2021-01-22');
         await input.trigger('input');
+        await flushPromises();
 
         expect(wrapper.emitted()['filter-update'][0]).toEqual([
             'releaseDate',
@@ -69,11 +76,12 @@ describe('src/app/component/filter/sw-date-filter', () => {
 
         await input.setValue('2021-01-25');
         await input.trigger('input');
+        await flushPromises();
 
         expect(wrapper.emitted()['filter-update'][0]).toEqual([
             'releaseDate',
             [Criteria.range('releaseDate', { lte: '2021-01-25' })],
-            { from: null, to: '2021-01-25', timeframe: 'custom' },
+            { from: null, to: '2021-01-25T23:59:59.000Z', timeframe: 'custom' },
         ]);
     });
 
@@ -84,6 +92,7 @@ describe('src/app/component/filter/sw-date-filter', () => {
 
         await fromInput.setValue('2021-01-19');
         await fromInput.trigger('input');
+        await flushPromises();
 
         expect(wrapper.emitted()['filter-update'][0]).toEqual([
             'releaseDate',
@@ -95,11 +104,21 @@ describe('src/app/component/filter/sw-date-filter', () => {
 
         await toInput.setValue('2021-01-25');
         await toInput.trigger('input');
+        await flushPromises();
 
         expect(wrapper.emitted()['filter-update'][1]).toEqual([
             'releaseDate',
-            [Criteria.range('releaseDate', { gte: '2021-01-19', lte: '2021-01-25' })],
-            { from: '2021-01-19', to: '2021-01-25', timeframe: 'custom' },
+            [
+                Criteria.range('releaseDate', {
+                    gte: '2021-01-19',
+                    lte: '2021-01-25',
+                }),
+            ],
+            {
+                from: '2021-01-19',
+                to: '2021-01-25T23:59:59.000Z',
+                timeframe: 'custom',
+            },
         ]);
     });
 
@@ -238,49 +257,54 @@ describe('src/app/component/filter/sw-date-filter', () => {
         },
     };
 
-    Object.entries(cases).forEach(([key, timeCase]) => {
-        it(`should filter correctly for timeframe ${key}`, async () => {
-            const expected = [
-                [
-                    'releaseDate',
+    Object.entries(cases).forEach(
+        ([
+            key,
+            timeCase,
+        ]) => {
+            it(`should filter correctly for timeframe ${key}`, async () => {
+                const expected = [
                     [
-                        {
-                            field: 'releaseDate',
-                            parameters: {
-                                gte: timeCase.expectedFrom,
-                                lte: timeCase.expectedTo,
+                        'releaseDate',
+                        [
+                            {
+                                field: 'releaseDate',
+                                parameters: {
+                                    gte: timeCase.expectedFrom,
+                                    lte: timeCase.expectedTo,
+                                },
+                                type: 'range',
                             },
-                            type: 'range',
+                        ],
+                        {
+                            from: timeCase.expectedFrom,
+                            timeframe: timeCase.timeframe,
+                            to: timeCase.expectedTo,
                         },
                     ],
-                    {
-                        from: timeCase.expectedFrom,
-                        timeframe: timeCase.timeframe,
-                        to: timeCase.expectedTo,
+                ];
+
+                const wrapper = await createWrapper();
+
+                await wrapper.setProps({
+                    filter: {
+                        property: 'releaseDate',
+                        name: 'releaseDate',
+                        label: 'Release Date',
+                        dateType: 'date',
+                        showTimeframe: true,
                     },
-                ],
-            ];
+                });
 
-            const wrapper = await createWrapper();
+                const timeframe = wrapper.find('.sw-date-filter__timeframe');
+                expect(timeframe.exists()).toBe(true);
 
-            await wrapper.setProps({
-                filter: {
-                    property: 'releaseDate',
-                    name: 'releaseDate',
-                    label: 'Release Date',
-                    dateType: 'date',
-                    showTimeframe: true,
-                },
+                wrapper.vm.onTimeframeSelect(timeCase.timeframe);
+
+                expect(wrapper.emitted()['filter-update']).toEqual(expected);
             });
-
-            const timeframe = wrapper.find('.sw-date-filter__timeframe');
-            expect(timeframe.exists()).toBe(true);
-
-            wrapper.vm.onTimeframeSelect(timeCase.timeframe);
-
-            expect(wrapper.emitted()['filter-update']).toEqual(expected);
-        });
-    });
+        },
+    );
 
     it('should console.error for invalid timeframe', async () => {
         const wrapper = await createWrapper();
@@ -302,8 +326,7 @@ describe('src/app/component/filter/sw-date-filter', () => {
 
         wrapper.vm.onTimeframeSelect('yeeet');
 
-        expect(global.console.error)
-            .toHaveBeenCalledWith('Timeframe yeeet is not allowed for sw-date-filter component');
+        expect(global.console.error).toHaveBeenCalledWith('Timeframe yeeet is not allowed for sw-date-filter component');
 
         global.console.error.mockReset();
 

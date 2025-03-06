@@ -2,18 +2,18 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Validator;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Rule\Container\AndRule;
 use Shopware\Core\Framework\Rule\Container\OrRule;
 use Shopware\Core\Framework\Rule\RuleCollection;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\FalseRule;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\TrueRule;
+use Shopware\Core\Test\Stub\Rule\FalseRule;
+use Shopware\Core\Test\Stub\Rule\TrueRule;
 
 /**
- * @covers \Shopware\Core\Framework\Rule\RuleCollection
- *
  * @internal
  */
+#[CoversClass(RuleCollection::class)]
 class RuleCollectionTest extends TestCase
 {
     public function testMetaCollecting(): void

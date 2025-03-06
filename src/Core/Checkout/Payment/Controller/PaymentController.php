@@ -3,11 +3,11 @@
 namespace Shopware\Core\Checkout\Payment\Controller;
 
 use Shopware\Core\Checkout\Cart\Order\OrderConverter;
-use Shopware\Core\Checkout\Order\OrderEntity;
+use Shopware\Core\Checkout\Order\OrderCollection;
 use Shopware\Core\Checkout\Payment\Cart\Token\TokenFactoryInterfaceV2;
 use Shopware\Core\Checkout\Payment\Cart\Token\TokenStruct;
 use Shopware\Core\Checkout\Payment\PaymentException;
-use Shopware\Core\Checkout\Payment\PaymentService;
+use Shopware\Core\Checkout\Payment\PaymentProcessor;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -21,18 +21,20 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Package('checkout')]
 class PaymentController extends AbstractController
 {
     /**
      * @internal
+     *
+     * @param EntityRepository<OrderCollection> $orderRepository
      */
     public function __construct(
-        private readonly PaymentService $paymentService,
+        private readonly PaymentProcessor $paymentProcessor,
         private readonly OrderConverter $orderConverter,
-        private readonly TokenFactoryInterfaceV2 $tokenFactoryInterfaceV2,
+        private readonly TokenFactoryInterfaceV2 $tokenFactory,
         private readonly EntityRepository $orderRepository
     ) {
     }
@@ -46,35 +48,40 @@ class PaymentController extends AbstractController
             throw RoutingException::missingRequestParameter('_sw_payment_token');
         }
 
-        $salesChannelContext = $this->assembleSalesChannelContext($paymentToken);
+        $token = $this->tokenFactory->parseToken($paymentToken);
+        if ($token->isExpired()) {
+            $token->setException(PaymentException::tokenExpired($paymentToken));
+            if ($token->getToken() !== null) {
+                $this->tokenFactory->invalidateToken($token->getToken());
+            }
 
-        $result = $this->paymentService->finalizeTransaction(
-            $paymentToken,
+            return $this->handleResponse($token);
+        }
+
+        $salesChannelContext = $this->assembleSalesChannelContext($token);
+
+        $result = $this->paymentProcessor->finalize(
+            $token,
             $request,
             $salesChannelContext
         );
 
-        $response = $this->handleException($result);
-        if ($response !== null) {
-            return $response;
-        }
-
-        $finishUrl = $result->getFinishUrl();
-        if ($finishUrl) {
-            return new RedirectResponse($finishUrl);
-        }
-
-        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+        return $this->handleResponse($result);
     }
 
-    private function handleException(TokenStruct $token): ?Response
+    private function handleResponse(TokenStruct $token): Response
     {
         if ($token->getException() === null) {
-            return null;
+            $finishUrl = $token->getFinishUrl();
+            if ($finishUrl) {
+                return new RedirectResponse($finishUrl);
+            }
+
+            return new JsonResponse(null, Response::HTTP_NO_CONTENT);
         }
 
         if ($token->getErrorUrl() === null) {
-            return null;
+            return new JsonResponse(null, Response::HTTP_NO_CONTENT);
         }
 
         $url = $token->getErrorUrl();
@@ -89,25 +96,22 @@ class PaymentController extends AbstractController
         return new RedirectResponse($url);
     }
 
-    private function assembleSalesChannelContext(string $paymentToken): SalesChannelContext
+    private function assembleSalesChannelContext(TokenStruct $token): SalesChannelContext
     {
         $context = Context::createDefaultContext();
 
-        $transactionId = $this->tokenFactoryInterfaceV2->parseToken($paymentToken)->getTransactionId();
-        if ($transactionId === null) {
-            throw PaymentException::invalidToken($paymentToken);
+        $transactionId = $token->getTransactionId();
+        if (!$transactionId) {
+            throw PaymentException::invalidToken($token->getToken() ?? '');
         }
 
-        $criteria = new Criteria();
-        $criteria->addFilter(new EqualsFilter('transactions.id', $transactionId));
-        $criteria->addAssociation('transactions');
-        $criteria->addAssociation('orderCustomer');
+        $criteria = (new Criteria())
+            ->addFilter(new EqualsFilter('transactions.id', $transactionId))
+            ->addAssociations(['transactions', 'orderCustomer']);
 
-        /** @var OrderEntity|null $order */
-        $order = $this->orderRepository->search($criteria, $context)->first();
-
-        if ($order === null) {
-            throw PaymentException::invalidToken($paymentToken);
+        $order = $this->orderRepository->search($criteria, $context)->getEntities()->first();
+        if (!$order) {
+            throw PaymentException::invalidToken($token->getToken() ?? '');
         }
 
         return $this->orderConverter->assembleSalesChannelContext($order, $context);

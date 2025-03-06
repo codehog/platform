@@ -2,17 +2,15 @@
 
 namespace Shopware\Tests\Unit\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\Tab;
 use Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\Tabs;
 
 /**
- * @package content
- *
  * @internal
- *
- * @covers \Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\Tabs
  */
+#[CoversClass(Tabs::class)]
 class TabsTest extends TestCase
 {
     public function testFromXml(): void
@@ -26,10 +24,7 @@ class TabsTest extends TestCase
         );
 
         $tabs = Tabs::fromXml($tabsElement);
-        static::assertInstanceOf(Tabs::class, $tabs);
-
         $tabsList = $tabs->getContent();
-        static::assertIsArray($tabsList);
         static::assertInstanceOf(Tab::class, \array_pop($tabsList));
     }
 

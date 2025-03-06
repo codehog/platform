@@ -1,31 +1,19 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-avatar';
+import { mount } from '@vue/test-utils';
 
 describe('components/base/sw-avatar', () => {
     let wrapper;
 
     beforeEach(async () => {
-        wrapper = shallowMount(await Shopware.Component.build('sw-avatar'), {
-            provide: {},
-            mocks: {},
-            stubs: {},
-        });
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
+        wrapper = mount(await wrapTestComponent('sw-avatar', { sync: true }));
     });
 
     it('should be a Vue.js component', async () => {
         expect(wrapper.vm).toBeTruthy();
-    });
-
-    it('should be a circle in default', async () => {
-        expect(wrapper.classes()).toContain('sw-avatar__circle');
+        expect(wrapper.get('span').classes()).toContain('sw-avatar__circle');
     });
 
     it('should change the variant to a square', async () => {
@@ -33,6 +21,6 @@ describe('components/base/sw-avatar', () => {
             variant: 'square',
         });
 
-        expect(wrapper.classes()).toContain('sw-avatar__square');
+        expect(wrapper.get('span').classes()).toContain('sw-avatar__square');
     });
 });

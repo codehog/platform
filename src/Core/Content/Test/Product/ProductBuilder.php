@@ -4,12 +4,13 @@ namespace Shopware\Core\Content\Test\Product;
 
 use Shopware\Core\Content\Product\Aggregate\ProductVisibility\ProductVisibilityDefinition;
 use Shopware\Core\Content\Test\Cms\LayoutBuilder;
+use Shopware\Core\Content\Test\TestProductSeoUrlRoute;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Pricing\CashRoundingConfig;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestBuilderTrait;
 use Shopware\Core\Test\TestDefaults;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -150,7 +151,22 @@ class ProductBuilder
      */
     protected array $tags = [];
 
-    protected null|string $createdAt;
+    protected ?string $createdAt;
+
+    /**
+     * @var array<array{salesChannelId: string, languageId: string, routeName: TestProductSeoUrlRoute::ROUTE_NAME, pathInfo: string, seoPathInfo: string}>
+     */
+    protected array $seoUrls = [];
+
+    /**
+     * @var array<array{salesChannelId: string, categoryId: string}>
+     */
+    protected array $mainCategories = [];
+
+    /**
+     * @var array<array<mixed>>
+     */
+    protected array $variantListingConfig = [];
 
     /**
      * @var array<string, array<array<mixed>>>
@@ -167,6 +183,13 @@ class ProductBuilder
         $this->id = $this->ids->create($productNumber);
         $this->name = $productNumber;
         $this->tax($taxKey);
+    }
+
+    public function number(string $number): self
+    {
+        $this->productNumber = $number;
+
+        return $this;
     }
 
     /**
@@ -216,6 +239,16 @@ class ProductBuilder
     public function variant(array $data): self
     {
         $this->children[] = $data;
+
+        return $this;
+    }
+
+    /**
+     * @param array<mixed> $data
+     */
+    public function variantListingConfig(array $data): self
+    {
+        $this->variantListingConfig = $data;
 
         return $this;
     }
@@ -283,7 +316,7 @@ class ProductBuilder
         return $this;
     }
 
-    public function prices(string $ruleKey, float $gross, string $currencyKey = 'default', ?float $net = null, int $start = 1, bool $valid = false, ?float $listPriceGross = null, ?float $listPriceNet = null): self
+    public function prices(string $ruleKey, float $gross, string $currencyKey = 'default', ?float $net = null, int $start = 1, bool $valid = false, ?float $listPriceGross = null, ?float $listPriceNet = null, ?int $end = null): self
     {
         $net ??= $gross / 115 * 100;
 
@@ -330,6 +363,7 @@ class ProductBuilder
 
         $this->prices[] = [
             'quantityStart' => $start,
+            'quantityEnd' => $end,
             'rule' => [
                 'id' => $this->ids->create($ruleKey),
                 'priority' => 1,
@@ -591,6 +625,23 @@ class ProductBuilder
         $this->writeDependencies($container);
     }
 
+    public function seoUrl(
+        string $pathInfo,
+        string $seoPathInfo,
+        string $salesChannelId = TestDefaults::SALES_CHANNEL,
+        string $languageId = Defaults::LANGUAGE_SYSTEM,
+    ): self {
+        $this->seoUrls[] = [
+            'salesChannelId' => $salesChannelId,
+            'languageId' => $languageId,
+            'routeName' => TestProductSeoUrlRoute::ROUTE_NAME,
+            'pathInfo' => $pathInfo,
+            'seoPathInfo' => $seoPathInfo,
+        ];
+
+        return $this;
+    }
+
     public function writeDependencies(ContainerInterface $container): void
     {
         foreach ($this->dependencies as $entity => $records) {
@@ -604,6 +655,16 @@ class ProductBuilder
     public function createdAt(string|\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt instanceof \DateTimeImmutable ? $createdAt->format(Defaults::STORAGE_DATE_TIME_FORMAT) : $createdAt;
+
+        return $this;
+    }
+
+    public function mainCategory(string $salesChannelId, string $categoryKey): static
+    {
+        $this->mainCategories[] = [
+            'salesChannelId' => $salesChannelId,
+            'categoryId' => $this->ids->get($categoryKey),
+        ];
 
         return $this;
     }

@@ -2,7 +2,7 @@ import template from './sw-newsletter-recipient-detail.html.twig';
 import './sw-newsletter-recipient-detail.scss';
 
 /**
- * @package buyers-experience
+ * @sw-package after-sales
  */
 
 const { Mixin } = Shopware;
@@ -12,7 +12,11 @@ const { Criteria } = Shopware.Data;
 export default {
     template,
 
-    inject: ['repositoryFactory', 'acl'],
+    inject: [
+        'repositoryFactory',
+        'acl',
+        'customFieldDataProviderService',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -26,6 +30,7 @@ export default {
             languages: [],
             salesChannels: [],
             isLoading: false,
+            customFieldSets: null,
         };
     },
 
@@ -67,6 +72,8 @@ export default {
                     this.isLoading = false;
                 });
             });
+
+            this.loadCustomFieldSets();
         },
 
         onClickSave() {
@@ -74,10 +81,18 @@ export default {
                 this.createNotificationSuccess({
                     message: this.$tc(
                         'sw-newsletter-recipient.detail.messageSaveSuccess',
+                        {
+                            key: this.newsletterRecipient.email,
+                        },
                         0,
-                        { key: this.newsletterRecipient.email },
                     ),
                 });
+            });
+        },
+
+        loadCustomFieldSets() {
+            this.customFieldDataProviderService.getCustomFieldSets('newsletter_recipient').then((sets) => {
+                this.customFieldSets = sets;
             });
         },
     },

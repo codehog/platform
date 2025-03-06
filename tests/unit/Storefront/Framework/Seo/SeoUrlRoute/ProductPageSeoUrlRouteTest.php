@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Storefront\Framework\Seo\SeoUrlRoute;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\ProductDefinition;
 use Shopware\Core\Content\Product\ProductEntity;
@@ -10,13 +11,13 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\ArrayEntity;
 use Shopware\Core\System\SalesChannel\SalesChannelEntity;
 use Shopware\Storefront\Framework\Seo\SeoUrlRoute\ProductPageSeoUrlRoute;
+use Shopware\Storefront\Framework\StorefrontFrameworkException;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Framework\Seo\SeoUrlRoute\ProductPageSeoUrlRoute
  */
-#[Package('buyers-experience')]
+#[Package('inventory')]
+#[CoversClass(ProductPageSeoUrlRoute::class)]
 class ProductPageSeoUrlRouteTest extends TestCase
 {
     public function testGetConfig(): void
@@ -48,7 +49,8 @@ class ProductPageSeoUrlRouteTest extends TestCase
     {
         $route = new ProductPageSeoUrlRoute($this->createMock(ProductDefinition::class));
 
-        static::expectException(\InvalidArgumentException::class);
+        static::expectException(StorefrontFrameworkException::class);
+        static::expectExceptionMessage('SEO URL Mapping expects argument to be a ProductEntity');
         $route->getMapping(new ArrayEntity(), new SalesChannelEntity());
     }
 
@@ -65,7 +67,6 @@ class ProductPageSeoUrlRouteTest extends TestCase
         static::assertSame(['productId' => 'test'], $data->getInfoPathContext());
 
         $context = $data->getSeoPathInfoContext();
-        static::assertIsArray($context);
         static::assertArrayHasKey('product', $context);
         static::assertSame($product->jsonSerialize(), $context['product']);
     }

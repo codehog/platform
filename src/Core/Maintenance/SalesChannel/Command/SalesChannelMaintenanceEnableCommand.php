@@ -20,13 +20,10 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'sales-channel:maintenance:enable',
     description: 'Enable maintenance mode for a sales channel',
 )]
-#[Package('core')]
+#[Package('discovery')]
 class SalesChannelMaintenanceEnableCommand extends Command
 {
-    /**
-     * @var bool
-     */
-    protected $setMaintenanceMode = true;
+    protected bool $setMaintenanceMode = true;
 
     public function __construct(
         private readonly EntityRepository $salesChannelRepository
@@ -51,7 +48,7 @@ class SalesChannelMaintenanceEnableCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $context = Context::createDefaultContext();
+        $context = Context::createCLIContext();
         $criteria = new Criteria();
 
         if (!$input->getOption('all')) {
@@ -81,7 +78,7 @@ class SalesChannelMaintenanceEnableCommand extends Command
 
         $this->salesChannelRepository->update($update, $context);
 
-        $output->write(sprintf('Updated maintenance mode for %d sales channel(s)', \count($salesChannelIds)));
+        $output->write(\sprintf('Updated maintenance mode for %d sales channel(s)', \count($salesChannelIds)));
 
         return self::SUCCESS;
     }

@@ -2,17 +2,17 @@
 
 namespace Shopware\Tests\Unit\Storefront\Theme\Twig;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Storefront\Theme\StorefrontPluginConfiguration\StorefrontPluginConfiguration;
 use Shopware\Storefront\Theme\StorefrontPluginConfiguration\StorefrontPluginConfigurationCollection;
-use Shopware\Storefront\Theme\StorefrontPluginRegistryInterface;
+use Shopware\Storefront\Theme\StorefrontPluginRegistry;
 use Shopware\Storefront\Theme\Twig\ThemeInheritanceBuilder;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Theme\Twig\ThemeInheritanceBuilder
  */
+#[CoversClass(ThemeInheritanceBuilder::class)]
 class ThemeInheritanceBuilderTest extends TestCase
 {
     private ThemeInheritanceBuilder $builder;
@@ -70,7 +70,7 @@ class ThemeInheritanceBuilderTest extends TestCase
 /**
  * @internal
  */
-class TestStorefrontPluginRegistry implements StorefrontPluginRegistryInterface
+class TestStorefrontPluginRegistry extends StorefrontPluginRegistry
 {
     public function __construct(private readonly StorefrontPluginConfigurationCollection $plugins)
     {

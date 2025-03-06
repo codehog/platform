@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Content\ImportExport\Processing\Mapping;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\ImportExport\Processing\Mapping\Mapping;
 use Shopware\Core\Content\ImportExport\Processing\Mapping\MappingCollection;
@@ -10,10 +11,9 @@ use Shopware\Core\Framework\Struct\ArrayEntity;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\ImportExport\Processing\Mapping\MappingCollection
  */
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(MappingCollection::class)]
 class MappingCollectionTest extends TestCase
 {
     public function testGet(): void
@@ -50,7 +50,7 @@ class MappingCollectionTest extends TestCase
 
     public function testInvalidElement(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected collection element of type Shopware\Core\Content\ImportExport\Processing\Mapping\Mapping got Shopware\Core\Framework\Struct\ArrayEntity');
         /** @phpstan-ignore-next-line intentionally wrong parameter provided */
         new MappingCollection([new ArrayEntity()]);
     }

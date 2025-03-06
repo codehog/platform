@@ -2,8 +2,10 @@
 
 namespace Shopware\Tests\Integration\Core\Content\Cms\Subscriber;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Cms\CmsException;
+use Shopware\Core\Content\Cms\Subscriber\CmsPageDefaultChangeSubscriber;
 use Shopware\Core\Content\Product\ProductDefinition;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -16,12 +18,9 @@ use Shopware\Core\Test\TestDefaults;
 
 /**
  * @internal
- *
- * @package content
- *
- * @covers \Shopware\Core\Content\Cms\Subscriber\CmsPageDefaultChangeSubscriber
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
+#[CoversClass(CmsPageDefaultChangeSubscriber::class)]
 class CmsPageBeforeDeleteSubscriberTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -34,8 +33,8 @@ class CmsPageBeforeDeleteSubscriberTest extends TestCase
     {
         parent::setUp();
 
-        $this->cmsPageRepository = $this->getContainer()->get('cms_page.repository');
-        $this->systemConfigService = $this->getContainer()->get(SystemConfigService::class);
+        $this->cmsPageRepository = static::getContainer()->get('cms_page.repository');
+        $this->systemConfigService = static::getContainer()->get(SystemConfigService::class);
     }
 
     public function testDeleteCmsPageDoesNotThrow(): void

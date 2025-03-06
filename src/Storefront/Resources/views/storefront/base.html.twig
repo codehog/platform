@@ -1,3 +1,5 @@
+{# @sw-package framework #}
+
 {# Set variable to "true" to enable HMR (hot page reloading) mode #}
 {% set isHMRMode = app.request.headers.get('hot-reload-mode') and app.environment == 'dev' %}
 
@@ -6,7 +8,7 @@
 {% endblock %}
 
 {% block base_html %}
-<html lang="{{ page.header.activeLanguage.translationCode.code }}"
+<html lang="{{ context.languageInfo.localeCode }}"
       itemscope="itemscope"
       itemtype="https://schema.org/WebPage">
 {% endblock %}
@@ -17,6 +19,13 @@
 
 {% block base_body %}
     <body class="{% block base_body_classes %}is-ctl-{% if controllerName is not empty %}{{ controllerName|lower }}{% endif %} is-act-{% if controllerAction is not empty %}{{ controllerAction|lower }}{% endif %}{% endblock %}">
+
+    {% block base_body_skip_to_content %}
+        {% sw_include '@Storefront/storefront/component/skip-to-content.html.twig' with {
+            skipToSearch: true,
+            skipToMainNav: true
+        } %}
+    {% endblock %}
 
     {% block base_body_inner %}
         {% block base_noscript %}
@@ -29,36 +38,14 @@
             </noscript>
         {% endblock %}
 
-        {% block base_header %}
-            <header class="header-main">
-                {% block base_header_inner %}
-                    <div class="container">
-                        {% sw_include '@Storefront/storefront/layout/header/header.html.twig' %}
-                    </div>
-                {% endblock %}
-            </header>
-        {% endblock %}
+        {{ render_esi(url('frontend.header')) }}
 
-        {% block base_navigation %}
-            <div class="nav-main">
-                {% block base_navigation_inner %}
-                    {% sw_include '@Storefront/storefront/layout/navigation/navigation.html.twig' %}
-                {% endblock %}
-            </div>
-        {% endblock %}
-
-        {% block base_offcanvas_navigation %}
-            {% if page.header.navigation %}
-                <div class="d-none js-navigation-offcanvas-initial-content{% if context.salesChannel.navigationCategoryId == page.header.navigation.active.id %} is-root{% endif %}">
-                    {% block base_offcanvas_navigation_inner %}
-                        {% sw_include '@Storefront/storefront/layout/navigation/offcanvas/navigation.html.twig' with { navigation: page.header.navigation } %}
-                    {% endblock %}
-                </div>
-            {% endif %}
+        {% block base_navigation_styling %}
+            {% sw_include '@Storefront/storefront/layout/navigation/active-styling.html.twig' %}
         {% endblock %}
 
         {% block base_main %}
-            <main class="content-main">
+            <main class="content-main" id="content-main">
                 {% block base_flashbags %}
                     <div class="flashbags container">
                         {% for type, messages in app.flashes %}
@@ -74,7 +61,8 @@
                                 {% block base_breadcrumb %}
                                     {% sw_include '@Storefront/storefront/layout/breadcrumb.html.twig' with {
                                         context: context,
-                                        category: page.product.seoCategory
+                                        themeIconConfig: themeIconConfig,
+                                        categoryId: shopware.navigation.id,
                                     } only %}
                                 {% endblock %}
 
@@ -86,13 +74,8 @@
             </main>
         {% endblock %}
 
-        {% block base_footer %}
-            <footer class="footer-main">
-                {% block base_footer_inner %}
-                    {% sw_include '@Storefront/storefront/layout/footer/footer.html.twig' %}
-                {% endblock %}
-            </footer>
-        {% endblock %}
+        {{ render_esi(url('frontend.footer')) }}
+
     {% endblock %}
 
     {% block base_scroll_up %}
@@ -105,6 +88,15 @@
 
     {% block base_pseudo_modal %}
         {% sw_include '@Storefront/storefront/component/pseudo-modal.html.twig' %}
+    {% endblock %}
+
+    {% block base_speculation_rules %}
+        {% if config('core.storefrontSettings.speculationRules') %}
+            {% set options = {
+                selectorNavigationLinks: '.nav-item.nav-link',
+            } %}
+            <template data-speculation-rules="true" data-speculation-rules-options="{{ options|json_encode }}"></template>
+        {% endif %}
     {% endblock %}
 
     {% block base_body_script %}

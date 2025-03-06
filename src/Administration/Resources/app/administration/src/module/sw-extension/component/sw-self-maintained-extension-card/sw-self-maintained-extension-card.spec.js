@@ -1,79 +1,95 @@
-import { shallowMount } from '@vue/test-utils';
-import swSelfMaintainedExtensionCard from 'src/module/sw-extension/component/sw-self-maintained-extension-card';
-import swExtensionCardBase from 'src/module/sw-extension/component/sw-extension-card-base';
-import 'src/app/component/base/sw-tabs';
-import 'src/app/component/base/sw-tabs-item';
-import 'src/app/component/meteor/sw-meteor-card';
+import { mount } from '@vue/test-utils';
 import ShopwareService from 'src/module/sw-extension/service/shopware-extension.service';
 
-Shopware.Component.register('sw-extension-card-base', swExtensionCardBase);
-Shopware.Component.extend('sw-self-maintained-extension-card', 'sw-extension-card-base', swSelfMaintainedExtensionCard);
-
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-self-maintained-extension-card'), {
-        propsData: {
-            extension: {
-                name: 'Test',
-                type: 'app',
-                icon: null,
-                installedAt: null,
-                permissions: [],
-            },
-        },
-        stubs: {
-            'sw-context-button': true,
-            'sw-switch-field': true,
-            'router-link': true,
-            'sw-context-menu-item': true,
-            'sw-loader': true,
-            'sw-meteor-card': await Shopware.Component.build('sw-meteor-card'),
-            'sw-extension-icon': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {};
+    return mount(
+        await wrapTestComponent('sw-self-maintained-extension-card', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-context-button': true,
+
+                    'router-link': true,
+                    'sw-context-menu-item': true,
+                    'sw-loader': true,
+                    'sw-meteor-card': await wrapTestComponent('sw-meteor-card', { sync: true }),
+                    'sw-extension-icon': true,
+                    'sw-extension-uninstall-modal': true,
+                    'sw-extension-removal-modal': true,
+                    'sw-extension-permissions-modal': true,
+                    'sw-extension-privacy-policy-extensions-modal': true,
+                    'sw-tabs': true,
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: () => {
+                            return {};
+                        },
+                    },
+                    shopwareExtensionService: new ShopwareService({}, {}, {}, {}),
+                    cacheApiService: {
+                        clear() {
+                            return Promise.resolve();
+                        },
+                    },
+                    extensionStoreActionService: {
+                        downloadExtension: jest.fn(),
+                    },
                 },
             },
-            shopwareExtensionService: new ShopwareService({}, {}, {}, {}),
-            cacheApiService: {
-                clear() {
-                    return Promise.resolve();
+            props: {
+                extension: {
+                    name: 'Test',
+                    type: 'app',
+                    icon: null,
+                    installedAt: null,
+                    permissions: [],
                 },
             },
-            extensionStoreActionService: {
-                downloadExtension: jest.fn(),
-            },
         },
-    });
+    );
 }
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  */
 describe('src/module/sw-extension/component/sw-self-maintained-extension-card', () => {
-    /** @type Wrapper */
-    let wrapper;
-
-    beforeEach(async () => {
-        wrapper = await createWrapper();
-    });
-
-    afterEach(async () => {
-        if (wrapper) {
-            await wrapper.destroy();
+    beforeAll(() => {
+        if (Shopware.Store.get('context')) {
+            Shopware.Store.unregister('context');
         }
-    });
 
-    it('should be a Vue.JS component', async () => {
-        expect(wrapper.vm).toBeTruthy();
+        Shopware.Store.register({
+            id: 'context',
+            state: () => ({
+                app: {
+                    config: {
+                        settings: {
+                            disableExtensionManagement: false,
+                        },
+                    },
+                },
+                api: {
+                    assetPath: 'http://localhost:8000/bundles/administration/',
+                    authToken: {
+                        token: 'testToken',
+                    },
+                },
+            }),
+        });
     });
 
     it('isInstalled should return false when not installedAt set', async () => {
+        const wrapper = await createWrapper();
+
         expect(wrapper.vm.isInstalled).toBe(false);
     });
 
     it('isInstalled should return true when installedAt set', async () => {
+        const wrapper = await createWrapper();
+
         await wrapper.setProps({
             extension: {
                 icon: null,
@@ -87,6 +103,8 @@ describe('src/module/sw-extension/component/sw-self-maintained-extension-card', 
     });
 
     it('activateExtension should install and reload the page', async () => {
+        const wrapper = await createWrapper();
+
         await wrapper.setProps({
             extension: {
                 icon: null,
@@ -108,8 +126,9 @@ describe('src/module/sw-extension/component/sw-self-maintained-extension-card', 
         expect(wrapper.vm.isLoading).toBe(false);
     });
 
-
     it('deactivateExtension should install and reload the page', async () => {
+        const wrapper = await createWrapper();
+
         wrapper.vm.shopwareExtensionService.deactivateExtension = jest.fn(() => Promise.resolve());
 
         wrapper.vm.clearCacheAndReloadPage = jest.fn(() => Promise.resolve());
@@ -121,6 +140,8 @@ describe('src/module/sw-extension/component/sw-self-maintained-extension-card', 
     });
 
     it('changeExtensionStatus should call activateExtension when activated', async () => {
+        const wrapper = await createWrapper();
+
         await wrapper.setProps({
             extension: {
                 icon: null,
@@ -138,6 +159,8 @@ describe('src/module/sw-extension/component/sw-self-maintained-extension-card', 
     });
 
     it('changeExtensionStatus should call deactivateExtension when activated', async () => {
+        const wrapper = await createWrapper();
+
         await wrapper.setProps({
             extension: {
                 icon: null,

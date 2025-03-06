@@ -10,86 +10,41 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Salutation\SalutationEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class OrderCustomerEntity extends Entity
 {
     use EntityCustomFieldsTrait;
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $email;
+    protected string $email;
 
-    /**
-     * @var string
-     */
-    protected $orderId;
+    protected string $orderId;
 
-    /**
-     * @var string|null
-     */
-    protected $salutationId;
+    protected ?string $salutationId = null;
 
-    /**
-     * @var string
-     */
-    protected $firstName;
+    protected string $firstName;
 
-    /**
-     * @var string
-     */
-    protected $lastName;
+    protected string $lastName;
 
-    /**
-     * @var string|null
-     */
-    protected $title;
+    protected ?string $title = null;
 
-    /**
-     * @var array|null
-     */
-    protected $vatIds;
+    protected ?array $vatIds = null;
 
-    /**
-     * @var string|null
-     */
-    protected $company;
+    protected ?string $company = null;
 
-    /**
-     * @var string|null
-     */
-    protected $customerNumber;
+    protected ?string $customerNumber = null;
 
-    /**
-     * @var string|null
-     */
-    protected $customerId;
+    protected ?string $customerId = null;
 
-    /**
-     * @var CustomerEntity|null
-     */
-    protected $customer;
+    protected ?CustomerEntity $customer = null;
 
-    /**
-     * @var SalutationEntity|null
-     */
-    protected $salutation;
+    protected ?SalutationEntity $salutation = null;
 
-    /**
-     * @var OrderEntity|null
-     */
-    protected $order;
+    protected ?OrderEntity $order = null;
 
-    /**
-     * @var string|null
-     */
-    protected $remoteAddress;
+    protected ?string $remoteAddress = null;
 
-    /**
-     * @var string
-     */
-    protected $orderVersionId;
+    protected string $orderVersionId;
 
     public function getEmail(): string
     {

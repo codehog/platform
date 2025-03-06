@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\LineItem\Group\LineItemQuantity;
@@ -26,17 +27,16 @@ class CartScopeDiscountPackagerTest extends TestCase
     use IntegrationTestBehaviour;
 
     /**
-     * @dataProvider buildPackagesProvider
-     *
      * @param LineItem[] $items
      * @param array<string> $expected
      */
+    #[DataProvider('buildPackagesProvider')]
     public function testBuildPackages(array $items, array $expected): void
     {
         $cart = new Cart('test');
         $cart->setLineItems(new LineItemCollection($items));
 
-        $packager = $this->getContainer()->get(CartScopeDiscountPackager::class);
+        $packager = static::getContainer()->get(CartScopeDiscountPackager::class);
 
         $context = $this->createMock(SalesChannelContext::class);
 

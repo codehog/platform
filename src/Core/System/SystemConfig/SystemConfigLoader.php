@@ -10,7 +10,7 @@ use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Kernel;
 
-#[Package('system-settings')]
+#[Package('framework')]
 class SystemConfigLoader extends AbstractSystemConfigLoader
 {
     /**
@@ -32,7 +32,7 @@ class SystemConfigLoader extends AbstractSystemConfigLoader
         $query = $this->connection->createQueryBuilder();
 
         $query->from('system_config');
-        $query->select(['configuration_key', 'configuration_value']);
+        $query->select('configuration_key', 'configuration_value');
 
         if ($salesChannelId === null) {
             $query

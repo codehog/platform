@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
@@ -21,19 +23,18 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Container\AndRule;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
-use Shopware\Core\Framework\Test\TestDataCollection;
 use Shopware\Core\System\Currency\Rule\CurrencyRule;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
 
 /**
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[Group('rules')]
 class LineItemListPriceRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -59,9 +60,7 @@ class LineItemListPriceRuleTest extends TestCase
         static::assertArrayHasKey('operator', $ruleConstraints, 'Rule Constraint operator is not defined');
     }
 
-    /**
-     * @dataProvider getMatchingRuleTestData
-     */
+    #[DataProvider('getMatchingRuleTestData')]
     public function testIfMatchesCorrectWithLineItem(
         string $operator,
         ?float $amount,
@@ -123,9 +122,7 @@ class LineItemListPriceRuleTest extends TestCase
         yield 'match / operator empty / without price' => [Rule::OPERATOR_EMPTY, 100, 200, true, true];
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScope(
         string $operator,
         ?float $amount,
@@ -165,9 +162,7 @@ class LineItemListPriceRuleTest extends TestCase
         static::assertSame($expected, $match);
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScopeNested(
         string $operator,
         ?float $amount,
@@ -290,7 +285,7 @@ class LineItemListPriceRuleTest extends TestCase
 
     public function testProductListPrice(): void
     {
-        $ids = new TestDataCollection();
+        $ids = new IdsCollection();
 
         $itemRounding = json_encode(new CashRoundingConfig(2, 0.01, true), \JSON_THROW_ON_ERROR);
         static::assertNotFalse($itemRounding);
@@ -309,7 +304,7 @@ class LineItemListPriceRuleTest extends TestCase
             'totalRounding' => json_decode($totalRounding, true, 512, \JSON_THROW_ON_ERROR),
         ];
 
-        $this->getContainer()->get('currency.repository')
+        static::getContainer()->get('currency.repository')
             ->create([$currency], Context::createDefaultContext());
 
         // create product with two different currency prices
@@ -344,17 +339,17 @@ class LineItemListPriceRuleTest extends TestCase
             'tax' => ['name' => 'test', 'taxRate' => 15],
         ];
 
-        $this->getContainer()->get('product.repository')
+        static::getContainer()->get('product.repository')
             ->create([$data], Context::createDefaultContext());
 
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create('test', TestDefaults::SALES_CHANNEL);
 
-        $service = $this->getContainer()->get(CartService::class);
+        $service = static::getContainer()->get(CartService::class);
 
         // create cart and product line item
         $cart = $service->getCart('test', $context);
-        $lineItem = $this->getContainer()
+        $lineItem = static::getContainer()
             ->get(ProductLineItemFactory::class)
             ->create(['id' => $ids->get('product'), 'referencedId' => $ids->get('product')], $context);
 
@@ -385,7 +380,7 @@ class LineItemListPriceRuleTest extends TestCase
         }
 
         // create new context for other currency
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create('test', TestDefaults::SALES_CHANNEL, ['currencyId' => $ids->get('currency')]);
 
         // fetch cart for recalculation

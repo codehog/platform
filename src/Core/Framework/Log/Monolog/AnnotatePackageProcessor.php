@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class AnnotatePackageProcessor implements ProcessorInterface
 {
     /**
@@ -72,7 +72,13 @@ class AnnotatePackageProcessor implements ProcessorInterface
             return null;
         }
 
-        [$controllerClass, $_] = explode('::', (string) $controller);
+        if (\is_string($controller)) {
+            [$controllerClass, $_] = explode('::', (string) $controller);
+        } elseif (\is_array($controller) && \count($controller) === 2) {
+            [$controllerClass, $_] = $controller;
+        } else {
+            return null;
+        }
 
         $package = Package::getPackageName($controllerClass, true);
         if ($package) {

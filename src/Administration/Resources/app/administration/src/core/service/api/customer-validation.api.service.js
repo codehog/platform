@@ -1,7 +1,7 @@
 import ApiService from '../api.service';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  * Gateway for the API end point "check-email-valid"
  * @class
  * @extends ApiService

@@ -7,39 +7,24 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @codeCoverageIgnore
  */
-#[Package('merchant-services')]
+#[Package('checkout')]
 class DiscountCampaignStruct extends StoreStruct
 {
-    /**
-     * @var string
-     */
-    protected $name;
+    protected string $name;
+
+    protected \DateTimeImmutable $startDate;
+
+    protected \DateTimeImmutable $endDate;
+
+    protected float $discount;
+
+    protected float $discountedPrice;
+
+    protected ?int $discountAppliesForMonths;
 
     /**
-     * @var \DateTimeImmutable
+     * @return DiscountCampaignStruct
      */
-    protected $startDate;
-
-    /**
-     * @var \DateTimeImmutable
-     */
-    protected $endDate;
-
-    /**
-     * @var float
-     */
-    protected $discount;
-
-    /**
-     * @var float
-     */
-    protected $discountedPrice;
-
-    /**
-     * @var int|null
-     */
-    protected $discountAppliesForMonths;
-
     public static function fromArray(array $data): StoreStruct
     {
         return (new self())->assign($data);

@@ -9,7 +9,7 @@ use Shopware\Core\System\CustomEntity\Xml\Field\Traits\TranslatableTrait;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class BoolField extends Field
 {
     use RequiredTrait;
@@ -17,11 +17,10 @@ class BoolField extends Field
 
     protected string $type = 'bool';
 
-    /**
-     * @internal
-     */
-    public static function fromXml(\DOMElement $element): Field
+    protected ?bool $default = null;
+
+    public function getDefault(): ?bool
     {
-        return new self(self::parse($element));
+        return $this->default;
     }
 }

@@ -3,20 +3,22 @@
 namespace Shopware\Tests\Integration\Core\Content\Mail\Service;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Shopware\Core\Content\Mail\Service\AbstractMailSender;
 use Shopware\Core\Content\Mail\Service\MailFactory;
 use Shopware\Core\Content\Mail\Service\MailService;
 use Shopware\Core\Content\MailTemplate\Service\Event\MailBeforeValidateEvent;
-use Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface;
 use Shopware\Core\Framework\Adapter\Twig\StringTemplateRenderer;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelApiTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseHelper\ReflectionHelper;
+use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\DataValidator;
+use Shopware\Core\Framework\Validation\Exception\ConstraintViolationException;
 use Shopware\Core\System\SalesChannel\SalesChannelDefinition;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Shopware\Core\Test\TestDefaults;
@@ -32,24 +34,42 @@ class MailServiceTest extends TestCase
     use IntegrationTestBehaviour;
     use SalesChannelApiTestBehaviour;
 
+    public function testThrowSalesChannelNotFound(): void
+    {
+        static::expectException(ConstraintViolationException::class);
+
+        $data = [
+            'recipients' => ['foo@bar.de'],
+            'salesChannelId' => Uuid::randomHex(),
+            'subject' => 'test',
+            'senderName' => 'test',
+            'contentHtml' => 'test',
+            'contentPlain' => 'test',
+        ];
+
+        $this->getContainer()->get(MailService::class)->send($data, Context::createDefaultContext());
+    }
+
     public function testPluginsCanExtendMailData(): void
     {
-        $renderer = clone $this->getContainer()->get(StringTemplateRenderer::class);
+        $renderer = clone static::getContainer()->get(StringTemplateRenderer::class);
         $property = ReflectionHelper::getProperty(StringTemplateRenderer::class, 'twig');
-        $environment = new TestEnvironment($property->getValue($renderer)->getLoader());
+
+        $twig = $property->getValue($renderer);
+        \assert($twig instanceof Environment);
+        $environment = new TestEnvironment($twig->getLoader());
         $property->setValue($renderer, $environment);
 
         $mailService = new MailService(
-            $this->createMock(DataValidator::class),
+            static::getContainer()->get(DataValidator::class),
             $renderer,
-            $this->getContainer()->get(MailFactory::class),
+            static::getContainer()->get(MailFactory::class),
             $this->createMock(AbstractMailSender::class),
             $this->createMock(EntityRepository::class),
-            $this->getContainer()->get(SalesChannelDefinition::class),
-            $this->getContainer()->get('sales_channel.repository'),
-            $this->getContainer()->get(SystemConfigService::class),
-            $this->getContainer()->get('event_dispatcher'),
-            $this->createMock(UrlGeneratorInterface::class),
+            static::getContainer()->get(SalesChannelDefinition::class),
+            static::getContainer()->get('sales_channel.repository'),
+            static::getContainer()->get(SystemConfigService::class),
+            static::getContainer()->get('event_dispatcher'),
             $this->createMock(LoggerInterface::class)
         );
         $data = [
@@ -62,7 +82,7 @@ class MailServiceTest extends TestCase
         ];
 
         $this->addEventListener(
-            $this->getContainer()->get('event_dispatcher'),
+            static::getContainer()->get('event_dispatcher'),
             MailBeforeValidateEvent::class,
             function (MailBeforeValidateEvent $event): void {
                 $event->setTemplateData(
@@ -94,16 +114,14 @@ class MailServiceTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider senderEmailDataProvider
-     */
+    #[DataProvider('senderEmailDataProvider')]
     public function testEmailSender(string $expected, ?string $basicInformationEmail = null, ?string $configSender = null, ?string $dataSenderEmail = null): void
     {
-        $this->getContainer()
+        static::getContainer()
             ->get(Connection::class)
             ->executeStatement('DELETE FROM system_config WHERE configuration_key  IN ("core.mailerSettings.senderAddress", "core.basicInformation.email")');
 
-        $systemConfig = $this->getContainer()->get(SystemConfigService::class);
+        $systemConfig = static::getContainer()->get(SystemConfigService::class);
         if ($configSender !== null) {
             $systemConfig->set('core.mailerSettings.senderAddress', $configSender);
         }
@@ -113,16 +131,15 @@ class MailServiceTest extends TestCase
 
         $mailSender = $this->createMock(AbstractMailSender::class);
         $mailService = new MailService(
-            $this->createMock(DataValidator::class),
-            $this->getContainer()->get(StringTemplateRenderer::class),
-            $this->getContainer()->get(MailFactory::class),
+            static::getContainer()->get(DataValidator::class),
+            static::getContainer()->get(StringTemplateRenderer::class),
+            static::getContainer()->get(MailFactory::class),
             $mailSender,
             $this->createMock(EntityRepository::class),
-            $this->getContainer()->get(SalesChannelDefinition::class),
-            $this->getContainer()->get('sales_channel.repository'),
+            static::getContainer()->get(SalesChannelDefinition::class),
+            static::getContainer()->get('sales_channel.repository'),
             $systemConfig,
             $this->createMock(EventDispatcher::class),
-            $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(LoggerInterface::class)
         );
 
@@ -165,16 +182,15 @@ class MailServiceTest extends TestCase
         });
         $mailSender = $this->createMock(AbstractMailSender::class);
         $mailService = new MailService(
-            $this->createMock(DataValidator::class),
+            static::getContainer()->get(DataValidator::class),
             $this->createMock(StringTemplateRenderer::class),
-            $this->getContainer()->get(MailFactory::class),
+            static::getContainer()->get(MailFactory::class),
             $mailSender,
             $this->createMock(EntityRepository::class),
-            $this->getContainer()->get(SalesChannelDefinition::class),
-            $this->getContainer()->get('sales_channel.repository'),
-            $this->getContainer()->get(SystemConfigService::class),
+            static::getContainer()->get(SalesChannelDefinition::class),
+            static::getContainer()->get('sales_channel.repository'),
+            static::getContainer()->get(SystemConfigService::class),
             $eventDispatcher,
-            $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(LoggerInterface::class)
         );
 
@@ -206,16 +222,15 @@ class MailServiceTest extends TestCase
         $mailSender = $this->createMock(AbstractMailSender::class);
         $templateRenderer = $this->createMock(StringTemplateRenderer::class);
         $mailService = new MailService(
-            $this->createMock(DataValidator::class),
+            $this->getContainer()->get(DataValidator::class),
             $templateRenderer,
-            $this->getContainer()->get(MailFactory::class),
+            static::getContainer()->get(MailFactory::class),
             $mailSender,
             $this->createMock(EntityRepository::class),
-            $this->getContainer()->get(SalesChannelDefinition::class),
-            $this->getContainer()->get('sales_channel.repository'),
-            $this->getContainer()->get(SystemConfigService::class),
+            static::getContainer()->get(SalesChannelDefinition::class),
+            static::getContainer()->get('sales_channel.repository'),
+            static::getContainer()->get(SystemConfigService::class),
             $this->createMock(EventDispatcher::class),
-            $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(LoggerInterface::class)
         );
 
@@ -238,31 +253,42 @@ class MailServiceTest extends TestCase
             ],
         ];
 
+        $context = Context::createDefaultContext();
+
         $mailSender->expects(static::once())
             ->method('send')
-            ->with(static::callback(function (Email $mail): bool {
+            ->with(static::callback(function (Email $mail) use ($salesChannel, $context): bool {
                 $from = $mail->getFrom();
                 $this->assertCount(1, $from);
 
+                $this->assertNotNull($mail->getHeaders()->get('X-Shopware-Event-Name'));
+                $this->assertNotNull($mail->getHeaders()->get('X-Shopware-Sales-Channel-Id'));
+                $this->assertNotNull($mail->getHeaders()->get('X-Shopware-Language-Id'));
+
+                $salesChannelIdHeader = $mail->getHeaders()->get('X-Shopware-Sales-Channel-Id');
+                $this->assertSame($salesChannel['id'], $salesChannelIdHeader->getBodyAsString());
+
+                $languageIdHeader = $mail->getHeaders()->get('X-Shopware-Language-Id');
+                $this->assertSame($context->getLanguageId(), $languageIdHeader->getBodyAsString());
+
                 return true;
             }));
-        $mailService->send($data, Context::createDefaultContext(), $templateData);
+        $mailService->send($data, $context, $templateData);
     }
 
     public function testHtmlEscaping(): void
     {
         $mailSender = $this->createMock(AbstractMailSender::class);
         $mailService = new MailService(
-            $this->createMock(DataValidator::class),
-            $this->getContainer()->get(StringTemplateRenderer::class),
-            $this->getContainer()->get(MailFactory::class),
+            static::getContainer()->get(DataValidator::class),
+            static::getContainer()->get(StringTemplateRenderer::class),
+            static::getContainer()->get(MailFactory::class),
             $mailSender,
             $this->createMock(EntityRepository::class),
-            $this->getContainer()->get(SalesChannelDefinition::class),
-            $this->getContainer()->get('sales_channel.repository'),
-            $this->getContainer()->get(SystemConfigService::class),
+            static::getContainer()->get(SalesChannelDefinition::class),
+            static::getContainer()->get('sales_channel.repository'),
+            static::getContainer()->get(SystemConfigService::class),
             $this->createMock(EventDispatcher::class),
-            $this->createMock(UrlGeneratorInterface::class),
             $this->createMock(LoggerInterface::class)
         );
 

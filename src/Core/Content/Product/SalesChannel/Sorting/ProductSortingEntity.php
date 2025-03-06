@@ -12,41 +12,26 @@ class ProductSortingEntity extends Entity
 {
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $key;
+    protected string $key;
+
+    protected int $priority;
+
+    protected bool $active;
 
     /**
-     * @var int
+     * @var array<array{field: string, priority: int, order: ?string, naturalSorting: bool|int|null}>
      */
-    protected $priority;
+    protected array $fields = [];
+
+    protected ?string $label = null;
+
+    protected ?ProductSortingTranslationCollection $translations = null;
+
+    protected bool $locked;
 
     /**
-     * @var bool
+     * @return array<FieldSorting>
      */
-    protected $active;
-
-    /**
-     * @var array
-     */
-    protected $fields;
-
-    /**
-     * @var string|null
-     */
-    protected $label;
-
-    /**
-     * @var ProductSortingTranslationCollection|null
-     */
-    protected $translations;
-
-    /**
-     * @var bool
-     */
-    protected $locked;
-
     public function createDalSorting(): array
     {
         $sorting = [];
@@ -66,6 +51,17 @@ class ProductSortingEntity extends Entity
                 (bool) ($field['naturalSorting'] ?? false)
             );
         }
+
+        $flat = array_column($fields, 'field');
+
+        if (\in_array('id', $flat, true)) {
+            return $sorting;
+        }
+        if (\in_array('product.id', $flat, true)) {
+            return $sorting;
+        }
+
+        $sorting[] = new FieldSorting('id', FieldSorting::ASCENDING);
 
         return $sorting;
     }
@@ -100,11 +96,17 @@ class ProductSortingEntity extends Entity
         $this->active = $active;
     }
 
+    /**
+     * @return array<array{field: string, priority: int, order: ?string, naturalSorting: bool|int|null}>
+     */
     public function getFields(): array
     {
         return $this->fields;
     }
 
+    /**
+     * @param array<array{field: string, priority: int, order: ?string, naturalSorting: bool|int|null}> $fields
+     */
     public function setFields(array $fields): void
     {
         $this->fields = $fields;

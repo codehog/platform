@@ -2,19 +2,17 @@
 
 namespace Shopware\Tests\Unit\Elasticsearch\Admin;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Elasticsearch\Admin\ElasticsearchAdminException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Admin\ElasticsearchAdminException
  */
-#[Package('system-settings')]
+#[Package('inventory')]
+#[CoversClass(ElasticsearchAdminException::class)]
 class ElasticsearchAdminExceptionTest extends TestCase
 {
     public function testAdminEsNotEnabled(): void

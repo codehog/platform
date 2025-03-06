@@ -1,23 +1,27 @@
+/**
+ * @sw-package framework
+ */
+
 import 'src/app/component/filter/sw-range-filter';
 import 'src/app/component/filter/sw-base-filter';
-import { createLocalVue, shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
 const { Criteria } = Shopware.Data;
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-range-filter'), {
-        localVue,
-        stubs: {
-            'sw-base-filter': await Shopware.Component.build('sw-base-filter'),
-            'sw-container': {
-                template: '<div class="sw-container"><slot></slot></div>',
+    return mount(await wrapTestComponent('sw-range-filter', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-base-filter': await wrapTestComponent('sw-base-filter', {
+                    sync: true,
+                }),
+                'sw-container': {
+                    template: '<div class="sw-container"><slot></slot></div>',
+                },
+                'sw-field-error': true,
             },
-            'sw-icon': true,
-            'sw-field-error': true,
         },
-        propsData: {
+        props: {
             isShowDivider: true,
             value: {
                 from: null,
@@ -73,7 +77,12 @@ describe('src/app/component/filter/sw-range-filter', () => {
         });
 
         expect(wrapper.emitted()['filter-update'][0]).toEqual([
-            [Criteria.range('releaseDate', { gte: '2021-01-20', lte: '2021-01-23' })],
+            [
+                Criteria.range('releaseDate', {
+                    gte: '2021-01-20',
+                    lte: '2021-01-23',
+                }),
+            ],
         ]);
     });
 

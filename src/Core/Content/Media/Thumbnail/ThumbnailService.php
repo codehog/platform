@@ -2,42 +2,64 @@
 
 namespace Shopware\Core\Content\Media\Thumbnail;
 
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Connection;
 use League\Flysystem\FilesystemOperator;
-use Shopware\Core\Content\Media\Aggregate\MediaFolder\MediaFolderEntity;
+use Shopware\Core\Content\Media\Aggregate\MediaFolder\MediaFolderCollection;
 use Shopware\Core\Content\Media\Aggregate\MediaFolderConfiguration\MediaFolderConfigurationEntity;
 use Shopware\Core\Content\Media\Aggregate\MediaThumbnail\MediaThumbnailCollection;
 use Shopware\Core\Content\Media\Aggregate\MediaThumbnail\MediaThumbnailEntity;
 use Shopware\Core\Content\Media\Aggregate\MediaThumbnailSize\MediaThumbnailSizeCollection;
 use Shopware\Core\Content\Media\Aggregate\MediaThumbnailSize\MediaThumbnailSizeEntity;
+use Shopware\Core\Content\Media\Core\Event\UpdateThumbnailPathEvent;
+use Shopware\Core\Content\Media\DataAbstractionLayer\MediaIndexingMessage;
+use Shopware\Core\Content\Media\Event\MediaPathChangedEvent;
 use Shopware\Core\Content\Media\MediaCollection;
 use Shopware\Core\Content\Media\MediaEntity;
 use Shopware\Core\Content\Media\MediaException;
 use Shopware\Core\Content\Media\MediaType\ImageType;
 use Shopware\Core\Content\Media\MediaType\MediaType;
-use Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface;
 use Shopware\Core\Content\Media\Subscriber\MediaDeletionSubscriber;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\DataAbstractionLayer\Indexing\EntityIndexer;
+use Shopware\Core\Framework\DataAbstractionLayer\Indexing\EntityIndexerRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Uuid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('buyers-experience')]
+/**
+ * @phpstan-type ImageSize array{width: int<1, max>, height: int<1, max>}
+ */
+#[Package('discovery')]
 class ThumbnailService
 {
     /**
      * @internal
+     *
+     * @param EntityRepository<MediaThumbnailCollection> $thumbnailRepository
+     * @param EntityRepository<MediaFolderCollection> $mediaFolderRepository
      */
     public function __construct(
         private readonly EntityRepository $thumbnailRepository,
         private readonly FilesystemOperator $filesystemPublic,
         private readonly FilesystemOperator $filesystemPrivate,
-        private readonly UrlGeneratorInterface $urlGenerator,
-        private readonly EntityRepository $mediaFolderRepository
+        private readonly EntityRepository $mediaFolderRepository,
+        private readonly EventDispatcherInterface $dispatcher,
+        private readonly EntityIndexer $indexer,
+        private readonly ThumbnailSizeCalculator $thumbnailSizeCalculator,
+        private readonly Connection $connection,
+        private readonly bool $remoteThumbnailsEnable = false
     ) {
     }
 
     public function generate(MediaCollection $collection, Context $context): int
     {
+        if ($this->remoteThumbnailsEnable) {
+            throw MediaException::thumbnailGenerationDisabled();
+        }
+
         $delete = [];
 
         $generate = [];
@@ -68,6 +90,9 @@ class ThumbnailService
             $generate[] = $media;
         }
 
+        // disable media indexing to trigger it once after processing all thumbnails
+        $context->addState(EntityIndexerRegistry::DISABLE_INDEXING);
+
         if (!empty($delete)) {
             $context->addState(MediaDeletionSubscriber::SYNCHRONE_FILE_DELETE);
 
@@ -84,20 +109,14 @@ class ThumbnailService
 
             $config = $media->getMediaFolder()->getConfiguration();
 
-            $thumbnails = $this->createThumbnailsForSizes($media, $config, $config->getMediaThumbnailSizes());
+            $thumbnails = $this->generateAndSave($media, $config, $context, $config->getMediaThumbnailSizes());
 
             foreach ($thumbnails as $thumbnail) {
                 $updates[] = $thumbnail;
             }
         }
 
-        if (empty($updates)) {
-            return 0;
-        }
-
-        $context->scope(Context::SYSTEM_SCOPE, function ($context) use ($updates): void {
-            $this->thumbnailRepository->create($updates, $context);
-        });
+        $this->indexer->handle(new MediaIndexingMessage($collection->getIds()));
 
         return \count($updates);
     }
@@ -107,6 +126,10 @@ class ThumbnailService
      */
     public function updateThumbnails(MediaEntity $media, Context $context, bool $strict): int
     {
+        if ($this->remoteThumbnailsEnable) {
+            throw MediaException::thumbnailGenerationDisabled();
+        }
+
         if (!$this->mediaCanHaveThumbnails($media, $context)) {
             $this->deleteAssociatedThumbnails($media, $context);
 
@@ -122,8 +145,6 @@ class ThumbnailService
         if ($config === null) {
             return 0;
         }
-
-        $strict = \func_get_args()[2] ?? false;
 
         if ($config->getMediaThumbnailSizes() === null) {
             return 0;
@@ -141,8 +162,7 @@ class ThumbnailService
                     continue;
                 }
 
-                if ($strict === true
-                    && !$this->getFileSystem($media)->fileExists($this->urlGenerator->getRelativeThumbnailUrl($media, $thumbnail))) {
+                if ($strict === true && !$this->getFileSystem($media)->fileExists($thumbnail->getPath())) {
                     continue;
                 }
 
@@ -155,16 +175,16 @@ class ThumbnailService
 
         $delete = \array_values(\array_map(static fn (string $id) => ['id' => $id], $toBeDeletedThumbnails->getIds()));
 
-        $this->thumbnailRepository->delete($delete, $context);
+        $update = $this->connection->transactional(function () use ($delete, $media, $config, $context, $toBeCreatedSizes): array {
+            return $context->state(function () use ($delete, $media, $config, $context, $toBeCreatedSizes): array {
+                $this->thumbnailRepository->delete($delete, $context);
 
-        $update = $this->createThumbnailsForSizes($media, $config, $toBeCreatedSizes);
+                $updated = $this->generateAndSave($media, $config, $context, $toBeCreatedSizes);
 
-        if (empty($update)) {
-            return 0;
-        }
+                $this->indexer->handle(new MediaIndexingMessage([$media->getId()]));
 
-        $context->scope(Context::SYSTEM_SCOPE, function ($context) use ($update): void {
-            $this->thumbnailRepository->create($update, $context);
+                return $updated;
+            }, EntityIndexerRegistry::DISABLE_INDEXING, MediaDeletionSubscriber::SYNCHRONE_FILE_DELETE);
         });
 
         return \count($update);
@@ -172,62 +192,100 @@ class ThumbnailService
 
     public function deleteThumbnails(MediaEntity $media, Context $context): void
     {
+        if ($this->remoteThumbnailsEnable) {
+            throw MediaException::thumbnailGenerationDisabled();
+        }
+
         $this->deleteAssociatedThumbnails($media, $context);
     }
 
     /**
-     * @throws MediaException
-     *
-     * @return list<array{mediaId: string, width: int, height: int}>
+     * @return list<array{id:string, mediaId:string, width:int, height:int}>
      */
-    private function createThumbnailsForSizes(
-        MediaEntity $media,
-        MediaFolderConfigurationEntity $config,
-        ?MediaThumbnailSizeCollection $thumbnailSizes
-    ): array {
-        if ($thumbnailSizes === null || $thumbnailSizes->count() === 0) {
+    private function generateAndSave(MediaEntity $media, MediaFolderConfigurationEntity $config, Context $context, ?MediaThumbnailSizeCollection $sizes): array
+    {
+        if ($sizes === null || $sizes->count() === 0) {
             return [];
         }
 
-        $mediaImage = $this->getImageResource($media);
-        $originalImageSize = $this->getOriginalImageSize($mediaImage);
-        $originalUrl = $this->urlGenerator->getRelativeMediaUrl($media);
+        $image = $this->getImageResource($media);
 
-        $savedThumbnails = [];
+        $imageSize = $this->getOriginalImageSize($image);
+
+        $records = [];
 
         $type = $media->getMediaType();
         if ($type === null) {
             throw MediaException::mediaTypeNotLoaded($media->getId());
         }
 
+        $mapped = [];
+        foreach ($sizes as $size) {
+            $id = Uuid::randomHex();
+
+            $mapped[$size->getId()] = $id;
+
+            $records[] = [
+                'id' => $id,
+                'mediaId' => $media->getId(),
+                'width' => $size->getWidth(),
+                'height' => $size->getHeight(),
+            ];
+        }
+
+        // write thumbnail records to trigger path generation afterward
+        $context->scope(Context::SYSTEM_SCOPE, function ($context) use ($records): void {
+            $context->addState(EntityIndexerRegistry::DISABLE_INDEXING);
+
+            $this->thumbnailRepository->create($records, $context);
+        });
+
+        $ids = \array_column($records, 'id');
+
+        // triggers the path generation for the persisted thumbnails
+        $this->dispatcher->dispatch(new UpdateThumbnailPathEvent($ids));
+
+        // create hash map for easy path access
+        $paths = $this->connection->fetchAllKeyValue(
+            'SELECT LOWER(HEX(id)), path FROM media_thumbnail WHERE id IN (:ids)',
+            ['ids' => Uuid::fromHexToBytesList($ids)],
+            ['ids' => ArrayParameterType::BINARY]
+        );
+
         try {
-            foreach ($thumbnailSizes as $size) {
-                $thumbnailSize = $this->calculateThumbnailSize($originalImageSize, $size, $config);
-                $thumbnail = $this->createNewImage($mediaImage, $type, $originalImageSize, $thumbnailSize);
+            $event = new MediaPathChangedEvent($context);
 
-                $url = $this->urlGenerator->getRelativeThumbnailUrl(
-                    $media,
-                    (new MediaThumbnailEntity())->assign(['width' => $size->getWidth(), 'height' => $size->getHeight()])
-                );
-                $this->writeThumbnail($thumbnail, $media, $url, $config->getThumbnailQuality());
+            foreach ($sizes as $size) {
+                $id = $mapped[$size->getId()];
 
-                $mediaFilesystem = $this->getFileSystem($media);
-                if ($originalImageSize === $thumbnailSize
-                    && $mediaFilesystem->fileSize($originalUrl) < $mediaFilesystem->fileSize($url)) {
-                    $mediaFilesystem->write($url, $mediaFilesystem->read($originalUrl));
+                $thumbnailSize = $this->calculateThumbnailSize($imageSize, $size, $config);
+
+                $thumbnail = $this->createNewImage($image, $type, $imageSize, $thumbnailSize);
+
+                $path = $paths[$id];
+
+                $this->writeThumbnail($thumbnail, $media, $path, $config->getThumbnailQuality());
+
+                $fileSystem = $this->getFileSystem($media);
+                if ($imageSize === $thumbnailSize && $fileSystem->fileSize($media->getPath()) < $fileSystem->fileSize($path)) {
+                    // write file to file system
+                    $fileSystem->write($path, $fileSystem->read($media->getPath()));
                 }
 
-                $savedThumbnails[] = [
-                    'mediaId' => $media->getId(),
-                    'width' => $size->getWidth(),
-                    'height' => $size->getHeight(),
-                ];
-
                 imagedestroy($thumbnail);
+
+                $event->thumbnail(
+                    mediaId: $media->getId(),
+                    thumbnailId: $id,
+                    path: $path,
+                );
             }
-            imagedestroy($mediaImage);
+
+            $this->dispatcher->dispatch($event);
+
+            imagedestroy($image);
         } finally {
-            return $savedThumbnails;
+            return $records;
         }
     }
 
@@ -245,15 +303,18 @@ class ThumbnailService
         $criteria = new Criteria([$mediaFolderId]);
         $criteria->addAssociation('configuration.mediaThumbnailSizes');
 
-        /** @var MediaFolderEntity $folder */
-        $folder = $this->mediaFolderRepository->search($criteria, $context)->get($mediaFolderId);
+        $folder = $this->mediaFolderRepository->search($criteria, $context)->getEntities()->get($mediaFolderId);
+        if ($folder === null) {
+            return;
+        }
+
         $media->setMediaFolder($folder);
     }
 
     private function getImageResource(MediaEntity $media): \GdImage
     {
-        $filePath = $this->urlGenerator->getRelativeMediaUrl($media);
-        /** @var string $file */
+        $filePath = $media->getPath();
+
         $file = $this->getFileSystem($media)->read($filePath);
         $image = @imagecreatefromstring($file);
         if ($image === false) {
@@ -261,8 +322,8 @@ class ThumbnailService
         }
 
         if (\function_exists('exif_read_data')) {
-            /** @var resource $stream */
-            $stream = fopen('php://memory', 'r+b');
+            $stream = fopen('php://memory', 'r+');
+            \assert(\is_resource($stream));
 
             try {
                 // use in-memory stream to read the EXIF-metadata,
@@ -296,7 +357,7 @@ class ThumbnailService
     }
 
     /**
-     * @return array{width: int, height: int}
+     * @return ImageSize
      */
     private function getOriginalImageSize(\GdImage $image): array
     {
@@ -307,66 +368,29 @@ class ThumbnailService
     }
 
     /**
-     * @param array{width: int, height: int} $imageSize
+     * @param ImageSize $imageSize
      *
-     * @return array{width: int, height: int}
+     * @return ImageSize
      */
     private function calculateThumbnailSize(
         array $imageSize,
         MediaThumbnailSizeEntity $preferredThumbnailSize,
         MediaFolderConfigurationEntity $config
     ): array {
-        if (!$config->getKeepAspectRatio() || $preferredThumbnailSize->getWidth() !== $preferredThumbnailSize->getHeight()) {
-            $calculatedWidth = $preferredThumbnailSize->getWidth();
-            $calculatedHeight = $preferredThumbnailSize->getHeight();
-
-            $useOriginalSizeInThumbnails = $imageSize['width'] < $calculatedWidth || $imageSize['height'] < $calculatedHeight;
-
-            return $useOriginalSizeInThumbnails ? [
-                'width' => $imageSize['width'],
-                'height' => $imageSize['height'],
-            ] : [
-                'width' => $calculatedWidth,
-                'height' => $calculatedHeight,
-            ];
+        if (!$config->getKeepAspectRatio()) {
+            return $this->thumbnailSizeCalculator->determineValidSize(
+                $imageSize,
+                $preferredThumbnailSize->getWidth(),
+                $preferredThumbnailSize->getHeight()
+            );
         }
 
-        if ($imageSize['width'] >= $imageSize['height']) {
-            $aspectRatio = $imageSize['height'] / $imageSize['width'];
-
-            $calculatedWidth = $preferredThumbnailSize->getWidth();
-            $calculatedHeight = (int) ceil($preferredThumbnailSize->getHeight() * $aspectRatio);
-
-            $useOriginalSizeInThumbnails = $imageSize['width'] < $calculatedWidth || $imageSize['height'] < $calculatedHeight;
-
-            return $useOriginalSizeInThumbnails ? [
-                'width' => $imageSize['width'],
-                'height' => $imageSize['height'],
-            ] : [
-                'width' => $calculatedWidth,
-                'height' => $calculatedHeight,
-            ];
-        }
-
-        $aspectRatio = $imageSize['width'] / $imageSize['height'];
-
-        $calculatedWidth = (int) ceil($preferredThumbnailSize->getWidth() * $aspectRatio);
-        $calculatedHeight = $preferredThumbnailSize->getHeight();
-
-        $useOriginalSizeInThumbnails = $imageSize['width'] < $calculatedWidth || $imageSize['height'] < $calculatedHeight;
-
-        return $useOriginalSizeInThumbnails ? [
-            'width' => $imageSize['width'],
-            'height' => $imageSize['height'],
-        ] : [
-            'width' => $calculatedWidth,
-            'height' => $calculatedHeight,
-        ];
+        return $this->thumbnailSizeCalculator->calculate($imageSize, $preferredThumbnailSize);
     }
 
     /**
-     * @param array{width: int, height: int} $originalImageSize
-     * @param array{width: int, height: int} $thumbnailSize
+     * @param ImageSize $originalImageSize
+     * @param ImageSize $thumbnailSize
      */
     private function createNewImage(\GdImage $mediaImage, MediaType $type, array $originalImageSize, array $thumbnailSize): \GdImage
     {
@@ -425,6 +449,14 @@ class ThumbnailService
                 imagewebp($thumbnail, null, $quality);
 
                 break;
+            case 'image/avif':
+                if (!\function_exists('imageavif')) {
+                    throw MediaException::thumbnailCouldNotBeSaved($url);
+                }
+
+                imageavif($thumbnail, null, $quality);
+
+                break;
         }
         $imageFile = ob_get_contents();
         ob_end_clean();
@@ -445,7 +477,6 @@ class ThumbnailService
         if (!$this->thumbnailsAreGeneratable($media)) {
             return false;
         }
-
         $this->ensureConfigIsLoaded($media, $context);
 
         if ($media->getMediaFolder() === null || $media->getMediaFolder()->getConfiguration() === null) {

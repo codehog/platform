@@ -9,14 +9,15 @@
         "ext-curl": "*",
         "ext-iconv": "*",
         "composer/composer": "^2.4",
-        "symfony/console": "6.3.*",
-        "symfony/dotenv": "6.3.*",
-        "symfony/framework-bundle": "6.3.*",
-        "symfony/http-client": "^6.3",
-        "symfony/process": "^6.3",
-        "symfony/translation": "^6.3",
-        "symfony/twig-bundle": "^6.3",
-        "symfony/yaml": "^6.3",
+        "symfony/console": "6.4.*",
+        "symfony/dotenv": "6.4.*",
+        "symfony/framework-bundle": "6.4.*",
+        "symfony/http-client": "6.4.*",
+        "symfony/process": "6.4.*",
+        "symfony/translation": "6.4.*",
+        "symfony/twig-bundle": "6.4.*",
+        "symfony/yaml": "6.4.*",
+        "symfony/filesystem": "6.4.*",
         "twig/twig": "^3.4"
     },
     "replace": {
@@ -47,11 +48,14 @@
         "preferred-install": {
             "*": "dist"
         },
-        "sort-packages": true
+        "sort-packages": true,
+        "platform": {
+            "php": "8.1.0"
+        }
     },
     "scripts": {
         "build-phar": [
-            "wget -q https://github.com/box-project/box/releases/download/4.2.0/box.phar -O box.phar",
+            "curl -qL -o box.phar https://github.com/box-project/box/releases/download/4.2.0/box.phar",
             "@php -d phar.readonly=0 box.phar compile",
             "rm box.phar"
         ],

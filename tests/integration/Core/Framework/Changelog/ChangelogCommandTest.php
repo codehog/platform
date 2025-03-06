@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\Changelog;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Changelog\Command\ChangelogChangeCommand;
 use Shopware\Core\Framework\Changelog\Command\ChangelogCheckCommand;
@@ -17,9 +19,8 @@ use Symfony\Component\Console\Output\NullOutput;
 
 /**
  * @internal
- *
- * @group skip-paratest
  */
+#[Group('skip-paratest')]
 class ChangelogCommandTest extends TestCase
 {
     use ChangelogTestBehaviour;
@@ -37,19 +38,29 @@ class ChangelogCommandTest extends TestCase
                     '* Unknown flag _FLAG_ is assigned',
                     '[ERROR] You have 1 syntax errors in changelog files.',
                 ],
+                false,
             ],
             [
-                __DIR__ . '/_fixture/stage/command-invalid-issue-number',
+                __DIR__ . '/_fixture/stage/command-missing-separator',
                 [
-                    '* The Jira ticket has an invalid format',
                     '[ERROR] You have 1 syntax errors in changelog files.',
+                    'You should use "___" to separate Storefront and Upgrade section',
                 ],
+                false,
+            ],
+            [
+                __DIR__ . '/_fixture/stage/command-header-in-codeblock',
+                [
+                    '[OK] Done',
+                ],
+                true,
             ],
             [
                 __DIR__ . '/_fixture/stage/command-valid',
                 [
                     '[OK] Done',
                 ],
+                true,
             ],
         ];
     }
@@ -162,31 +173,35 @@ class ChangelogCommandTest extends TestCase
     }
 
     /**
-     * @dataProvider provideCheckCommandFixtures
-     *
      * @param list<string> $expectedOutputSnippets
      */
-    public function testChangelogCheckCommand(string $path, array $expectedOutputSnippets): void
+    #[DataProvider('provideCheckCommandFixtures')]
+    public function testChangelogCheckCommand(string $path, array $expectedOutputSnippets, bool $expectedResult): void
     {
         self::getContainer()->get(ChangelogValidator::class)->setPlatformRoot($path);
         $cmd = self::getContainer()->get(ChangelogCheckCommand::class);
 
         $output = new BufferedOutput();
-        $cmd->run(new StringInput(''), $output);
+        $result = $cmd->run(new StringInput(''), $output);
 
         $outputContents = $output->fetch();
 
         foreach ($expectedOutputSnippets as $snippet) {
             static::assertStringContainsString($snippet, $outputContents);
         }
+
+        if ($expectedResult) {
+            static::assertSame(0, $result);
+        } else {
+            static::assertGreaterThan(0, $result);
+        }
     }
 
     /**
-     * @dataProvider provideChangeCommandFixtures
-     *
      * @param class-string<\Throwable>|null $expectedException
      * @param list<string> $expectedOutputSnippets
      */
+    #[DataProvider('provideChangeCommandFixtures')]
     public function testChangelogChangeCommand(string $path, ?string $expectedException, array $expectedOutputSnippets): void
     {
         self::getContainer()->get(ChangelogReleaseExporter::class)->setPlatformRoot($path);
@@ -208,11 +223,10 @@ class ChangelogCommandTest extends TestCase
     }
 
     /**
-     * @dataProvider provideReleaseCommandFixtures
-     *
      * @param class-string<\Throwable>|null $expectedException
      * @param array<string, list<string>> $expectedFileContents
      */
+    #[DataProvider('provideReleaseCommandFixtures')]
     public function testChangelogReleaseCommand(string $path, string $version, ?string $expectedException, array $expectedFileContents): void
     {
         self::getContainer()->get(ChangelogReleaseCreator::class)->setPlatformRoot($path);
@@ -232,7 +246,7 @@ class ChangelogCommandTest extends TestCase
 
             foreach ($expectedFileContent as $line) {
                 static::assertStringContainsString($line, $fileContents);
-                static::assertSame(1, substr_count($fileContents, $line), sprintf("Multiple occurrences of %s in \n %s", $line, $fileContents));
+                static::assertSame(1, substr_count($fileContents, $line), \sprintf("Multiple occurrences of %s in \n %s", $line, $fileContents));
             }
         }
     }

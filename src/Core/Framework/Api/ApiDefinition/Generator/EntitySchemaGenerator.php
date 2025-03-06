@@ -7,7 +7,6 @@ use Shopware\Core\Framework\DataAbstractionLayer\Dbal\EntityDefinitionQueryHelpe
 use Shopware\Core\Framework\DataAbstractionLayer\EntityDefinition;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityProtection\ReadProtection;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityProtection\WriteProtection;
-use Shopware\Core\Framework\DataAbstractionLayer\Field\AssociationField;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\BlobField;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\BoolField;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\BreadcrumbField;
@@ -53,7 +52,7 @@ use Shopware\Core\System\CustomEntity\Schema\DynamicEntityDefinition;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class EntitySchemaGenerator implements ApiDefinitionGeneratorInterface
 {
     final public const FORMAT = 'entity-schema';
@@ -138,7 +137,6 @@ class EntitySchemaGenerator implements ApiDefinitionGeneratorInterface
      */
     private function parseField(EntityDefinition $definition, Field $field): array
     {
-        /** @var array<string, mixed> $flags */
         $flags = [];
         foreach ($field->getFlags() as $flag) {
             $flags = array_replace_recursive($flags, iterator_to_array($flag->parse()));
@@ -181,20 +179,16 @@ class EntitySchemaGenerator implements ApiDefinitionGeneratorInterface
                 return $this->createJsonObjectType($definition, $field, $flags);
 
                 // association fields
-            case $field instanceof OneToManyAssociationField:
             case $field instanceof ChildrenAssociationField:
             case $field instanceof TranslationsAssociationField:
-                if (!$field instanceof OneToManyAssociationField) {
-                    throw new \RuntimeException('Field should extend OneToManyAssociationField');
-                }
-
+            case $field instanceof OneToManyAssociationField:
                 $reference = $field->getReferenceDefinition();
                 $localField = $definition->getFields()->getByStorageName($field->getLocalField());
                 $referenceField = $reference->getFields()->getByStorageName($field->getReferenceField());
 
                 $primary = $reference->getPrimaryKeys()->first();
                 if (!$primary) {
-                    throw new \RuntimeException(sprintf('No primary key defined for %s', $reference->getEntityName()));
+                    throw new \RuntimeException(\sprintf('No primary key defined for %s', $reference->getEntityName()));
                 }
 
                 return [
@@ -209,10 +203,6 @@ class EntitySchemaGenerator implements ApiDefinitionGeneratorInterface
 
             case $field instanceof ParentAssociationField:
             case $field instanceof ManyToOneAssociationField:
-                if (!$field instanceof AssociationField) {
-                    throw new \RuntimeException('Field should extend AssociationField');
-                }
-
                 $reference = $field->getReferenceDefinition();
                 $localField = $definition->getFields()->getByStorageName($field->getStorageName());
                 $referenceField = $reference->getFields()->getByStorageName($field->getReferenceField());
@@ -239,10 +229,10 @@ class EntitySchemaGenerator implements ApiDefinitionGeneratorInterface
                 );
 
                 if (!$mappingReference) {
-                    throw new \RuntimeException(sprintf('Can not find mapping entity field for storage field %s', $field->getMappingReferenceColumn()));
+                    throw new \RuntimeException(\sprintf('Can not find mapping entity field for storage field %s', $field->getMappingReferenceColumn()));
                 }
                 if (!$mappingLocal) {
-                    throw new \RuntimeException(sprintf('Can not find mapping entity field for storage field %s', $field->getMappingLocalColumn()));
+                    throw new \RuntimeException(\sprintf('Can not find mapping entity field for storage field %s', $field->getMappingLocalColumn()));
                 }
 
                 return [

@@ -1,34 +1,38 @@
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/module/sw-media/mixin/media-sidebar-modal.mixin';
-import swMediaFolderInfo from 'src/module/sw-media/component/sidebar/sw-media-folder-info';
 
 const { Mixin } = Shopware;
 
-Shopware.Component.register('sw-media-folder-info', swMediaFolderInfo);
-
-async function createWrapper(options = {}) {
-    return shallowMount(await Shopware.Component.build('sw-media-folder-info'), {
-        provide: {
-            mediaService: {},
-            mixins: [
-                Mixin.getByName('media-sidebar-modal-mixin'),
-            ],
-        },
-        propsData: {
+async function createWrapper() {
+    return mount(await wrapTestComponent('sw-media-folder-info', { sync: true }), {
+        props: {
             mediaFolder: {
+                id: 'jest',
                 name: 'Test folder',
                 getEntityName: () => 'media_folder',
             },
             editable: false,
         },
-        stubs: {
-            'sw-media-collapse': true,
-            'sw-media-quickinfo-metadata-item': true,
+        global: {
+            mixins: [
+                Mixin.getByName('media-sidebar-modal-mixin'),
+            ],
+            provide: {
+                mediaService: {},
+            },
+            stubs: {
+                'sw-media-collapse': true,
+                'sw-media-quickinfo-metadata-item': true,
+                'sw-confirm-field': true,
+                'sw-media-modal-folder-settings': true,
+                'sw-media-modal-folder-dissolve': true,
+                'sw-media-modal-move': true,
+                'sw-media-modal-delete': true,
+            },
         },
-        ...options,
     });
 }
 
@@ -42,11 +46,14 @@ describe('src/module/sw-media/component/sidebar/sw-media-folder-info', () => {
     });
 
     it('should have error class while having folder name error', async () => {
-        const wrapper = await createWrapper({
-            computed: {
-                mediaFolderNameError: () => 'Error',
+        Shopware.Store.get('error').addApiError({
+            expression: 'media_folder.jest.name',
+            error: {
+                code: 'some-error-code',
             },
         });
+
+        const wrapper = await createWrapper(true);
 
         expect(wrapper.vm.nameItemClasses).toStrictEqual({
             'has--error': true,

@@ -7,6 +7,9 @@ use Shopware\Core\Checkout\Shipping\Aggregate\ShippingMethodPrice\ShippingMethod
 use Shopware\Core\Checkout\Shipping\Aggregate\ShippingMethodTranslation\ShippingMethodTranslationCollection;
 use Shopware\Core\Content\Media\MediaEntity;
 use Shopware\Core\Content\Rule\RuleEntity;
+use Shopware\Core\Framework\App\Aggregate\AppShippingMethod\AppShippingMethodEntity;
+use Shopware\Core\Framework\DataAbstractionLayer\Contract\IdAware;
+use Shopware\Core\Framework\DataAbstractionLayer\Contract\RuleIdAware;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
@@ -17,7 +20,7 @@ use Shopware\Core\System\Tag\TagCollection;
 use Shopware\Core\System\Tax\TaxEntity;
 
 #[Package('checkout')]
-class ShippingMethodEntity extends Entity
+class ShippingMethodEntity extends Entity implements IdAware, RuleIdAware
 {
     use EntityCustomFieldsTrait;
     use EntityIdTrait;
@@ -28,105 +31,49 @@ class ShippingMethodEntity extends Entity
     final public const POSITION_DEFAULT = 1;
     final public const ACTIVE_DEFAULT = false;
 
-    /**
-     * @var string|null
-     */
-    protected $name;
+    protected ?string $name = null;
 
-    /**
-     * @var bool
-     */
-    protected $active;
+    protected ?bool $active = null;
 
-    /**
-     * @var int
-     */
-    protected $position;
+    protected ?int $position = null;
 
-    /**
-     * @var string|null
-     */
-    protected $description;
+    protected ?string $description = null;
 
-    /**
-     * @var string|null
-     */
-    protected $trackingUrl;
+    protected ?string $trackingUrl = null;
 
-    /**
-     * @var string
-     */
-    protected $deliveryTimeId;
+    protected string $deliveryTimeId;
 
-    /**
-     * @var DeliveryTimeEntity|null
-     */
-    protected $deliveryTime;
+    protected ?DeliveryTimeEntity $deliveryTime = null;
 
-    /**
-     * @var ShippingMethodTranslationCollection|null
-     */
-    protected $translations;
+    protected ?ShippingMethodTranslationCollection $translations = null;
 
-    /**
-     * @var OrderDeliveryCollection|null
-     */
-    protected $orderDeliveries;
+    protected ?OrderDeliveryCollection $orderDeliveries = null;
 
-    /**
-     * @var SalesChannelCollection|null
-     */
-    protected $salesChannelDefaultAssignments;
+    protected ?SalesChannelCollection $salesChannelDefaultAssignments = null;
 
-    /**
-     * @var SalesChannelCollection|null
-     */
-    protected $salesChannels;
+    protected ?SalesChannelCollection $salesChannels = null;
 
-    /**
-     * @var RuleEntity|null
-     */
-    protected $availabilityRule;
+    protected ?RuleEntity $availabilityRule = null;
 
-    /**
-     * @var string
-     */
-    protected $availabilityRuleId;
+    protected ?string $availabilityRuleId = null;
 
-    /**
-     * @var ShippingMethodPriceCollection
-     */
-    protected $prices;
+    protected ShippingMethodPriceCollection $prices;
 
-    /**
-     * @var string|null
-     */
-    protected $mediaId;
+    protected ?string $mediaId = null;
 
-    /**
-     * @var string|null
-     */
-    protected $taxId;
+    protected ?string $taxId = null;
 
-    /**
-     * @var MediaEntity|null
-     */
-    protected $media;
+    protected ?MediaEntity $media = null;
 
-    /**
-     * @var TagCollection|null
-     */
-    protected $tags;
+    protected ?TagCollection $tags = null;
 
-    /**
-     * @var string
-     */
-    protected $taxType;
+    protected string $taxType;
 
-    /**
-     * @var TaxEntity|null
-     */
-    protected $tax;
+    protected string $technicalName;
+
+    protected ?TaxEntity $tax = null;
+
+    protected ?AppShippingMethodEntity $appShippingMethod = null;
 
     public function __construct()
     {
@@ -143,7 +90,7 @@ class ShippingMethodEntity extends Entity
         $this->name = $name;
     }
 
-    public function getActive(): bool
+    public function getActive(): ?bool
     {
         return $this->active;
     }
@@ -153,7 +100,7 @@ class ShippingMethodEntity extends Entity
         $this->active = $active;
     }
 
-    public function getPosition(): int
+    public function getPosition(): ?int
     {
         return $this->position;
     }
@@ -263,12 +210,12 @@ class ShippingMethodEntity extends Entity
         $this->availabilityRule = $availabilityRule;
     }
 
-    public function getAvailabilityRuleId(): string
+    public function getAvailabilityRuleId(): ?string
     {
         return $this->availabilityRuleId;
     }
 
-    public function setAvailabilityRuleId(string $availabilityRuleId): void
+    public function setAvailabilityRuleId(?string $availabilityRuleId): void
     {
         $this->availabilityRuleId = $availabilityRuleId;
     }
@@ -323,6 +270,16 @@ class ShippingMethodEntity extends Entity
         $this->taxType = $taxType;
     }
 
+    public function getTechnicalName(): string
+    {
+        return $this->technicalName;
+    }
+
+    public function setTechnicalName(string $technicalName): void
+    {
+        $this->technicalName = $technicalName;
+    }
+
     public function getTax(): ?TaxEntity
     {
         return $this->tax;
@@ -331,5 +288,15 @@ class ShippingMethodEntity extends Entity
     public function setTax(TaxEntity $tax): void
     {
         $this->tax = $tax;
+    }
+
+    public function getAppShippingMethod(): ?AppShippingMethodEntity
+    {
+        return $this->appShippingMethod;
+    }
+
+    public function setAppShippingMethod(?AppShippingMethodEntity $appShippingMethod): void
+    {
+        $this->appShippingMethod = $appShippingMethod;
     }
 }

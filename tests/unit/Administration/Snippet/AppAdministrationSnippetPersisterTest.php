@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Administration\Snippet;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Administration\Snippet\AppAdministrationSnippetCollection;
 use Shopware\Administration\Snippet\AppAdministrationSnippetDefinition;
@@ -21,18 +23,16 @@ use Shopware\Core\System\Locale\LocaleEntity;
 
 /**
  * @internal
- *
- * @covers \Shopware\Administration\Snippet\AppAdministrationSnippetPersister
  */
+#[CoversClass(AppAdministrationSnippetPersister::class)]
 class AppAdministrationSnippetPersisterTest extends TestCase
 {
     /**
-     * @dataProvider persisterDataProvider
-     *
      * @param array<mixed> $snippetData
      * @param array<mixed> $localeData
      * @param array<string, string> $snippets
      */
+    #[DataProvider('persisterDataProvider')]
     public function testItPersistsSnippets(
         array $snippetData,
         array $localeData,
@@ -55,11 +55,10 @@ class AppAdministrationSnippetPersisterTest extends TestCase
     }
 
     /**
-     * @dataProvider persisterExceptionDataProvider
-     *
      * @param array<mixed> $localeData
      * @param array<string, string> $snippets
      */
+    #[DataProvider('persisterExceptionDataProvider')]
     public function testItPersistsSnippetsException(
         array $localeData,
         AppEntity $appEntity,
@@ -241,7 +240,7 @@ class AppAdministrationSnippetPersisterTest extends TestCase
             'The following snippet file must always be provided when providing snippets: en-GB',
         ];
 
-        yield 'Test it throws an exception when the locale does not exists' => [
+        yield 'Test it throws an exception when the locale does not exist' => [
             [
                 [
                     'id' => 'en-GB',
@@ -253,7 +252,7 @@ class AppAdministrationSnippetPersisterTest extends TestCase
                 'en-GB' => \json_encode(['myCustomSnippetName' => 'newTranslation'], \JSON_THROW_ON_ERROR),
                 'foo-bar' => \json_encode(['myCustomSnippetName' => 'newTranslation'], \JSON_THROW_ON_ERROR),
             ],
-            'The locale foo-bar does not exists.',
+            'The locale foo-bar does not exist.',
         ];
     }
 
@@ -270,6 +269,8 @@ class AppAdministrationSnippetPersisterTest extends TestCase
      * @param array<int, array<string, string>> $snippetsFromApp
      * @param array<int, array<string, string>> $newSnippets
      * @param array<int, array<string, string>> $deletesSnippetIds
+     *
+     * @return EntityRepository<AppAdministrationSnippetCollection>
      */
     private function getAppAdministrationSnippetRepository(array $snippetsFromApp = [], array $newSnippets = [], array $deletesSnippetIds = [], bool $updatedSnippets = false): EntityRepository
     {
@@ -323,6 +324,8 @@ class AppAdministrationSnippetPersisterTest extends TestCase
 
     /**
      * @param array<int, array{id: string, code: string}> $locales
+     *
+     * @return EntityRepository<LocaleCollection>
      */
     private function getLocaleRepository(array $locales = []): EntityRepository
     {

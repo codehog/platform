@@ -2,10 +2,12 @@ import template from './sw-settings-rule-assignment-listing.html.twig';
 
 /**
  * @private
- * @package business-ops
+ * @sw-package fundamentals@after-sales
  */
 export default {
     template,
+
+    emits: ['delete-items'],
 
     methods: {
         deleteItems() {

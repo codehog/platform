@@ -2,23 +2,22 @@
 
 namespace Shopware\Core\Content\Flow\Controller;
 
-use Shopware\Core\Content\Flow\Exception\CustomTriggerByNameNotFoundException;
+use Shopware\Core\Content\Flow\FlowException;
 use Shopware\Core\Framework\App\Event\CustomAppEvent;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Routing\Annotation\Since;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(defaults: ['_routeScope' => ['api']])]
-#[Package('business-ops')]
+#[Package('after-sales')]
 class TriggerFlowController extends AbstractController
 {
     /**
@@ -30,9 +29,6 @@ class TriggerFlowController extends AbstractController
     ) {
     }
 
-    /**
-     * @Since("6.5.2.0")
-     */
     #[Route(path: '/api/_action/trigger-event/{eventName}', name: 'api.action.trigger_event', methods: ['POST'])]
     public function trigger(string $eventName, Request $request, Context $context): JsonResponse
     {
@@ -54,6 +50,6 @@ class TriggerFlowController extends AbstractController
         $criteria->addFilter(new EqualsFilter('name', $eventName));
         $criteria->addFilter(new EqualsFilter('app.active', 1));
 
-        $this->appFlowEventRepository->search($criteria, $context)->first() ?? throw new CustomTriggerByNameNotFoundException($eventName);
+        $this->appFlowEventRepository->search($criteria, $context)->first() ?? throw FlowException::customTriggerByNameNotFound($eventName);
     }
 }

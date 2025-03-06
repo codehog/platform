@@ -2,54 +2,52 @@
 
 namespace Shopware\Tests\Unit\Storefront\Controller;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Cms\CmsPageEntity;
 use Shopware\Core\Content\Product\Aggregate\ProductReview\ProductReviewCollection;
 use Shopware\Core\Content\Product\Aggregate\ProductReview\ProductReviewEntity;
-use Shopware\Core\Content\Product\Exception\ReviewNotActiveExeption;
 use Shopware\Core\Content\Product\Exception\VariantNotFoundException;
 use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Content\Product\SalesChannel\FindVariant\FindProductVariantRoute;
 use Shopware\Core\Content\Product\SalesChannel\FindVariant\FindProductVariantRouteResponse;
 use Shopware\Core\Content\Product\SalesChannel\FindVariant\FoundCombination;
 use Shopware\Core\Content\Product\SalesChannel\Review\AbstractProductReviewSaveRoute;
+use Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewLoader;
+use Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewResult;
+use Shopware\Core\Content\Product\SalesChannel\Review\ProductReviewsWidgetLoadedHook;
+use Shopware\Core\Content\Product\SalesChannel\Review\RatingMatrix;
 use Shopware\Core\Content\Product\SalesChannel\SalesChannelProductEntity;
 use Shopware\Core\Content\Seo\SeoUrlPlaceholderHandlerInterface;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
-use Shopware\Core\Framework\Feature;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\Exception\ConstraintViolationException;
 use Shopware\Core\System\SalesChannel\NoContentResponse;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
+use Shopware\Storefront\Controller\Exception\StorefrontException;
 use Shopware\Storefront\Controller\ProductController;
 use Shopware\Storefront\Page\Product\ProductPage;
 use Shopware\Storefront\Page\Product\ProductPageLoader;
 use Shopware\Storefront\Page\Product\QuickView\MinimalQuickViewPage;
 use Shopware\Storefront\Page\Product\QuickView\MinimalQuickViewPageLoader;
 use Shopware\Storefront\Page\Product\QuickView\ProductQuickViewWidgetLoadedHook;
-use Shopware\Storefront\Page\Product\Review\ProductReviewLoader;
-use Shopware\Storefront\Page\Product\Review\ReviewLoaderResult;
+use Shopware\Tests\Unit\Storefront\Controller\Stub\ProductControllerStub;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\ConstraintViolationList;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Controller\ProductController
  */
+#[CoversClass(ProductController::class)]
 class ProductControllerTest extends TestCase
 {
     private MockObject&ProductPageLoader $productPageLoaderMock;
-
-    private SalesChannelProductEntity $productEntity;
-
-    private ProductPage $productPage;
 
     private MockObject&FindProductVariantRoute $findVariantRouteMock;
 
@@ -63,7 +61,7 @@ class ProductControllerTest extends TestCase
 
     private MockObject&ProductReviewLoader $productReviewLoaderMock;
 
-    private ProductControllerTestClass $controller;
+    private ProductControllerStub $controller;
 
     protected function setUp(): void
     {
@@ -75,58 +73,40 @@ class ProductControllerTest extends TestCase
         $this->systemConfigServiceMock = $this->createMock(SystemConfigService::class);
         $this->productReviewLoaderMock = $this->createMock(ProductReviewLoader::class);
 
-        $this->controller = new ProductControllerTestClass(
+        $this->controller = new ProductControllerStub(
             $this->productPageLoaderMock,
             $this->findVariantRouteMock,
             $this->minimalQuickViewPageLoaderMock,
             $this->productReviewSaveRouteMock,
             $this->seoUrlPlaceholderHandlerMock,
             $this->productReviewLoaderMock,
-            $this->systemConfigServiceMock
+            $this->systemConfigServiceMock,
         );
     }
 
     public function testIndexCmsPage(): void
     {
-        $this->productEntity = new SalesChannelProductEntity();
-        $this->productEntity->setId('test');
-        $this->productPage = new ProductPage();
-        $this->productPage->setProduct($this->productEntity);
-        $this->productPage->setCmsPage(new CmsPageEntity());
+        $productEntity = new SalesChannelProductEntity();
+        $productEntity->setId('test');
+        $productPage = new ProductPage();
+        $productPage->setProduct($productEntity);
+        $productPage->setCmsPage(new CmsPageEntity());
 
-        $this->productPageLoaderMock->method('load')->willReturn($this->productPage);
-
-        $response = $this->controller->index($this->createMock(SalesChannelContext::class), new Request());
-
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        static::assertInstanceOf(ProductPage::class, $this->controller->renderStorefrontParameters['page']);
-        static::assertEquals('test', $this->controller->renderStorefrontParameters['page']->getProduct()->getId());
-        static::assertEquals('@Storefront/storefront/page/content/product-detail.html.twig', $this->controller->renderStorefrontView);
-    }
-
-    public function testIndexNoCmsPage(): void
-    {
-        Feature::skipTestIfActive('v6.5.0.0', $this);
-
-        $this->productEntity = new SalesChannelProductEntity();
-        $this->productEntity->setId('test');
-        $this->productPage = new ProductPage();
-        $this->productPage->setProduct($this->productEntity);
-
-        $this->productPageLoaderMock->method('load')->willReturn($this->productPage);
+        $this->productPageLoaderMock->method('load')->willReturn($productPage);
 
         $response = $this->controller->index($this->createMock(SalesChannelContext::class), new Request());
 
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
         static::assertInstanceOf(ProductPage::class, $this->controller->renderStorefrontParameters['page']);
-        static::assertEquals('@Storefront/storefront/page/product-detail/index.html.twig', $this->controller->renderStorefrontView);
+        static::assertSame('test', $this->controller->renderStorefrontParameters['page']->getProduct()->getId());
+        static::assertSame('@Storefront/storefront/page/content/product-detail.html.twig', $this->controller->renderStorefrontView);
     }
 
     public function testSwitchNoVariantReturn(): void
     {
         $response = $this->controller->switch(Uuid::randomHex(), new Request(), $this->createMock(SalesChannelContext::class));
 
-        static::assertEquals('{"url":"","productId":""}', $response->getContent());
+        static::assertSame('{"url":"","productId":""}', $response->getContent());
     }
 
     public function testSwitchVariantReturn(): void
@@ -145,15 +125,17 @@ class ProductControllerTest extends TestCase
             ]
         );
 
-        $this->findVariantRouteMock->method('load')->with(
-            $ids->get('product'),
-            new Request(
-                [
-                    'options' => $options,
-                    'switchedGroup' => $ids->get('element'),
-                ]
+        $expectedDuplicatedRequestData = [
+            'options' => $options,
+            'switchedGroup' => $ids->get('element'),
+        ];
+        $expectedClonedRequest = $request->duplicate($expectedDuplicatedRequestData);
+
+        $this->findVariantRouteMock->method('load')
+            ->with(
+                $ids->get('product'),
+                static::equalTo($expectedClonedRequest)
             )
-        )
             ->willReturn(
                 new FindProductVariantRouteResponse(new FoundCombination($ids->get('variantId'), $options))
             );
@@ -167,7 +149,7 @@ class ProductControllerTest extends TestCase
 
         $response = $this->controller->switch($ids->get('product'), $request, $this->createMock(SalesChannelContext::class));
 
-        static::assertEquals('{"url":"https:\/\/test.com\/test","productId":"' . $ids->get('variantId') . '"}', $response->getContent());
+        static::assertSame('{"url":"https:\/\/test.com\/test","productId":"' . $ids->get('variantId') . '"}', $response->getContent());
     }
 
     public function testSwitchVariantException(): void
@@ -183,7 +165,7 @@ class ProductControllerTest extends TestCase
 
         $response = $this->controller->switch($ids->get('product'), new Request(), $this->createMock(SalesChannelContext::class));
 
-        static::assertEquals('{"url":"","productId":"' . $ids->get('product') . '"}', $response->getContent());
+        static::assertSame('{"url":"","productId":"' . $ids->get('product') . '"}', $response->getContent());
     }
 
     public function testQuickViewMinimal(): void
@@ -198,7 +180,7 @@ class ProductControllerTest extends TestCase
             $this->createMock(SalesChannelContext::class)
         );
 
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
         static::assertInstanceOf(MinimalQuickViewPage::class, $this->controller->renderStorefrontParameters['page']);
         static::assertInstanceOf(ProductQuickViewWidgetLoadedHook::class, $this->controller->calledHook);
     }
@@ -211,7 +193,7 @@ class ProductControllerTest extends TestCase
 
         $requestBag = new RequestDataBag(['test' => 'test']);
 
-        static::expectException(ReviewNotActiveExeption::class);
+        $this->expectExceptionObject(StorefrontException::reviewNotActive());
 
         $this->controller->saveReview(
             $ids->get('productId'),
@@ -240,8 +222,8 @@ class ProductControllerTest extends TestCase
             $this->createMock(SalesChannelContext::class)
         );
 
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        static::assertEquals('frontend.product.reviews', $this->controller->forwardToRoute);
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        static::assertSame('frontend.product.reviews', $this->controller->forwardToRoute);
         static::assertEquals(
             [
                 'productId' => $ids->get('productId'),
@@ -251,12 +233,7 @@ class ProductControllerTest extends TestCase
             ],
             $this->controller->forwardToRouteAttributes
         );
-        static::assertEquals(
-            [
-                'productId' => $ids->get('productId'),
-            ],
-            $this->controller->forwardToRouteParameters
-        );
+        static::assertSame(['productId' => $ids->get('productId')], $this->controller->forwardToRouteParameters);
 
         $requestBag->set('id', 'any');
 
@@ -266,8 +243,8 @@ class ProductControllerTest extends TestCase
             $this->createMock(SalesChannelContext::class)
         );
 
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        static::assertEquals('frontend.product.reviews', $this->controller->forwardToRoute);
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        static::assertSame('frontend.product.reviews', $this->controller->forwardToRoute);
         static::assertEquals(
             [
                 'productId' => $ids->get('productId'),
@@ -297,8 +274,8 @@ class ProductControllerTest extends TestCase
             $this->createMock(SalesChannelContext::class)
         );
 
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        static::assertEquals('frontend.product.reviews', $this->controller->forwardToRoute);
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        static::assertSame('frontend.product.reviews', $this->controller->forwardToRoute);
         static::assertEquals(
             [
                 'productId' => $ids->get('productId'),
@@ -308,26 +285,27 @@ class ProductControllerTest extends TestCase
             ],
             $this->controller->forwardToRouteAttributes
         );
-        static::assertEquals(
-            [
-                'productId' => $ids->get('productId'),
-            ],
-            $this->controller->forwardToRouteParameters
-        );
+        static::assertSame(['productId' => $ids->get('productId')], $this->controller->forwardToRouteParameters);
     }
 
-    public function testLoadReview(): void
+    public function testLoadReviewResults(): void
     {
         $ids = new IdsCollection();
 
         $this->systemConfigServiceMock->method('get')->with('core.listing.showReview')->willReturn(true);
 
-        $requestBag = new RequestDataBag(['test' => 'test']);
-        $request = new Request(['test' => 'test']);
+        $productId = Uuid::randomHex();
+        $parentId = Uuid::randomHex();
+
+        $request = new Request([
+            'test' => 'test',
+            'productId' => $productId,
+            'parentId' => $parentId,
+        ]);
 
         $productReview = new ProductReviewEntity();
         $productReview->setUniqueIdentifier($ids->get('productReview'));
-        $reviewResult = new ReviewLoaderResult(
+        $reviewResult = new ProductReviewResult(
             'review',
             1,
             new ProductReviewCollection([$productReview]),
@@ -335,19 +313,25 @@ class ProductControllerTest extends TestCase
             new Criteria(),
             Context::createDefaultContext()
         );
+        $reviewResult->setMatrix(new RatingMatrix([]));
+        $reviewResult->setProductId($productId);
+        $reviewResult->setParentId($parentId);
+
         $this->productReviewLoaderMock->method('load')->with(
             $request,
-            $this->createMock(SalesChannelContext::class)
+            $this->createMock(SalesChannelContext::class),
+            $productId,
+            $parentId
         )->willReturn($reviewResult);
 
         $response = $this->controller->loadReviews(
+            $productId,
             $request,
-            $requestBag,
             $this->createMock(SalesChannelContext::class)
         );
 
-        static::assertEquals(Response::HTTP_OK, $response->getStatusCode());
-        static::assertEquals('storefront/page/product-detail/review/review.html.twig', $this->controller->renderStorefrontView);
+        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        static::assertSame('storefront/component/review/review.html.twig', $this->controller->renderStorefrontView);
         static::assertEquals(
             [
                 'reviews' => $reviewResult,
@@ -355,13 +339,7 @@ class ProductControllerTest extends TestCase
             ],
             $this->controller->renderStorefrontParameters
         );
-    }
-}
 
-/**
- * @internal
- */
-class ProductControllerTestClass extends ProductController
-{
-    use StorefrontControllerMockTrait;
+        static::assertInstanceOf(ProductReviewsWidgetLoadedHook::class, $this->controller->calledHook);
+    }
 }

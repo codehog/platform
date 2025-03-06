@@ -3,7 +3,9 @@
 namespace Shopware\Core\System\CustomEntity\Xml;
 
 use Shopware\Core\Framework\App\Manifest\Xml\XmlElement;
+use Shopware\Core\Framework\App\Manifest\XmlParserUtils;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\System\CustomEntity\Xml\Config\ConfigXmlElement;
 use Shopware\Core\System\CustomEntity\Xml\Field\Field;
 use Shopware\Core\System\CustomEntity\Xml\Field\FieldFactory;
 use Symfony\Component\Config\Util\XmlUtils;
@@ -11,7 +13,7 @@ use Symfony\Component\Config\Util\XmlUtils;
 /**
  * @internal only for use by the app-system, will be considered internal from v6.4.0 onward
  */
-#[Package('core')]
+#[Package('framework')]
 class Entity extends XmlElement
 {
     protected string $name;
@@ -23,33 +25,15 @@ class Entity extends XmlElement
     protected ?string $labelProperty = null;
 
     /**
-     * @var array<int, Field>
+     * @var list<Field>
      */
     protected array $fields = [];
 
     /**
-     * @var array<string, mixed>
+     * @var array<string, ConfigXmlElement>
      */
     protected array $flags = [];
 
-    /**
-     * @param array<string, mixed> $data
-     */
-    public function __construct(array $data)
-    {
-        foreach ($data as $property => $value) {
-            $this->$property = $value;
-        }
-    }
-
-    public static function fromXml(\DOMElement $element): self
-    {
-        return new self(self::parse($element));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
     public function jsonSerialize(): array
     {
         $data = parent::jsonSerialize();
@@ -59,7 +43,7 @@ class Entity extends XmlElement
     }
 
     /**
-     * @return array<int, Field>
+     * @return list<Field>
      */
     public function getFields(): array
     {
@@ -83,7 +67,7 @@ class Entity extends XmlElement
     }
 
     /**
-     * @param array<int, Field> $fields
+     * @param list<Field> $fields
      */
     public function setFields(array $fields): void
     {
@@ -91,7 +75,7 @@ class Entity extends XmlElement
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, ConfigXmlElement> $flags
      */
     public function getFlags(): array
     {
@@ -99,7 +83,7 @@ class Entity extends XmlElement
     }
 
     /**
-     * @param array<string, mixed> $flags
+     * @param array<string, ConfigXmlElement> $flags
      */
     public function setFlags(array $flags): void
     {
@@ -126,15 +110,14 @@ class Entity extends XmlElement
         return $this->labelProperty;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private static function parse(\DOMElement $element): array
+    protected static function parse(\DOMElement $element): array
     {
         $values = [];
 
-        foreach ($element->attributes ?? [] as $attribute) {
-            \assert($attribute instanceof \DOMAttr);
+        foreach ($element->attributes as $attribute) {
+            if (!$attribute instanceof \DOMAttr) {
+                continue;
+            }
             $name = self::kebabCaseToCamelCase($attribute->name);
 
             $values[$name] = XmlUtils::phpize($attribute->value);
@@ -159,12 +142,12 @@ class Entity extends XmlElement
     private static function parseChild(\DOMElement $child, array $values): array
     {
         if ($child->tagName === 'fields') {
-            $values[$child->tagName] = self::parseChildNodes($child, static fn (\DOMElement $element): Field => FieldFactory::createFromXml($element));
+            $values[$child->tagName] = XmlParserUtils::parseChildrenAsList($child, static fn (\DOMElement $element): Field => FieldFactory::createFromXml($element));
 
             return $values;
         }
 
-        $values[self::kebabCaseToCamelCase($child->tagName)] = $child->nodeValue;
+        $values[XmlParserUtils::kebabCaseToCamelCase($child->tagName)] = $child->nodeValue;
 
         return $values;
     }

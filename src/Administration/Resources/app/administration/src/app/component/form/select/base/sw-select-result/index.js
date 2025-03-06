@@ -4,10 +4,9 @@ import template from './sw-select-result.html.twig';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @description Base component for select results.
  * @example-type code-only
@@ -15,7 +14,10 @@ const { Component } = Shopware;
 Component.register('sw-select-result', {
     template,
 
-    inject: ['setActiveItemIndex', 'feature'],
+    inject: [
+        'setActiveItemIndex',
+        'feature',
+    ],
 
     props: {
         index: {
@@ -40,10 +42,23 @@ Component.register('sw-select-result', {
             type: String,
             required: false,
             default: 'right',
-            validValues: ['bottom', 'right', 'left'],
+            validValues: [
+                'bottom',
+                'right',
+                'left',
+            ],
             validator(value) {
-                return ['bottom', 'right', 'left'].includes(value);
+                return [
+                    'bottom',
+                    'right',
+                    'left',
+                ].includes(value);
             },
+        },
+        ariaLabel: {
+            type: String,
+            required: false,
+            default: undefined,
         },
     },
 
@@ -67,7 +82,7 @@ Component.register('sw-select-result', {
         },
 
         hasDescriptionSlot() {
-            return !!this.$slots.description || !!this.$scopedSlots.description;
+            return !!this.$slots.description;
         },
     },
 
@@ -75,41 +90,31 @@ Component.register('sw-select-result', {
         this.createdComponent();
     },
 
-    destroyed() {
+    unmounted() {
         this.destroyedComponent();
     },
 
     methods: {
         createdComponent() {
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.$parent.$on('active-item-change', this.checkIfActive);
-                this.$parent.$parent.$parent.$on('item-select-by-keyboard', this.checkIfSelected);
-
-                return;
-            }
-
-            this.$parent.$parent.$on('active-item-change', this.checkIfActive);
-            this.$parent.$parent.$on('item-select-by-keyboard', this.checkIfSelected);
+            Shopware.Utils.EventBus.on('active-item-change', this.checkIfActive);
+            Shopware.Utils.EventBus.on('item-select-by-keyboard', this.checkIfSelected);
         },
 
         destroyedComponent() {
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.$parent.$off('active-item-change', this.checkIfActive);
-                this.$parent.$parent.$parent.$off('item-select-by-keyboard', this.checkIfSelected);
-
-                return;
-            }
-
-            this.$parent.$parent.$off('active-item-change', this.checkIfActive);
-            this.$parent.$parent.$off('item-select-by-keyboard', this.checkIfSelected);
+            Shopware.Utils.EventBus.off('active-item-change', this.checkIfActive);
+            Shopware.Utils.EventBus.off('item-select-by-keyboard', this.checkIfSelected);
         },
 
         checkIfSelected(selectedItemIndex) {
             if (selectedItemIndex === this.index) this.onClickResult({});
         },
 
-        checkIfActive(activeItemIndex) {
+        checkIfActive(activeItemIndex, { shouldFocus } = { shouldFocus: false }) {
             this.active = this.index === activeItemIndex;
+
+            if (this.active && shouldFocus) {
+                this.$el.focus();
+            }
         },
 
         onClickResult() {
@@ -117,13 +122,7 @@ Component.register('sw-select-result', {
                 return;
             }
 
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.$parent.$emit('item-select', this.item);
-
-                return;
-            }
-
-            this.$parent.$parent.$emit('item-select', this.item);
+            Shopware.Utils.EventBus.emit('item-select', this.item);
         },
 
         onMouseEnter() {

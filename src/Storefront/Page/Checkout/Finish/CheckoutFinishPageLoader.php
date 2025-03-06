@@ -8,6 +8,7 @@ use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Order\OrderException;
 use Shopware\Core\Checkout\Order\SalesChannel\AbstractOrderRoute;
 use Shopware\Core\Content\Category\Exception\CategoryNotFoundException;
+use Shopware\Core\Framework\Adapter\Translation\AbstractTranslator;
 use Shopware\Core\Framework\DataAbstractionLayer\Exception\InconsistentCriteriaIdsException;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
@@ -24,7 +25,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Do not use direct or indirect repository calls in a PageLoader. Always use a store-api route to get or put data.
  */
-#[Package('storefront')]
+#[Package('framework')]
 class CheckoutFinishPageLoader
 {
     /**
@@ -33,7 +34,8 @@ class CheckoutFinishPageLoader
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly GenericPageLoaderInterface $genericLoader,
-        private readonly AbstractOrderRoute $orderRoute
+        private readonly AbstractOrderRoute $orderRoute,
+        private readonly AbstractTranslator $translator
     ) {
     }
 
@@ -49,10 +51,7 @@ class CheckoutFinishPageLoader
         $page = $this->genericLoader->load($request, $salesChannelContext);
 
         $page = CheckoutFinishPage::createFrom($page);
-
-        if ($page->getMetaInformation()) {
-            $page->getMetaInformation()->setRobots('noindex,follow');
-        }
+        $this->setMetaInformation($page);
 
         Profiler::trace('finish-page-order-loading', function () use ($page, $request, $salesChannelContext): void {
             $page->setOrder($this->getOrder($request, $salesChannelContext));
@@ -75,6 +74,14 @@ class CheckoutFinishPageLoader
         }
 
         return $page;
+    }
+
+    protected function setMetaInformation(CheckoutFinishPage $page): void
+    {
+        $page->getMetaInformation()?->setRobots('noindex,follow');
+        $page->getMetaInformation()?->setMetaTitle(
+            $this->translator->trans('checkout.finishMetaTitle') . ' | ' . $page->getMetaInformation()->getMetaTitle()
+        );
     }
 
     /**
@@ -115,7 +122,7 @@ class CheckoutFinishPageLoader
 
         try {
             $searchResult = $this->orderRoute
-                ->load(new Request(), $salesChannelContext, $criteria)
+                ->load($request->duplicate(), $salesChannelContext, $criteria)
                 ->getOrders();
         } catch (InvalidUuidException) {
             throw OrderException::orderNotFound($orderId);

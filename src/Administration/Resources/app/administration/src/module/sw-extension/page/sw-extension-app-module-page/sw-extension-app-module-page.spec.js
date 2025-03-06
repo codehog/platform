@@ -1,39 +1,30 @@
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import 'src/app/component/structure/sw-page';
-import SwExtensionsAppModulePage from 'src/module/sw-extension/page/sw-extension-app-module-page';
-import SwExtensionsAppModuleErrorPage from 'src/module/sw-extension/component/sw-extension-app-module-error-page';
+import { mount } from '@vue/test-utils';
+
+/**
+ * @sw-package checkout
+ */
 
 import testApps from '../../../../app/service/_mocks/testApps.json';
 
-Shopware.Component.register('sw-extension-app-module-page', SwExtensionsAppModulePage);
-Shopware.Component.register('sw-extension-my-apps-error-page', SwExtensionsAppModuleErrorPage);
-
-/**
- * @package merchant-services
- */
-describe('src/module/sw-extension/page/sw-extension-app-module-page/index.js', () => {
-    beforeEach(() => {
-        Shopware.State.get('session').currentLocale = 'en-GB';
-        Shopware.State.commit('shopwareApps/setApps', testApps);
-    });
-
-    async function createWrapper(propsData) {
-        const localVue = createLocalVue();
-        localVue.filter('asset', value => value);
-
-        // @ts-ignore
-        return shallowMount(await Shopware.Component.build('sw-extension-app-module-page'), {
-            localVue,
-            propsData,
+async function createWrapper(props) {
+    // @ts-ignore
+    return mount(await wrapTestComponent('sw-extension-app-module-page', { sync: true }), {
+        global: {
             stubs: {
-                'sw-extension-app-module-error-page': await Shopware.Component.build('sw-extension-my-apps-error-page'),
-                'sw-page': await Shopware.Component.build('sw-page'),
+                'sw-extension-app-module-error-page': await wrapTestComponent('sw-extension-app-module-error-page', {
+                    sync: true,
+                }),
+                'sw-page': await wrapTestComponent('sw-page', {
+                    sync: true,
+                }),
                 'sw-notification-center': true,
                 'sw-help-center': true,
                 'sw-search-bar': true,
                 'sw-app-actions': true,
                 'sw-loader': true,
-                'sw-button': true,
+                'sw-app-topbar-button': true,
+                'sw-help-center-v2': true,
+                'router-link': true,
             },
             mocks: {
                 $route: {
@@ -44,17 +35,38 @@ describe('src/module/sw-extension/page/sw-extension-app-module-page/index.js', (
                     },
                 },
             },
-        });
-    }
+            provide: {
+                extensionSdkService: {
+                    signIframeSrc(_, source) {
+                        return Promise.resolve({
+                            uri: `${source}?timestamp=signed`,
+                        });
+                    },
+                },
+            },
+        },
+        props,
+    });
+}
+
+/**
+ * @sw-package checkout
+ */
+describe('src/module/sw-extension/page/sw-extension-app-module-page/index.js', () => {
+    beforeEach(() => {
+        Shopware.Store.get('session').currentLocale = 'en-GB';
+        Shopware.Store.get('shopwareApps').apps = testApps;
+    });
 
     it('sets the correct heading and source with a regular module', async () => {
         const wrapper = await createWrapper({
             appName: 'testAppA',
             moduleName: 'standardModule',
         });
+        await flushPromises();
 
         expect(wrapper.get('.smart-bar__header h2').text()).toBe('test App A english - Standard module');
-        expect(wrapper.get('iframe#app-content').attributes('src')).toBe('https://shopware.apps/module1');
+        expect(wrapper.get('iframe#app-content').attributes('src')).toBe('https://shopware.apps/module1?timestamp=signed');
     });
 
     it('sets the correct heading and source with a main module', async () => {
@@ -63,7 +75,7 @@ describe('src/module/sw-extension/page/sw-extension-app-module-page/index.js', (
         });
 
         expect(wrapper.get('.smart-bar__header h2').text()).toBe('test App A english');
-        expect(wrapper.get('iframe#app-content').attributes('src')).toBe('https://shopware.apps/login');
+        expect(wrapper.get('iframe#app-content').attributes('src')).toBe('https://shopware.apps/login?timestamp=signed');
     });
 
     it('shows no iframe and default heading if module is not found', async () => {
@@ -116,5 +128,18 @@ describe('src/module/sw-extension/page/sw-extension-app-module-page/index.js', (
 
         expect(wrapper.find('.sw-extension-app-module-error-page').exists()).toBe(false);
         expect(wrapper.find('sw-loader-stub').exists()).toBe(false);
+    });
+
+    it('should be able to toggle the page smart bar', async () => {
+        const wrapper = await createWrapper({
+            appName: 'testAppA',
+            moduleName: 'standardModule',
+        });
+        expect(wrapper.find('.smart-bar__content').exists()).toBeTruthy();
+
+        Shopware.Store.get('extensionSdkModules').addHiddenSmartBar('standardModule');
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('.smart-bar__content').exists()).toBeFalsy();
     });
 });

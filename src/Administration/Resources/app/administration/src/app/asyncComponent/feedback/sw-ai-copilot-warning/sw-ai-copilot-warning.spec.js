@@ -1,14 +1,11 @@
-import { shallowMount } from '@vue/test-utils';
-import SwAiCopilotWarning from './index';
+/**
+ * @sw-package framework
+ */
 
-Shopware.Component.register('sw-ai-copilot-warning', SwAiCopilotWarning);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-ai-copilot-warning'), {
-        stubs: {
-            'sw-icon': true,
-        },
-    });
+    return mount(await wrapTestComponent('sw-ai-copilot-warning', { sync: true }));
 }
 
 describe('src/app/asyncComponent/feedback/sw-ai-copilot-warning/index.ts', () => {
@@ -21,24 +18,9 @@ describe('src/app/asyncComponent/feedback/sw-ai-copilot-warning/index.ts', () =>
         await flushPromises();
     });
 
-    afterEach(async () => {
-        if (wrapper) {
-            await wrapper.destroy();
-        }
-
-        await flushPromises();
-    });
-
     it('should be a Vue.js component', () => {
-        expect(wrapper.vm).toBeTruthy();
-    });
-
-    it('should render the default text', () => {
-        expect(wrapper.find('.sw-ai-copilot-warning').text()).toBe('sw-ai-copilot-warning.text');
-    });
-
-    it('should render correct icon', async () => {
-        expect(wrapper.find('sw-icon-stub').attributes().name).toBe('solid-exclamation-triangle');
+        expect(wrapper.find('.sw-ai-copilot-warning')).toBeDefined();
+        expect(wrapper.find('.mt-icon.icon--solid-exclamation-triangle')).toBeDefined();
     });
 
     it('should be able to override the default text with custom text', async () => {

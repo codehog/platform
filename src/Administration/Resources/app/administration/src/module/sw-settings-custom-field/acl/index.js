@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@framework
  */
 Shopware.Service('privileges').addPrivilegeMappingEntry({
     category: 'permissions',

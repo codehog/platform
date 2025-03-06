@@ -1,20 +1,15 @@
 /**
- * @package system-settings
+ * @sw-package checkout
  */
-import { shallowMount } from '@vue/test-utils';
-import swBulkEditState from 'src/module/sw-bulk-edit/state/sw-bulk-edit.state';
-
-import swBulkEditOrderDocumentsGenerateInvoice from 'src/module/sw-bulk-edit/component/sw-bulk-edit-order/sw-bulk-edit-order-documents-generate-invoice';
-import swBulkEditOrderDocumentsGenerateDeliveryNode from 'src/module/sw-bulk-edit/component/sw-bulk-edit-order/sw-bulk-edit-order-documents-generate-delivery-note';
-
-Shopware.Component.register('sw-bulk-edit-order-documents-generate-invoice', swBulkEditOrderDocumentsGenerateInvoice);
-Shopware.Component.extend('sw-bulk-edit-order-documents-generate-delivery-note', 'sw-bulk-edit-order-documents-generate-invoice', swBulkEditOrderDocumentsGenerateDeliveryNode);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-bulk-edit-order-documents-generate-delivery-note'), {
-        stubs: {
-            'sw-datepicker': true,
-            'sw-textarea-field': true,
+    return mount(await wrapTestComponent('sw-bulk-edit-order-documents-generate-delivery-note', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-datepicker': true,
+                'sw-textarea-field': true,
+            },
         },
     });
 }
@@ -22,16 +17,8 @@ async function createWrapper() {
 describe('sw-bulk-edit-order-documents-generate-delivery-note', () => {
     let wrapper;
 
-    beforeAll(() => {
-        Shopware.State.registerModule('swBulkEdit', swBulkEditState);
-    });
-
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
     });
 
     it('should be a Vue.js component', async () => {
@@ -39,11 +26,13 @@ describe('sw-bulk-edit-order-documents-generate-delivery-note', () => {
     });
 
     it('should contain a generateData as a computed property', async () => {
-        expect(wrapper.vm.generateData).toEqual(expect.objectContaining({
-            documentComment: null,
-        }));
+        expect(wrapper.vm.generateData).toEqual(
+            expect.objectContaining({
+                documentComment: null,
+            }),
+        );
 
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsValue', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsValue({
             type: 'delivery_note',
             value: {
                 documentDate: 'documentDate',
@@ -51,10 +40,12 @@ describe('sw-bulk-edit-order-documents-generate-delivery-note', () => {
             },
         });
 
-        expect(wrapper.vm.generateData).toEqual(expect.objectContaining({
-            documentDate: 'documentDate',
-            documentComment: 'documentComment',
-        }));
+        expect(wrapper.vm.generateData).toEqual(
+            expect.objectContaining({
+                documentDate: 'documentDate',
+                documentComment: 'documentComment',
+            }),
+        );
     });
 
     it('should be able to update generateData', async () => {

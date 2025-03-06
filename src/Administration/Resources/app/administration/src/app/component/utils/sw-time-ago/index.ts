@@ -4,8 +4,8 @@ import template from './sw-time-ago.html.twig';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
+ * @sw-package checkout
  * @description Render datetimes with relative values like "13 minutes ago" - works with dates in the past and future
  * @status ready
  * @example-type dynamic
@@ -13,21 +13,24 @@ const { Component } = Shopware;
  * <sw-time-ago date=""2021-08-25T11:08:48.940+00:00""></sw-time-ago>
  */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
-Component.register('sw-time-ago', () => Component.wrapComponentConfig({
+Component.register('sw-time-ago', {
     template,
 
     props: {
         date: {
-            type: [Date, String] as PropType<Date|string>,
+            type: [
+                Date,
+                String,
+            ] as PropType<Date | string>,
             required: true,
         },
     },
 
     data(): {
-        formattedRelativeTime: string|null,
-        interval: ReturnType<typeof setInterval>|null,
-        now: number,
-        } {
+        formattedRelativeTime: string | null;
+        interval: ReturnType<typeof setInterval> | null;
+        now: number;
+    } {
         return {
             formattedRelativeTime: null,
             interval: null,
@@ -84,9 +87,11 @@ Component.register('sw-time-ago', () => Component.wrapComponentConfig({
         isToday(): boolean {
             const today = new Date(Date.now());
 
-            return this.dateObject.getDate() === today.getDate() &&
+            return (
+                this.dateObject.getDate() === today.getDate() &&
                 this.dateObject.getMonth() === today.getMonth() &&
-                this.dateObject.getFullYear() === today.getFullYear();
+                this.dateObject.getFullYear() === today.getFullYear()
+            );
         },
     },
 
@@ -103,7 +108,7 @@ Component.register('sw-time-ago', () => Component.wrapComponentConfig({
         }, 30000);
     },
 
-    beforeDestroy() {
+    beforeUnmount() {
         if (this.interval) {
             clearInterval(this.interval);
         }
@@ -122,7 +127,7 @@ Component.register('sw-time-ago', () => Component.wrapComponentConfig({
                 }
 
                 if (this.lessThanOneHour) {
-                    return this.$tc('global.sw-time-ago.minutesAgo', minutesAgo, { minutesAgo });
+                    return this.$tc('global.sw-time-ago.minutesAgo', { minutesAgo }, minutesAgo);
                 }
             } else {
                 if (this.lessThanOneMinuteFromNow) {
@@ -131,7 +136,7 @@ Component.register('sw-time-ago', () => Component.wrapComponentConfig({
 
                 if (this.lessThanOneHourFromNow) {
                     const minutesFromNow = Math.abs(minutesAgo);
-                    return this.$tc('global.sw-time-ago.minutesFromNow', minutesFromNow, { minutesFromNow });
+                    return this.$tc('global.sw-time-ago.minutesFromNow', { minutesFromNow }, minutesFromNow);
                 }
             }
 
@@ -146,4 +151,4 @@ Component.register('sw-time-ago', () => Component.wrapComponentConfig({
             return this.dateFilter(this.dateObject.toString());
         },
     },
-}));
+});

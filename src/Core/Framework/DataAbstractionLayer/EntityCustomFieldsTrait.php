@@ -3,15 +3,17 @@ declare(strict_types=1);
 
 namespace Shopware\Core\Framework\DataAbstractionLayer;
 
+use Shopware\Core\Framework\DataAbstractionLayer\Attribute\CustomFields;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 trait EntityCustomFieldsTrait
 {
     /**
      * @var array<mixed>|null
      */
-    protected $customFields;
+    #[CustomFields]
+    protected ?array $customFields = null;
 
     /**
      * @return array<mixed>|null
@@ -111,6 +113,9 @@ trait EntityCustomFieldsTrait
      */
     public function changeCustomFields(array $customFields): void
     {
-        $this->customFields = \array_replace($this->customFields ?? [], $customFields);
+        $this->customFields = \array_replace(
+            $this->customFields ?? [],
+            $customFields
+        );
     }
 }

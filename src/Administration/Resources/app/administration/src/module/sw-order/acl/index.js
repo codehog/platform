@@ -1,5 +1,5 @@
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
 Shopware.Service('privileges')

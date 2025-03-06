@@ -2,14 +2,20 @@ import template from './sw-first-run-wizard-mailer-selection.html.twig';
 import './sw-first-run-wizard-mailer-selection.scss';
 
 /**
- * @package merchant-services
- * @deprecated tag:v6.6.0 - Will be private
+ * @sw-package fundamentals@after-sales
+ *
+ * @private
  */
-// eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
     inject: ['systemConfigApiService'],
+
+    emits: [
+        'buttons-update',
+        'frw-set-title',
+        'frw-redirect',
+    ],
 
     data() {
         return {
@@ -24,6 +30,9 @@ export default {
         },
 
         buttonConfig() {
+            const disabledExtensionManagement = Shopware.Store.get('context').app.config.settings.disableExtensionManagement;
+            const nextRoute = disabledExtensionManagement ? 'shopware.account' : 'paypal.info';
+
             return [
                 {
                     key: 'back',
@@ -38,7 +47,7 @@ export default {
                     label: this.$tc('sw-first-run-wizard.general.buttonConfigureLater'),
                     position: 'right',
                     variant: null,
-                    action: 'sw.first.run.wizard.index.paypal.info',
+                    action: `sw.first.run.wizard.index.${nextRoute}`,
                     disabled: false,
                 },
                 {

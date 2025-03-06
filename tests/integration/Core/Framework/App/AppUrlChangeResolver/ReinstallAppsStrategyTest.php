@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Integration\Core\Framework\App\AppUrlChangeResolver;
 
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\AppUrlChangeResolver\ReinstallAppsStrategy;
 use Shopware\Core\Framework\App\Event\AppInstalledEvent;
@@ -15,8 +16,9 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Test\TestCaseBase\EnvTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
-use Shopware\Core\System\SystemConfig\SystemConfigService;
-use Shopware\Tests\Integration\Core\Framework\App\AppSystemTestBehaviour;
+use Shopware\Core\Framework\Util\Filesystem;
+use Shopware\Core\Test\AppSystemTestBehaviour;
+use Shopware\Core\Test\Stub\App\StaticSourceResolver;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -28,24 +30,21 @@ class ReinstallAppsStrategyTest extends TestCase
     use EnvTestBehaviour;
     use IntegrationTestBehaviour;
 
-    private SystemConfigService $systemConfigService;
-
     private ShopIdProvider $shopIdProvider;
 
     private Context $context;
 
     protected function setUp(): void
     {
-        $this->systemConfigService = $this->getContainer()->get(SystemConfigService::class);
-        $this->shopIdProvider = $this->getContainer()->get(ShopIdProvider::class);
+        $this->shopIdProvider = static::getContainer()->get(ShopIdProvider::class);
         $this->context = Context::createDefaultContext();
     }
 
     public function testGetName(): void
     {
-        $reinstallAppsResolver = $this->getContainer()->get(ReinstallAppsStrategy::class);
+        $reinstallAppsResolver = static::getContainer()->get(ReinstallAppsStrategy::class);
 
-        static::assertEquals(
+        static::assertSame(
             ReinstallAppsStrategy::STRATEGY_NAME,
             $reinstallAppsResolver->getName()
         );
@@ -54,7 +53,7 @@ class ReinstallAppsStrategyTest extends TestCase
 
     public function testItReRegistersInstalledApps(): void
     {
-        $appDir = __DIR__ . '/../Manifest/_fixtures/test';
+        $appDir = (string) realpath(__DIR__ . '/../Manifest/_fixtures/test');
         $this->loadAppsFromDir($appDir);
 
         $app = $this->getInstalledApp($this->context);
@@ -67,7 +66,7 @@ class ReinstallAppsStrategyTest extends TestCase
             ->with(
                 static::callback(static fn (Manifest $manifest): bool => $manifest->getPath() === $appDir),
                 $app->getId(),
-                static::isType('string'),
+                static::isString(),
                 static::isInstanceOf(Context::class)
             );
 
@@ -77,10 +76,10 @@ class ReinstallAppsStrategyTest extends TestCase
             ->with(static::isInstanceOf(AppInstalledEvent::class));
 
         $reinstallAppsResolver = new ReinstallAppsStrategy(
-            $this->getAppLoader($appDir),
-            $this->getContainer()->get('app.repository'),
+            new StaticSourceResolver(['test' => new Filesystem($appDir)]),
+            static::getContainer()->get('app.repository'),
             $registrationsService,
-            $this->systemConfigService,
+            $this->shopIdProvider,
             $eventDispatcher
         );
 
@@ -115,10 +114,10 @@ class ReinstallAppsStrategyTest extends TestCase
             ->method('dispatch');
 
         $reinstallAppsResolver = new ReinstallAppsStrategy(
-            $this->getAppLoader($appDir),
-            $this->getContainer()->get('app.repository'),
+            new StaticSourceResolver(['no-setup' => new Filesystem($appDir)]),
+            static::getContainer()->get('app.repository'),
             $registrationsService,
-            $this->systemConfigService,
+            $this->shopIdProvider,
             $eventDispatcher
         );
 
@@ -146,14 +145,14 @@ class ReinstallAppsStrategyTest extends TestCase
 
     private function getInstalledApp(Context $context): AppEntity
     {
-        /** @var EntityRepository $appRepo */
-        $appRepo = $this->getContainer()->get('app.repository');
+        /** @var EntityRepository<AppCollection> $appRepo */
+        $appRepo = static::getContainer()->get('app.repository');
 
         $criteria = new Criteria();
         $criteria->addAssociation('integration');
-        $apps = $appRepo->search($criteria, $context);
-        static::assertEquals(1, $apps->getTotal());
+        $app = $appRepo->search($criteria, $context)->getEntities()->first();
+        static::assertNotNull($app);
 
-        return $apps->first();
+        return $app;
     }
 }

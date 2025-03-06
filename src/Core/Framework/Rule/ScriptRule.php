@@ -12,7 +12,6 @@ use Shopware\Core\Framework\App\Event\Hooks\AppScriptConditionHook;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Script\Debugging\Debug;
 use Shopware\Core\Framework\Script\Debugging\ScriptTraces;
-use Shopware\Core\Framework\Script\Exception\ScriptExecutionFailedException;
 use Shopware\Core\Framework\Script\Execution\Hook;
 use Shopware\Core\Framework\Script\Execution\Script;
 use Shopware\Core\Framework\Script\Execution\ScriptTwigLoader;
@@ -24,9 +23,9 @@ use Twig\Error\SyntaxError;
 use Twig\Extension\DebugExtension;
 
 /**
- * @internal
+ * @final
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
 class ScriptRule extends Rule
 {
     final public const RULE_NAME = 'scriptRule';
@@ -53,11 +52,6 @@ class ScriptRule extends Rule
 
     protected bool $debug = true;
 
-    /**
-     * @var array<string>
-     */
-    protected array $customerGroupIds = [];
-
     public function match(RuleScope $scope): bool
     {
         $context = [...['scope' => $scope], ...$this->values];
@@ -73,15 +67,13 @@ class ScriptRule extends Rule
 
         $script = new Script(
             $name,
-            sprintf('
-                {%% apply spaceless %%}
-                    {%% macro evaluate(%1$s) %%}
-                        %2$s
-                    {%% endmacro %%}
+            \sprintf('
+                {%%- macro evaluate(%1$s) -%%}
+                    %2$s
+                {%%- endmacro -%%}
 
-                    {%% set var = _self.evaluate(%1$s) %%}
-                    {{ var }}
-                {%% endapply  %%}
+                {%%- set var = _self.evaluate(%1$s) -%%}
+                {{- var -}}
             ', implode(', ', array_keys($context)), $this->script),
             $lastModified,
             null,
@@ -109,7 +101,7 @@ class ScriptRule extends Rule
         try {
             return $this->render($twig, $script, $hook, $name, $context);
         } catch (\Throwable $e) {
-            throw new ScriptExecutionFailedException($hook->getName(), $script->getName(), $e);
+            throw RuleException::scriptExecutionFailed($hook->getName(), $script->getName(), $e);
         }
     }
 
@@ -130,6 +122,26 @@ class ScriptRule extends Rule
     }
 
     /**
+     * @param array<string, mixed> $options
+     *
+     * @return $this
+     */
+    public function assignValues(array $options): ScriptRule
+    {
+        $this->values = $options;
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getValues(): array
+    {
+        return $this->values;
+    }
+
+    /**
      * @param array<string, mixed> $context
      *
      * @throws SyntaxError
@@ -146,7 +158,8 @@ class ScriptRule extends Rule
         $this->traces->trace($hook, $script, function (Debug $debug) use ($twig, $name, $context, &$match): void {
             $twig->addGlobal('debug', $debug);
 
-            $match = filter_var(trim($twig->render($name, $context)), \FILTER_VALIDATE_BOOLEAN);
+            $rendered = $twig->render($name, $context);
+            $match = filter_var(trim($rendered), \FILTER_VALIDATE_BOOLEAN);
 
             $debug->dump($match, 'return');
         });

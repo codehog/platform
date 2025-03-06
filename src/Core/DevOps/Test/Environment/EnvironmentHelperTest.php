@@ -2,6 +2,8 @@
 
 namespace Shopware\Core\DevOps\Test\Environment;
 
+use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\Before;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\DevOps\Environment\EnvironmentHelper;
 use Shopware\Core\DevOps\Environment\EnvironmentHelperTransformerInterface;
@@ -12,7 +14,7 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class EnvironmentHelperTest extends TestCase
 {
     protected function tearDown(): void
@@ -157,7 +159,7 @@ class EnvironmentHelperTest extends TestCase
     {
         static::expectException(\InvalidArgumentException::class);
         static::expectExceptionMessage(
-            sprintf(
+            \sprintf(
                 'Expected class to implement "%1$s" but got "%2$s".',
                 EnvironmentHelperTransformerInterface::class,
                 self::class
@@ -166,11 +168,8 @@ class EnvironmentHelperTest extends TestCase
         EnvironmentHelper::addTransformer(self::class);
     }
 
-    /**
-     * @before
-     *
-     * @after
-     */
+    #[Before]
+    #[After]
     public function removeAllTransformers(): void
     {
         EnvironmentHelper::removeAllTransformers();

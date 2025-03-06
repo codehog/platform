@@ -1,3 +1,6 @@
+/**
+ * @sw-package framework
+ */
 import InvalidActionButtonParameterError from './InvalidActionButtonParameterError';
 
 describe('InvalidActionButtonParameterError.ts', () => {

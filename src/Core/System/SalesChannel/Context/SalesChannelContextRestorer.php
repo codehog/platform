@@ -21,7 +21,7 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SalesChannel\SalesChannelException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class SalesChannelContextRestorer
 {
     /**
@@ -38,7 +38,7 @@ class SalesChannelContextRestorer
     }
 
     /**
-     * @param array<string> $overrideOptions
+     * @param array<string, string|array<string,bool>|null> $overrideOptions
      *
      * @throws InconsistentCriteriaIdsException
      */
@@ -126,11 +126,11 @@ class SalesChannelContextRestorer
     public function restoreByCustomer(string $customerId, Context $context, array $overrideOptions = []): SalesChannelContext
     {
         $customer = $this->connection->createQueryBuilder()
-            ->select([
+            ->select(
                 'LOWER(HEX(language_id))',
                 'LOWER(HEX(customer_group_id))',
                 'LOWER(HEX(sales_channel_id))',
-            ])
+            )
             ->from('customer')
             ->where('id = :id')
             ->setParameter('id', Uuid::fromHexToBytes($customerId))

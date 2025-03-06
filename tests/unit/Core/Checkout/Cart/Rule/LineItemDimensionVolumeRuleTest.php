@@ -2,6 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
@@ -10,17 +13,17 @@ use Shopware\Core\Checkout\Cart\Rule\LineItemDimensionVolumeRule;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Rule;
+use Shopware\Core\Framework\Rule\RuleConfig;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
+use Shopware\Tests\Unit\Core\Checkout\Customer\Rule\TestRuleScope;
 
 /**
- * @covers \Shopware\Core\Checkout\Cart\Rule\LineItemDimensionVolumeRule
- *
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(LineItemDimensionVolumeRule::class)]
+#[Group('rules')]
 class LineItemDimensionVolumeRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -45,9 +48,7 @@ class LineItemDimensionVolumeRuleTest extends TestCase
         static::assertArrayHasKey('operator', $ruleConstraints, 'Rule Constraint operator is not defined');
     }
 
-    /**
-     * @dataProvider getMatchingRuleTestData
-     */
+    #[DataProvider('getMatchingRuleTestData')]
     public function testIfMatchesCorrectWithLineItem(
         string $operator,
         ?float $volume,
@@ -60,7 +61,7 @@ class LineItemDimensionVolumeRuleTest extends TestCase
             'operator' => $operator,
         ]);
 
-        $lineItem = $this->createLineItemWithVolume($lineItemVolume);
+        $lineItem = $this->createLineItemWithVolume($lineItemVolume * Rule::VOLUME_FACTOR);
         if ($lineItemWithoutDeliveryInfo) {
             $lineItem = $this->createLineItem();
         }
@@ -106,9 +107,7 @@ class LineItemDimensionVolumeRuleTest extends TestCase
         yield 'match / operator empty / without delivery info' => [Rule::OPERATOR_EMPTY, null, 200, true, true];
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScope(
         string $operator,
         ?float $volume,
@@ -123,14 +122,14 @@ class LineItemDimensionVolumeRuleTest extends TestCase
             'operator' => $operator,
         ]);
 
-        $lineItem1 = $this->createLineItemWithVolume($lineItemVolume1);
+        $lineItem1 = $this->createLineItemWithVolume($lineItemVolume1 * Rule::VOLUME_FACTOR);
         if ($lineItem1WithoutDeliveryInfo) {
-            $lineItem1 = $this->createLineItem();
+            $lineItem1 = self::createLineItem();
         }
 
-        $lineItem2 = $this->createLineItemWithVolume($lineItemVolume2);
+        $lineItem2 = $this->createLineItemWithVolume($lineItemVolume2 * Rule::VOLUME_FACTOR);
         if ($lineItem2WithoutDeliveryInfo) {
-            $lineItem2 = $this->createLineItem();
+            $lineItem2 = self::createLineItem();
         }
 
         $lineItemCollection = new LineItemCollection([
@@ -147,9 +146,7 @@ class LineItemDimensionVolumeRuleTest extends TestCase
         static::assertSame($expected, $match);
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScopeNested(
         string $operator,
         ?float $volume,
@@ -165,12 +162,12 @@ class LineItemDimensionVolumeRuleTest extends TestCase
             'operator' => $operator,
         ]);
 
-        $lineItem1 = $this->createLineItemWithVolume($lineItemVolume1);
+        $lineItem1 = $this->createLineItemWithVolume($lineItemVolume1 * Rule::VOLUME_FACTOR);
         if ($lineItem1WithoutDeliveryInfo) {
             $lineItem1 = $this->createLineItem();
         }
 
-        $lineItem2 = $this->createLineItemWithVolume($lineItemVolume2);
+        $lineItem2 = $this->createLineItemWithVolume($lineItemVolume2 * Rule::VOLUME_FACTOR);
         if ($lineItem2WithoutDeliveryInfo) {
             $lineItem2 = $this->createLineItem();
         }
@@ -181,7 +178,7 @@ class LineItemDimensionVolumeRuleTest extends TestCase
         ]);
         $containerLineItem = $this->createLineItem();
         if ($containerLineItemVolume !== null) {
-            $containerLineItem = $this->createLineItemWithVolume($containerLineItemVolume);
+            $containerLineItem = $this->createLineItemWithVolume($containerLineItemVolume * Rule::VOLUME_FACTOR);
         }
         $containerLineItem->setChildren($lineItemCollection);
         $cart = $this->createCart(new LineItemCollection([$containerLineItem]));
@@ -233,6 +230,25 @@ class LineItemDimensionVolumeRuleTest extends TestCase
         yield 'match / operator empty / item 1 and 2 without delivery info' => [Rule::OPERATOR_EMPTY, null, 100, 300, true, true, true];
         yield 'match / operator empty / item 1 without delivery info' => [Rule::OPERATOR_EMPTY, null, 100, 100, true, true];
         yield 'match / operator empty / item 2 without delivery info' => [Rule::OPERATOR_EMPTY, null, 100, 100, true, false, true];
+    }
+
+    public function testMatchWithUnsupportedScopeShouldReturnFalse(): void
+    {
+        $scope = new TestRuleScope($this->createMock(SalesChannelContext::class));
+
+        $lineItemDimensionVolumeRule = new LineItemDimensionVolumeRule();
+
+        static::assertFalse($lineItemDimensionVolumeRule->match($scope));
+    }
+
+    public function testGetConfig(): void
+    {
+        $lineItemDimensionVolumeRule = new LineItemDimensionVolumeRule();
+
+        $result = $lineItemDimensionVolumeRule->getConfig();
+
+        static::assertSame(RuleConfig::OPERATOR_SET_NUMBER, $result->getData()['operatorSet']['operators']);
+        static::assertSame(RuleConfig::UNIT_VOLUME, $result->getData()['fields']['amount']['config']['unit']);
     }
 
     private function createLineItemWithVolume(float $volume): LineItem

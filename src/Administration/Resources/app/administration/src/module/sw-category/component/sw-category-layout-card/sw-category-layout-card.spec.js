@@ -1,43 +1,42 @@
 /**
- * @package content
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
-import swCategoryLayoutCard from 'src/module/sw-category/component/sw-category-layout-card';
-
-Shopware.Component.register('sw-category-layout-card', swCategoryLayoutCard);
+import { mount } from '@vue/test-utils';
 
 const categoryId = 'some-category-id';
 const cmsPageId = 'some-cms-page-id';
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-category-layout-card'), {
-        stubs: {
-            'sw-button': {
-                template: '<button @click="$emit(`click`)"></button>',
-                props: ['disabled'],
+    return mount(await wrapTestComponent('sw-category-layout-card', { sync: true }), {
+        global: {
+            stubs: {
+                'router-link': true,
+                'sw-loader': true,
+                'sw-cms-list-item': {
+                    template: '<div class="sw-cms-list-item"></div>',
+                    props: ['disabled'],
+                },
+                'mt-card': {
+                    template: '<div class="mt-card"><slot></slot></div>',
+                },
+                'sw-cms-layout-modal': true,
             },
-            'sw-cms-list-item': {
-                template: '<div class="sw-cms-list-item"></div>',
-                props: ['disabled'],
+            mocks: {
+                $route: {
+                    params: {},
+                },
             },
-            'sw-card': true,
-            'sw-icon': true,
-        },
-        mocks: {
-            $route: {
-                params: {},
-            },
-        },
-        provide: {
-            cmsPageTypeService: {
-                getType(type) {
-                    return {
-                        title: type,
-                    };
+            provide: {
+                cmsPageTypeService: {
+                    getType(type) {
+                        return {
+                            title: type,
+                        };
+                    },
                 },
             },
         },
-        propsData: {
+        props: {
             category: {
                 id: categoryId,
                 cmsPageId,
@@ -51,18 +50,12 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
         global.activeAclRoles = [];
     });
 
-    it('should be a Vue.js component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should have an enabled cms list item', async () => {
         global.activeAclRoles = ['category.editor'];
 
         const wrapper = await createWrapper();
 
-        const cmsListItem = wrapper.find('.sw-cms-list-item');
+        const cmsListItem = wrapper.getComponent('.sw-cms-list-item');
 
         expect(cmsListItem.props('disabled')).toBe(false);
     });
@@ -70,7 +63,7 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
     it('should have an disabled cms list item', async () => {
         const wrapper = await createWrapper();
 
-        const cmsListItem = wrapper.find('.sw-cms-list-item');
+        const cmsListItem = wrapper.getComponent('.sw-cms-list-item');
 
         expect(cmsListItem.props('disabled')).toBe(true);
     });
@@ -82,7 +75,7 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
 
         const changeLayoutButton = wrapper.find('.sw-category-detail-layout__change-layout-action');
 
-        expect(changeLayoutButton.props('disabled')).toBe(false);
+        expect(changeLayoutButton.attributes('disabled')).toBeUndefined();
     });
 
     it('should have an disabled button for changing the layout', async () => {
@@ -90,7 +83,7 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
 
         const changeLayoutButton = wrapper.find('.sw-category-detail-layout__change-layout-action');
 
-        expect(changeLayoutButton.props('disabled')).toBe(true);
+        expect(changeLayoutButton.attributes('disabled') === undefined).toBe(false);
     });
 
     it('should have an enabled button for open the page builder', async () => {
@@ -100,7 +93,7 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
 
         const pageBuilderButton = wrapper.find('.sw-category-detail-layout__open-in-pagebuilder');
 
-        expect(pageBuilderButton.props('disabled')).toBe(false);
+        expect(pageBuilderButton.attributes('disabled')).toBeUndefined();
     });
 
     it('should have an disabled button for open the page builder', async () => {
@@ -108,7 +101,7 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
 
         const pageBuilderButton = wrapper.find('.sw-category-detail-layout__open-in-pagebuilder');
 
-        expect(pageBuilderButton.props('disabled')).toBe(true);
+        expect(pageBuilderButton.attributes('disabled') !== undefined).toBe(true);
     });
 
     it('should have an enabled button for resetting the layout', async () => {
@@ -121,11 +114,11 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
                 type: 'landingpage',
             },
         });
-
         await flushPromises();
+
         const resetLayoutButton = wrapper.find('.sw-category-detail-layout__layout-reset');
 
-        expect(resetLayoutButton.props('disabled')).toBe(false);
+        expect(resetLayoutButton.attributes('disabled')).toBeUndefined();
     });
 
     it('should have an disabled button for resetting the layout', async () => {
@@ -136,17 +129,18 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
                 type: 'landingpage',
             },
         });
-
         await flushPromises();
+
         const resetLayoutButton = wrapper.find('.sw-category-detail-layout__layout-reset');
 
-        expect(resetLayoutButton.props('disabled')).toBe(true);
+        expect(resetLayoutButton.attributes('disabled') !== undefined).toBe(true);
     });
 
     it('should pass the category id and type to the sw.cms.create route', async () => {
+        global.activeAclRoles = ['category.editor'];
         const wrapper = await createWrapper();
 
-        await wrapper.find('.sw-category-detail-layout__open-in-pagebuilder').trigger('click');
+        await wrapper.find('button.sw-category-detail-layout__open-in-pagebuilder').trigger('click');
 
         const routerPush = wrapper.vm.$router.push;
 
@@ -161,6 +155,7 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
     });
 
     it('should pass the category id to the sw.cms.create route', async () => {
+        global.activeAclRoles = ['category.editor'];
         const wrapper = await createWrapper();
 
         await wrapper.setProps({
@@ -170,11 +165,14 @@ describe('src/module/sw-category/component/sw-category-layout-card', () => {
             },
         });
 
-        await wrapper.find('.sw-category-detail-layout__open-in-pagebuilder').trigger('click');
+        await wrapper.find('button.sw-category-detail-layout__open-in-pagebuilder').trigger('click');
 
         const routerPush = wrapper.vm.$router.push;
 
         expect(routerPush).toHaveBeenCalledTimes(1);
-        expect(routerPush).toHaveBeenLastCalledWith({ name: 'sw.cms.detail', params: { id: cmsPageId } });
+        expect(routerPush).toHaveBeenLastCalledWith({
+            name: 'sw.cms.detail',
+            params: { id: cmsPageId },
+        });
     });
 });

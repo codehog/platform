@@ -6,6 +6,7 @@ use Shopware\Core\Framework\Api\Acl\Role\AclRoleDefinition;
 use Shopware\Core\Framework\App\Aggregate\ActionButton\ActionButtonDefinition;
 use Shopware\Core\Framework\App\Aggregate\AppPaymentMethod\AppPaymentMethodDefinition;
 use Shopware\Core\Framework\App\Aggregate\AppScriptCondition\AppScriptConditionDefinition;
+use Shopware\Core\Framework\App\Aggregate\AppShippingMethod\AppShippingMethodDefinition;
 use Shopware\Core\Framework\App\Aggregate\AppTranslation\AppTranslationDefinition;
 use Shopware\Core\Framework\App\Aggregate\CmsBlock\AppCmsBlockDefinition;
 use Shopware\Core\Framework\App\Aggregate\FlowAction\AppFlowActionDefinition;
@@ -44,7 +45,7 @@ use Shopware\Core\System\TaxProvider\TaxProviderDefinition;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class AppDefinition extends EntityDefinition
 {
     final public const ENTITY_NAME = 'app';
@@ -74,6 +75,8 @@ class AppDefinition extends EntityDefinition
             'cookies' => [],
             'allowedHosts' => [],
             'templateLoadPriority' => 0,
+            'sourceType' => 'local',
+            'selfManaged' => false,
         ];
     }
 
@@ -87,7 +90,7 @@ class AppDefinition extends EntityDefinition
         return new FieldCollection([
             (new IdField('id', 'id'))->addFlags(new PrimaryKey(), new Required()),
             (new StringField('name', 'name'))->addFlags(new Required()),
-            (new StringField('path', 'path'))->addFlags(new Required()),
+            (new StringField('path', 'path', 4096))->addFlags(new Required()),
             new StringField('author', 'author'),
             new StringField('copyright', 'copyright'),
             new StringField('license', 'license'),
@@ -105,6 +108,11 @@ class AppDefinition extends EntityDefinition
             new StringField('base_app_url', 'baseAppUrl', 1024),
             new ListField('allowed_hosts', 'allowedHosts', StringField::class),
             new IntField('template_load_priority', 'templateLoadPriority'),
+            new StringField('checkout_gateway_url', 'checkoutGatewayUrl'),
+            new StringField('in_app_purchases_gateway_url', 'inAppPurchasesGatewayUrl'),
+            new StringField('source_type', 'sourceType'),
+            new JsonField('source_config', 'sourceConfig'),
+            new BoolField('self_managed', 'selfManaged'),
 
             (new TranslationsAssociationField(AppTranslationDefinition::class, 'app_id'))->addFlags(new Required(), new CascadeDelete()),
             new TranslatedField('label'),
@@ -129,6 +137,7 @@ class AppDefinition extends EntityDefinition
             (new OneToManyAssociationField('cmsBlocks', AppCmsBlockDefinition::class, 'app_id'))->addFlags(new CascadeDelete()),
             (new OneToManyAssociationField('flowActions', AppFlowActionDefinition::class, 'app_id'))->addFlags(new CascadeDelete()),
             (new OneToManyAssociationField('flowEvents', AppFlowEventDefinition::class, 'app_id'))->addFlags(new CascadeDelete()),
+            (new OneToManyAssociationField('appShippingMethods', AppShippingMethodDefinition::class, 'app_id'))->addFlags(new SetNullOnDelete()),
         ]);
     }
 }

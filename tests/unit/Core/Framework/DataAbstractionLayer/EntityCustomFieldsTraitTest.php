@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait;
@@ -9,10 +10,9 @@ use Shopware\Core\Framework\Log\Package;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait
  */
-#[Package('core')]
+#[Package('framework')]
+#[CoversClass(EntityCustomFieldsTrait::class)]
 class EntityCustomFieldsTraitTest extends TestCase
 {
     public function testGetCustomFieldValues(): void
@@ -62,11 +62,6 @@ class EntityCustomFieldsTraitTest extends TestCase
 
         $entity->changeCustomFields(['foo' => 'baz', 'bar' => ['foo' => 'foo'], 'baz' => 'baz']);
         static::assertEquals(['foo' => 'baz', 'bar' => ['foo' => 'foo'], 'baz' => 'baz'], $entity->getCustomFields());
-
-        static::assertEquals(
-            ['foo' => 'baz', 'bar' => ['foo' => 'foo'], 'baz' => 'baz'],
-            $entity->getCustomFields()
-        );
     }
 }
 
@@ -78,12 +73,13 @@ class MyTraitEntity extends Entity
     use EntityCustomFieldsTrait;
 
     /**
-     * @param string $_uniqueIdentifier
      * @param array<string, mixed>|null $customFields
      */
     public function __construct(
-        protected $_uniqueIdentifier,
-        protected $customFields = []
+        string $_uniqueIdentifier,
+        ?array $customFields = []
     ) {
+        $this->_uniqueIdentifier = $_uniqueIdentifier;
+        $this->customFields = $customFields;
     }
 }

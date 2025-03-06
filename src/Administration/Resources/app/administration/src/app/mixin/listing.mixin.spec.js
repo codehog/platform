@@ -1,6 +1,9 @@
+/**
+ * @sw-package framework
+ */
 import 'src/app/mixin/listing.mixin';
-import { shallowMount, createLocalVue, config } from '@vue/test-utils';
-import VueRouter from 'vue-router';
+import { mount, config } from '@vue/test-utils';
+import { createRouter, createWebHashHistory } from 'vue-router';
 
 let getListMock = jest.fn(() => {});
 /* @type VueRouter */
@@ -20,70 +23,76 @@ async function createWrapper({
     },
 } = {}) {
     // delete global $router and $routes mocks
-    delete config.mocks.$router;
-    delete config.mocks.$route;
+    delete config.global.mocks.$router;
+    delete config.global.mocks.$route;
 
-    const localVue = createLocalVue();
-    localVue.use(VueRouter);
-    router = new VueRouter({
+    router = createRouter({
         routes: [
             {
                 name: 'sw.product.index',
                 path: '/sw/product/index',
+                component: { template: '<div></div>' },
             },
             {
                 name: 'sw.product.detail',
                 path: '/sw/product/detail',
+                component: { template: '<div></div>' },
             },
         ],
+        history: createWebHashHistory(),
     });
 
-    router.push(routeFirstPush);
+    await router.push(routeFirstPush);
 
-    return shallowMount({
-        template: `
+    return mount(
+        {
+            template: `
             <div class="sw-mock">
               <slot></slot>
             </div>
         `,
-        mixins: [
-            Shopware.Mixin.getByName('listing'),
-        ],
-        data() {
-            return {
-                ...defaultData,
-            };
-        },
-        computed: {
-            filters() {
-                return [
-                    {
-                        name: 'term',
-                        property: 'name',
-                        label: 'sw-product.list.columnName',
-                        active: false,
-                    },
-                ];
+            mixins: [
+                Shopware.Mixin.getByName('listing'),
+            ],
+            data() {
+                return {
+                    ...defaultData,
+                };
+            },
+            computed: {
+                filters() {
+                    return [
+                        {
+                            name: 'term',
+                            property: 'name',
+                            label: 'sw-product.list.columnName',
+                            active: false,
+                        },
+                    ];
+                },
+            },
+            methods: {
+                ...methods,
             },
         },
-        methods: {
-            ...methods,
+        {
+            global: {
+                plugins: [
+                    router,
+                ],
+                provide: {
+                    searchRankingService: {},
+                },
+                mocks: {
+                    ...mocks,
+                },
+            },
+            props: {
+                ...propData,
+            },
+            attachTo: document.body,
         },
-    }, {
-        localVue,
-        router,
-        provide: {
-            searchRankingService: {},
-        },
-        stubs: {},
-        mocks: {
-            ...mocks,
-        },
-        propData: {
-            ...propData,
-        },
-        attachTo: document.body,
-    });
+    );
 }
 
 describe('src/app/mixin/listing.mixin.ts', () => {
@@ -106,7 +115,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
 
     afterEach(async () => {
         if (wrapper) {
-            await wrapper.destroy();
+            await wrapper.unmount();
         }
 
         await flushPromises();
@@ -117,7 +126,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should call getList at created when route information are provided', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -138,14 +147,9 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should convert boolean route values as string to boolean values (true)', async () => {
-        await wrapper.destroy();
-
-        getListMock = jest.fn(() => {});
-        wrapper = await createWrapper({
-            routeFirstPush: {
-                query: {
-                    naturalSorting: 'true',
-                },
+        await router.push({
+            query: {
+                naturalSorting: 'true',
             },
         });
 
@@ -153,14 +157,9 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should convert boolean route values as string to boolean values (false)', async () => {
-        await wrapper.destroy();
-
-        getListMock = jest.fn(() => {});
-        wrapper = await createWrapper({
-            routeFirstPush: {
-                query: {
-                    naturalSorting: 'false',
-                },
+        await router.push({
+            query: {
+                naturalSorting: 'false',
             },
         });
 
@@ -168,7 +167,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should call getList at created when disableRouteParams is set', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -185,7 +184,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should not watch for route changes when disableRouteParams is set', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -207,19 +206,14 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should watch for route changes', async () => {
-        await wrapper.destroy();
-
-        getListMock = jest.fn(() => {});
-        wrapper = await createWrapper({
-            routeFirstPush: {
-                query: {
-                    page: 7,
-                    limit: 100,
-                    naturalSorting: 'true',
-                },
+        // push to a route with search params
+        await router.push({
+            query: {
+                page: 7,
+                limit: 100,
+                naturalSorting: 'true',
             },
         });
-
         getListMock.mockClear();
 
         // simulate route change
@@ -273,19 +267,14 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should contain correct listing params', async () => {
-        await wrapper.destroy();
-
-        getListMock = jest.fn(() => {});
-        wrapper = await createWrapper({
-            routeFirstPush: {
-                query: {
-                    page: 7,
-                    limit: 100,
-                    naturalSorting: 'true',
-                    sortBy: 'name',
-                    sortDirection: 'ASC',
-                    term: 'Fooooo',
-                },
+        await router.push({
+            query: {
+                page: 7,
+                limit: 100,
+                naturalSorting: 'true',
+                sortBy: 'name',
+                sortDirection: 'ASC',
+                term: 'Fooooo',
             },
         });
 
@@ -300,7 +289,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should contain correct listing params when route params are disabled', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -343,14 +332,15 @@ describe('src/app/mixin/listing.mixin.ts', () => {
             page: 14,
             limit: 100,
         });
+        await flushPromises();
 
         expect(wrapper.vm.page).toBe(14);
         expect(wrapper.vm.limit).toBe(100);
-        expect(router.currentRoute.query.page).toBe(14);
+        expect(router.currentRoute.value.query.page).toBe('14');
     });
 
     it('should update the data correctly on onPageChange with disabled route params', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -373,7 +363,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should update the data correctly on onSearch with disabled route params', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -397,11 +387,12 @@ describe('src/app/mixin/listing.mixin.ts', () => {
 
     it('should update the route and data correctly on onSearch', async () => {
         wrapper.vm.onSearch('new search value');
+        await flushPromises();
 
         expect(wrapper.vm.term).toBe('new search value');
         expect(wrapper.vm.page).toBe(1);
-        expect(router.currentRoute.query.term).toBe('new search value');
-        expect(router.currentRoute.query.page).toBe(1);
+        expect(router.currentRoute.value.query.term).toBe('new search value');
+        expect(router.currentRoute.value.query.page).toBe('1');
     });
 
     it('should update the data correctly on onSwitchFilter', async () => {
@@ -417,7 +408,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should update the data correctly on onSort (disableRouteParams true)', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -438,7 +429,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should update the route correctly on onSort (disableRouteParams false)', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -454,14 +445,18 @@ describe('src/app/mixin/listing.mixin.ts', () => {
             sortDirection: 'DESC',
         });
 
-        expect(router.currentRoute.query).toEqual(expect.objectContaining({
-            sortBy: 'name',
-            sortDirection: 'DESC',
-        }));
+        await flushPromises();
+
+        expect(router.currentRoute.value.query).toEqual(
+            expect.objectContaining({
+                sortBy: 'name',
+                sortDirection: 'DESC',
+            }),
+        );
     });
 
     it('should update the data correctly on onSortColumn (disableRouteParams true)', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -494,7 +489,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should update the route correctly on onSortColumn (disableRouteParams false)', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({
@@ -513,10 +508,14 @@ describe('src/app/mixin/listing.mixin.ts', () => {
             naturalSorting: true,
         });
 
-        expect(router.currentRoute.query).toEqual(expect.objectContaining({
-            sortBy: 'date',
-            sortDirection: 'ASC',
-        }));
+        await flushPromises();
+
+        expect(router.currentRoute.value.query).toEqual(
+            expect.objectContaining({
+                sortBy: 'date',
+                sortDirection: 'ASC',
+            }),
+        );
 
         await flushPromises();
 
@@ -526,14 +525,18 @@ describe('src/app/mixin/listing.mixin.ts', () => {
             naturalSorting: true,
         });
 
-        expect(router.currentRoute.query).toEqual(expect.objectContaining({
-            sortBy: 'date',
-            sortDirection: 'DESC',
-        }));
+        await flushPromises();
+
+        expect(router.currentRoute.value.query).toEqual(
+            expect.objectContaining({
+                sortBy: 'date',
+                sortDirection: 'DESC',
+            }),
+        );
     });
 
     it('should call getList on onRefresh', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         getListMock = jest.fn(() => {});
         wrapper = await createWrapper({});
@@ -546,7 +549,7 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     });
 
     it('should throw a console warning when no getList method ist defined', async () => {
-        await wrapper.destroy();
+        await wrapper.unmount();
 
         Shopware.Utils.debug.warn = jest.fn(() => {});
 
@@ -587,11 +590,9 @@ describe('src/app/mixin/listing.mixin.ts', () => {
     it('should have the correct routeName computed value', async () => {
         expect(wrapper.vm.routeName).toBe('sw.product.index');
 
-        router.push({
+        await router.push({
             name: 'sw.product.detail',
         });
-
-        await wrapper.vm.$nextTick();
 
         expect(wrapper.vm.routeName).toBe('sw.product.detail');
     });
@@ -606,10 +607,12 @@ describe('src/app/mixin/listing.mixin.ts', () => {
             },
         };
 
-        expect(JSON.stringify(wrapper.vm.selectionArray)).toBe(JSON.stringify([
-            { id: 1 },
-            { id: 2 },
-        ]));
+        expect(JSON.stringify(wrapper.vm.selectionArray)).toBe(
+            JSON.stringify([
+                { id: 1 },
+                { id: 2 },
+            ]),
+        );
     });
 
     it('should have the correct selectionCount computed value', async () => {

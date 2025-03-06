@@ -7,12 +7,17 @@ const { mapPropertyErrors } = Component.getComponentHelper();
 
 /**
  * @private
- * @package content
+ * @sw-package discovery
  */
 export default {
     template,
 
     inject: ['repositoryFactory'],
+
+    emits: [
+        'media-settings-modal-save',
+        'media-settings-modal-close',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -33,8 +38,8 @@ export default {
     data() {
         return {
             modalClass: 'sw-media-modal-folder-settings--shows-overflow',
+            unusedThumbnailSizes: [],
             thumbnailSizes: [],
-            isEditThumbnails: false,
             parent: null,
             configuration: null,
             mediaFolderConfigurationThumbnailSizeRepository: null,
@@ -56,22 +61,23 @@ export default {
         mediaFolderConfigurationRepository() {
             return this.repositoryFactory.create('media_folder_configuration');
         },
+
+        unusedMediaThumbnailSizeCriteria() {
+            const criteria = new Criteria(1, null);
+            criteria.addFilter(Criteria.equals('mediaFolderConfigurations.mediaFolders.id', null));
+
+            return criteria;
+        },
+
+        mediaThumbnailSizeCriteria() {
+            const criteria = new Criteria(1, null);
+            criteria.addSorting(Criteria.sort('width'));
+
+            return criteria;
+        },
+
         notEditable() {
-            return this.mediaFolder.useParentConfiguration
-                || !this.configuration.createThumbnails
-                || this.disabled;
-        },
-
-        thumbnailListClass() {
-            return {
-                'is--editable': this.isEditThumbnails,
-            };
-        },
-
-        labelToggleButton() {
-            return this.isEditThumbnails ?
-                this.$tc('global.sw-media-modal-folder-settings.labelStopEdit') :
-                this.$tc('global.sw-media-modal-folder-settings.labelEditList');
+            return this.mediaFolder.useParentConfiguration || !this.configuration.createThumbnails || this.disabled;
         },
 
         thumbnailSizeFilter() {
@@ -89,6 +95,7 @@ export default {
         async createdComponent() {
             this.mediaFolder = await this.loadMediaFolder();
 
+            await this.getUnusedThumbnailSizes();
             await this.getThumbnailSizes();
             this.configuration = await this.mediaFolderConfigurationRepository.get(
                 this.mediaFolder.configurationId,
@@ -100,13 +107,17 @@ export default {
                 this.configuration.mediaThumbnailSizes.source,
             );
 
-            this.configuration.mediaThumbnailSizes = await this.mediaFolderConfigurationThumbnailSizeRepository
-                .search(new Criteria(1, 25), Context.api);
+            this.configuration.mediaThumbnailSizes = await this.mediaFolderConfigurationThumbnailSizeRepository.search(
+                new Criteria(1, 25),
+                Context.api,
+            );
 
             if (this.mediaFolder.parentId !== null) {
                 this.parent = await this.mediaFolderRepository.get(this.mediaFolder.parentId, Context.api);
-                this.parent.configuration = await this.mediaFolderConfigurationRepository
-                    .get(this.parent.configurationId, Context.api);
+                this.parent.configuration = await this.mediaFolderConfigurationRepository.get(
+                    this.parent.configurationId,
+                    Context.api,
+                );
             }
         },
 
@@ -116,19 +127,31 @@ export default {
             return `${item.entity} (${this.$tc(entityNameIdentifier)})`;
         },
 
-        async getThumbnailSizes() {
-            const criteria = new Criteria(1, 50)
-                .addSorting(Criteria.sort('width'));
-
-            this.thumbnailSizes = await this.mediaThumbnailSizeRepository.search(criteria, Context.api);
+        async getUnusedThumbnailSizes() {
+            const response = await this.mediaThumbnailSizeRepository.searchIds(this.unusedMediaThumbnailSizeCriteria);
+            this.unusedThumbnailSizes = response.data;
         },
 
-        toggleEditThumbnails() {
-            this.isEditThumbnails = !this.isEditThumbnails;
+        async getThumbnailSizes() {
+            this.thumbnailSizes = await this.mediaThumbnailSizeRepository.search(this.mediaThumbnailSizeCriteria);
+
+            this.thumbnailSizes.forEach((thumbnailSize) => {
+                thumbnailSize.deletable = Boolean(
+                    this.unusedThumbnailSizes.find((unusedThumbnailSize) => {
+                        return unusedThumbnailSize === thumbnailSize.id;
+                    }),
+                );
+            });
         },
 
         async addThumbnail({ width, height }) {
             if (this.checkIfThumbnailExists({ width, height })) {
+                this.createNotificationError({
+                    message: this.$tc(
+                        'global.sw-media-modal-folder-settings.notification.error.messageThumbnailSizeExisted',
+                    ),
+                });
+
                 return;
             }
 
@@ -137,6 +160,8 @@ export default {
             thumbnailSize.height = height;
 
             await this.mediaThumbnailSizeRepository.save(thumbnailSize, Context.api);
+
+            await this.getUnusedThumbnailSizes();
             this.getThumbnailSizes();
         },
 
@@ -144,8 +169,6 @@ export default {
             const exists = this.thumbnailSizes.some((size) => {
                 return size.width === width && size.height === height;
             });
-
-            this.disabled = exists;
 
             return exists;
         },
@@ -157,6 +180,8 @@ export default {
 
             this.configuration.mediaThumbnailSizes.remove(thumbnailSize.id);
             await this.mediaThumbnailSizeRepository.delete(thumbnailSize.id, Context.api);
+
+            await this.getUnusedThumbnailSizes();
             this.getThumbnailSizes();
         },
 
@@ -218,10 +243,6 @@ export default {
         async onClickSave() {
             this.mediaFolder.configurationId = this.configuration.id;
 
-            // if the config is created all properties that are null won't be sent to the server
-            // this leads to setting default values for this properties on the server side
-            // these properties are null because the value of an unchecked checkbox is null
-            // ToDo fix this with NEXT-1544
             if (this.configuration.keepAspectRatio === null) {
                 this.configuration.keepAspectRatio = false;
             }
@@ -237,13 +258,12 @@ export default {
             }
 
             try {
-                await this.mediaFolderConfigurationRepository.save(this.configuration)
-                    .then(() => {
-                        // Delete the original configuration if we inherit again
-                        if (this.originalConfiguration && this.configuration.id === this.parent.configuration.id) {
-                            this.mediaFolderConfigurationRepository.delete(this.originalConfiguration.id);
-                        }
-                    });
+                await this.mediaFolderConfigurationRepository.save(this.configuration).then(() => {
+                    // Delete the original configuration if we inherit again
+                    if (this.originalConfiguration && this.configuration.id === this.parent.configuration.id) {
+                        this.mediaFolderConfigurationRepository.delete(this.originalConfiguration.id);
+                    }
+                });
 
                 if (this.mediaFolder && this.mediaFolder.getEntityName) {
                     await this.mediaFolderRepository.save(this.mediaFolder, Context.api);
@@ -251,9 +271,7 @@ export default {
 
                 this.createNotificationSuccess({
                     title: this.$root.$tc('global.default.success'),
-                    message: this.$root.$tc(
-                        'global.sw-media-modal-folder-settings.notification.success.message',
-                    ),
+                    message: this.$root.$tc('global.sw-media-modal-folder-settings.notification.success.message'),
                 });
 
                 this.$nextTick(() => {
@@ -262,28 +280,27 @@ export default {
             } catch (e) {
                 this.createNotificationError({
                     title: this.$root.$tc('global.default.error'),
-                    message: this.$root.$tc(
-                        'global.sw-media-modal-folder-settings.notification.error.message',
-                    ),
+                    message: this.$root.$tc('global.sw-media-modal-folder-settings.notification.error.message'),
                 });
             }
         },
 
         async ensureUniqueDefaultFolder(folderId, defaultFolderId) {
-            const criteria = new Criteria(1, 25)
-                .addFilter(
-                    Criteria.multi('and', [
-                        Criteria.equals('defaultFolderId', defaultFolderId),
-                        Criteria.not('or', [Criteria.equals('id', folderId)]),
-                    ]),
-                );
+            const criteria = new Criteria(1, 25).addFilter(
+                Criteria.multi('and', [
+                    Criteria.equals('defaultFolderId', defaultFolderId),
+                    Criteria.not('or', [Criteria.equals('id', folderId)]),
+                ]),
+            );
 
             const items = await this.mediaFolderRepository.search(criteria, Context.api);
 
-            await Promise.all(items.map((folder) => {
-                folder.defaultFolderId = null;
-                return this.mediaFolderRepository.save(folder, Context.api);
-            }));
+            await Promise.all(
+                items.map((folder) => {
+                    folder.defaultFolderId = null;
+                    return this.mediaFolderRepository.save(folder, Context.api);
+                }),
+            );
         },
 
         onClickCancel(originalDomEvent) {

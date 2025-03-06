@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Processor;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartBehavior;
@@ -18,6 +19,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
+use Shopware\Core\Test\Generator;
 use Shopware\Core\Test\TestDefaults;
 use Shopware\Tests\Integration\Core\Checkout\Cart\Processor\_fixtures\AbsoluteItem;
 use Shopware\Tests\Integration\Core\Checkout\Cart\Processor\_fixtures\CalculatedItem;
@@ -25,7 +27,6 @@ use Shopware\Tests\Integration\Core\Checkout\Cart\Processor\_fixtures\Calculated
 use Shopware\Tests\Integration\Core\Checkout\Cart\Processor\_fixtures\HighTaxes;
 use Shopware\Tests\Integration\Core\Checkout\Cart\Processor\_fixtures\LowTaxes;
 use Shopware\Tests\Integration\Core\Checkout\Cart\Processor\_fixtures\PercentageItem;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\Generator;
 
 /**
  * @internal
@@ -39,14 +40,13 @@ class DiscountProcessorTest extends TestCase
 
     /**
      * @param array<LineItem> $items
-     *
-     * @dataProvider processorProvider
      */
+    #[DataProvider('processorProvider')]
     public function testProcessor(array $items, ?CalculatedPrice $expected): void
     {
-        $processor = $this->getContainer()->get(DiscountCartProcessor::class);
+        $processor = static::getContainer()->get(DiscountCartProcessor::class);
 
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $cart = new Cart('test');
@@ -82,21 +82,21 @@ class DiscountProcessorTest extends TestCase
         foreach ($taxes as $tax) {
             $actual = $price->getCalculatedTaxes()->get((string) $tax->getTaxRate());
 
-            static::assertInstanceOf(CalculatedTax::class, $actual, sprintf('Missing tax for rate %f', $tax->getTaxRate()));
+            static::assertInstanceOf(CalculatedTax::class, $actual, \sprintf('Missing tax for rate %f', $tax->getTaxRate()));
             static::assertEquals($tax->getTax(), $actual->getTax());
         }
 
         foreach ($price->getCalculatedTaxes() as $tax) {
             $actual = $taxes->get((string) $tax->getTaxRate());
 
-            static::assertInstanceOf(CalculatedTax::class, $actual, sprintf('Missing tax for rate %f', $tax->getTaxRate()));
+            static::assertInstanceOf(CalculatedTax::class, $actual, \sprintf('Missing tax for rate %f', $tax->getTaxRate()));
             static::assertEquals($tax->getTax(), $actual->getTax());
         }
     }
 
     public static function processorProvider(): \Generator
     {
-        $context = Generator::createSalesChannelContext();
+        $context = Generator::generateSalesChannelContext();
         $context->setTaxState(CartPrice::TAX_STATE_GROSS);
         $context->setItemRounding(new CashRoundingConfig(2, 0.01, true));
 

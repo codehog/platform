@@ -1,4 +1,4 @@
-import type { Route } from 'vue-router';
+import type { RouteLocationNamedRaw } from 'vue-router';
 import type { Extension } from '../../service/extension-store-action.service';
 import template from './sw-extension-config.html.twig';
 import './sw-extension-config.scss';
@@ -6,13 +6,13 @@ import './sw-extension-config.scss';
 const { Mixin } = Shopware;
 
 type ComponentData = {
-    salesChannelId: string|null,
-    extension: Extension|null,
-    fromLink: Route|null,
-}
+    salesChannelId: string | null;
+    extension: Extension | null;
+    fromLink: RouteLocationNamedRaw | null;
+};
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  * @private
  */
 export default Shopware.Component.wrapComponentConfig({
@@ -54,7 +54,7 @@ export default Shopware.Component.wrapComponentConfig({
         },
 
         myExtensions(): Extension[] {
-            return Shopware.State.get('shopwareExtensions').myExtensions.data;
+            return Shopware.Store.get('shopwareExtensions').myExtensions.data;
         },
 
         defaultThemeAsset(): string {
@@ -88,9 +88,14 @@ export default Shopware.Component.wrapComponentConfig({
                 await this.shopwareExtensionService.updateExtensionData();
             }
 
-            this.extension = this.myExtensions.find((ext) => {
-                return ext.name === this.namespace;
-            }) ?? null;
+            this.refreshExtension();
+        },
+
+        refreshExtension(): void {
+            this.extension =
+                this.myExtensions.find((ext) => {
+                    return ext.name === this.namespace;
+                }) ?? null;
         },
 
         async onSave(): Promise<void> {

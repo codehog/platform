@@ -2,10 +2,13 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Integration\Calculation;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscount\PromotionDiscountEntity;
+use Shopware\Core\Checkout\Promotion\PromotionCollection;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -15,9 +18,9 @@ use Shopware\Core\Framework\Util\Random;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextService;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionIntegrationTestBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionIntegrationTestBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
 
 /**
  * @internal
@@ -29,20 +32,26 @@ class PromotionAbsoluteCalculationTest extends TestCase
     use PromotionIntegrationTestBehaviour;
     use PromotionTestFixtureBehaviour;
 
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
     protected EntityRepository $productRepository;
 
     protected CartService $cartService;
 
+    /**
+     * @var EntityRepository<PromotionCollection>
+     */
     protected EntityRepository $promotionRepository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->promotionRepository = $this->getContainer()->get('promotion.repository');
-        $this->cartService = $this->getContainer()->get(CartService::class);
+        $this->context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->promotionRepository = static::getContainer()->get('promotion.repository');
+        $this->cartService = static::getContainer()->get(CartService::class);
     }
 
     /**
@@ -50,23 +59,22 @@ class PromotionAbsoluteCalculationTest extends TestCase
      * We add a product and also an absolute promotion.
      * Our final price should then be as expected.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testAbsoluteDiscount(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
 
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $context);
 
         // add a new promotion black friday
-        $this->createTestFixtureAbsolutePromotion($promotionId, $code, 45, $this->getContainer());
+        $this->createTestFixtureAbsolutePromotion($promotionId, $code, 45, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -86,18 +94,17 @@ class PromotionAbsoluteCalculationTest extends TestCase
      * We add a product to the cart and apply a code for a promotion with a currency dependent discount.
      * The standard value of discount would be 15, but our currency price value is 30
      * Our cart should have a total value of 70,00 (and not 85 as standard) in the end.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testAbsoluteDiscountWithCurrencyPriceValues(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 100, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 100, 19, static::getContainer(), $context);
 
         $this->createAdvancedCurrencyPriceValuePromotion($promotionId, $code, 15, 30);
 
@@ -120,7 +127,7 @@ class PromotionAbsoluteCalculationTest extends TestCase
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
 
-        $context = $this->getContainer()
+        $context = static::getContainer()
             ->get(SalesChannelContextFactory::class)
             ->create(
                 Uuid::randomHex(),
@@ -128,7 +135,7 @@ class PromotionAbsoluteCalculationTest extends TestCase
                 [SalesChannelContextService::CUSTOMER_ID => $this->createNetCustomer()]
             );
 
-        $this->createTestFixtureProduct($productId, 100, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 100, 19, static::getContainer(), $context);
 
         $this->createAdvancedCurrencyPriceValuePromotion($promotionId, $code, 300, 600);
 
@@ -199,7 +206,6 @@ class PromotionAbsoluteCalculationTest extends TestCase
             'customerNumber' => '1337',
             'email' => Uuid::randomHex() . '@example.com',
             'password' => TestDefaults::HASHED_PASSWORD,
-            'defaultPaymentMethodId' => $this->getValidPaymentMethodId(),
             'groupId' => $this->createNetCustomerGroup(),
             'salesChannelId' => TestDefaults::SALES_CHANNEL,
             'defaultBillingAddressId' => $addressId,
@@ -219,7 +225,7 @@ class PromotionAbsoluteCalculationTest extends TestCase
             ],
         ];
 
-        $this->getContainer()
+        static::getContainer()
             ->get('customer.repository')
             ->upsert([$customer], Context::createDefaultContext());
 
@@ -242,7 +248,7 @@ class PromotionAbsoluteCalculationTest extends TestCase
             ],
         ];
 
-        $this->getContainer()->get('customer_group.repository')->create([$data], Context::createDefaultContext());
+        static::getContainer()->get('customer_group.repository')->create([$data], Context::createDefaultContext());
 
         return $id;
     }

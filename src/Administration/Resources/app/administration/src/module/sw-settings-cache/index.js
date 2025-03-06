@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
 import './acl';
 

@@ -225,23 +225,6 @@
     order: 3;
 }
 
-.line-item-quantity-container {
-    &.disabled {
-        background-color: $gray-200;
-        border: 1px solid $gray-600;
-
-        .icon {
-            color: $gray-300;
-        }
-
-        input {
-            background-color: $gray-200;
-            color: $gray-600;
-            border: 0;
-        }
-    }
-}
-
 .line-item-unit-price,
 .line-item-tax-price {
     order: 5;
@@ -259,6 +242,7 @@
 .line-item-img-container {
     text-align: center;
     width: 70px;
+    margin-bottom: $spacer-sm;
 }
 
 .line-item-img-link {
@@ -347,10 +331,6 @@
     margin-bottom: $spacer-sm;
 }
 
-.line-item-details {
-    padding-top: 8px;
-}
-
 .line-item-details-characteristics {
     margin: $spacer-sm 0;
     font-size: $font-size-sm;
@@ -426,10 +406,7 @@
             margin-bottom: 0;
         }
 
-        .line-item-quantity-label,
-        .line-item-unit-price-label,
-        .line-item-total-price-label,
-        .line-item-tax-price-label {
+        .line-item-quantity-label {
             display: none;
         }
     }
@@ -608,7 +585,7 @@
     border-radius: $border-radius-sm;
 }
 
-.line-item-ordernumber {
+.line-item-product-number {
     margin-bottom: $spacer-sm;
     font-size: $font-size-sm;
 }
@@ -633,23 +610,11 @@
 a.line-item-label {
     &:hover {
         color: $primary;
-        text-decoration: none;
     }
-}
-
-.line-item-quantity-label,
-.line-item-unit-price-label,
-.line-item-total-price-label,
-.line-item-tax-price-label {
-    color: $gray-800;
 }
 
 .line-item-total-price-value {
     text-align: right;
-}
-
-.line-item-unit-price-label {
-    display: none;
 }
 
 .line-item-tax-price-label {
@@ -658,23 +623,24 @@ a.line-item-label {
     margin-right: 5px;
 }
 
-.line-item-total-price-label {
-    display: none;
+@include media-breakpoint-only(xs) {
+    .line-item-unit-price-label,
+    .line-item-total-price-label {
+        @include visually-hidden();
+    }
 }
 
-@include media-breakpoint-only(sm) {
-    .line-item-unit-price-label {
-        display: block;
+@include media-breakpoint-up(md) {
+    .line-item-unit-price-label,
+    .line-item-tax-price-label,
+    .line-item-total-price-label {
+        @include visually-hidden();
     }
 }
 
 @include media-breakpoint-up(sm) {
     .line-item-unit-price-value-descriptor {
         display: none;
-    }
-
-    .line-item-total-price-label {
-        display: block;
     }
 
     .line-item-tax-price-label {
@@ -685,22 +651,20 @@ a.line-item-label {
 }
 
 .is-offcanvas {
-    .line-item-unit-price-label {
-        display: none;
-    }
-
-    .line-item-total-price-label {
-        display: none;
-    }
-
     .line-item-unit-price-value-descriptor {
         display: inline;
+    }
+
+    .line-item-unit-price-label,
+    .line-item-tax-price-label,
+    .line-item-total-price-label {
+        @include visually-hidden();
     }
 }
 
 @include media-breakpoint-up(md) {
     .line-item-details-container {
-        padding-left: $spacer;
+        padding-left: $spacer-xs;
     }
 }
 
@@ -711,4 +675,8 @@ a.line-item-label {
     .line-item-characteristics-option {
         font-weight: $font-weight-bold;
     }
+}
+
+.line-item-remove-button .icon {
+    color: inherit;
 }

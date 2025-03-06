@@ -1,23 +1,19 @@
+/**
+ * @sw-package framework
+ */
 import initializeModal from 'src/app/init/modals.init';
-import { ui } from '@shopware-ag/admin-extension-sdk';
+import { ui } from '@shopware-ag/meteor-admin-sdk';
 
-let stateDispatchBackup;
 describe('src/app/init/modals.init.ts', () => {
     beforeAll(() => {
         initializeModal();
-        stateDispatchBackup = Shopware.State.dispatch;
     });
 
     beforeEach(() => {
-        Object.defineProperty(Shopware.State, 'dispatch', {
-            value: stateDispatchBackup,
-            writable: true,
-            configurable: true,
-        });
-        Shopware.State.get('modals').modals = [];
+        Shopware.Store.get('modals').modals = [];
 
-        Shopware.State._store.state.extensions = {};
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').extensionsState = {};
+        Shopware.Store.get('extensions').addExtension({
             name: 'jestapp',
             baseUrl: '',
             permissions: [],
@@ -34,6 +30,7 @@ describe('src/app/init/modals.init.ts', () => {
             locationId: 'your-location-id',
             variant: 'large',
             showHeader: true,
+            showFooter: false,
             closable: true,
             buttons: [
                 {
@@ -54,7 +51,7 @@ describe('src/app/init/modals.init.ts', () => {
             ],
         });
 
-        expect(Shopware.State.get('modals').modals).toHaveLength(1);
+        expect(Shopware.Store.get('modals').modals).toHaveLength(1);
     });
 
     it('should handle incoming uiModalClose requests', async () => {
@@ -63,6 +60,7 @@ describe('src/app/init/modals.init.ts', () => {
             locationId: 'your-location-id',
             variant: 'large',
             showHeader: true,
+            showFooter: false,
             closable: true,
             buttons: [
                 {
@@ -83,17 +81,17 @@ describe('src/app/init/modals.init.ts', () => {
             ],
         });
 
-        expect(Shopware.State.get('modals').modals).toHaveLength(1);
+        expect(Shopware.Store.get('modals').modals).toHaveLength(1);
 
         await ui.modal.close({
             locationId: 'your-location-id',
         });
 
-        expect(Shopware.State.get('modals').modals).toHaveLength(0);
+        expect(Shopware.Store.get('modals').modals).toHaveLength(0);
     });
 
     it('should not handle requests when extension is not valid', async () => {
-        Shopware.State._store.state.extensions = {};
+        Shopware.Store.get('extensions').extensionsState = {};
 
         await expect(async () => {
             await ui.modal.open({
@@ -101,6 +99,7 @@ describe('src/app/init/modals.init.ts', () => {
                 locationId: 'your-location-id',
                 variant: 'large',
                 showHeader: true,
+                showFooter: false,
                 closable: true,
                 buttons: [
                     {
@@ -122,6 +121,6 @@ describe('src/app/init/modals.init.ts', () => {
             });
         }).rejects.toThrow(new Error('Extension with the origin "" not found.'));
 
-        expect(Shopware.State.get('extensionSdkModules').modules).toHaveLength(0);
+        expect(Shopware.Store.get('extensionSdkModules').modules).toHaveLength(0);
     });
 });

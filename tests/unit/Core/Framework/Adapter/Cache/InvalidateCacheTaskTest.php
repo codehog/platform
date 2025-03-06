@@ -2,15 +2,15 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Adapter\Cache;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Adapter\Cache\InvalidateCacheTask;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Adapter\Cache\InvalidateCacheTask
  */
+#[CoversClass(InvalidateCacheTask::class)]
 class InvalidateCacheTaskTest extends TestCase
 {
     public function testGetTaskName(): void
@@ -20,12 +20,11 @@ class InvalidateCacheTaskTest extends TestCase
 
     public function testShouldRun(): void
     {
-        static::assertTrue(InvalidateCacheTask::shouldRun(new ParameterBag(['shopware.cache.invalidation.delay' => 20])));
-        static::assertFalse(InvalidateCacheTask::shouldRun(new ParameterBag(['shopware.cache.invalidation.delay' => 0])));
+        static::assertTrue(InvalidateCacheTask::shouldRun(new ParameterBag()));
     }
 
     public function testGetDefaultInterval(): void
     {
-        static::assertSame(20, InvalidateCacheTask::getDefaultInterval());
+        static::assertSame(300, InvalidateCacheTask::getDefaultInterval());
     }
 }

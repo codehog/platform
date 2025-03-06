@@ -15,13 +15,10 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'debug:business-events',
     description: 'Dumps all business events',
 )]
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
 class DebugDumpBusinessEventsCommand extends Command
 {
-    /**
-     * @var BusinessEventCollector
-     */
-    protected $collector;
+    protected BusinessEventCollector $collector;
 
     /**
      * @internal
@@ -34,7 +31,7 @@ class DebugDumpBusinessEventsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $result = $this->collector->collect(Context::createDefaultContext());
+        $result = $this->collector->collect(Context::createCLIContext());
 
         $table = new Table($output);
         $table->setHeaders(['name', 'mail-aware', 'log-aware', 'class']);

@@ -5,35 +5,20 @@ namespace Shopware\Core\Framework\Log;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 
-#[Package('core')]
+#[Package('framework')]
 class LogEntryEntity extends Entity
 {
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $message;
+    protected string $message;
 
-    /**
-     * @var int
-     */
-    protected $level;
+    protected int $level;
 
-    /**
-     * @var string
-     */
-    protected $channel;
+    protected string $channel;
 
-    /**
-     * @var string|null
-     */
-    protected $context;
+    protected ?string $context = null;
 
-    /**
-     * @var string|null
-     */
-    protected $extra;
+    protected ?string $extra = null;
 
     public function getMessage(): string
     {

@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Processor;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartBehavior;
@@ -32,14 +33,12 @@ class ContainerCartProcessorTest extends TestCase
 {
     use IntegrationTestBehaviour;
 
-    /**
-     * @dataProvider calculationProvider
-     */
+    #[DataProvider('calculationProvider')]
     public function testCalculation(LineItem $item, ?CalculatedPrice $expected): void
     {
-        $processor = $this->getContainer()->get(ContainerCartProcessor::class);
+        $processor = static::getContainer()->get(ContainerCartProcessor::class);
 
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $cart = new Cart('test');
@@ -64,14 +63,14 @@ class ContainerCartProcessorTest extends TestCase
         foreach ($expected->getCalculatedTaxes() as $tax) {
             $actual = $item->getPrice()->getCalculatedTaxes()->get((string) $tax->getTaxRate());
 
-            static::assertInstanceOf(CalculatedTax::class, $actual, sprintf('Missing tax for rate %f', $tax->getTaxRate()));
+            static::assertInstanceOf(CalculatedTax::class, $actual, \sprintf('Missing tax for rate %f', $tax->getTaxRate()));
             static::assertEquals($tax->getTax(), $actual->getTax());
         }
 
         foreach ($item->getPrice()->getCalculatedTaxes() as $tax) {
             $actual = $expected->getCalculatedTaxes()->get((string) $tax->getTaxRate());
 
-            static::assertInstanceOf(CalculatedTax::class, $actual, sprintf('Missing tax for rate %f', $tax->getTaxRate()));
+            static::assertInstanceOf(CalculatedTax::class, $actual, \sprintf('Missing tax for rate %f', $tax->getTaxRate()));
             static::assertEquals($tax->getTax(), $actual->getTax());
         }
     }

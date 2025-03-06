@@ -12,7 +12,7 @@ use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('core')]
+#[Package('framework')]
 abstract class JsonFactoryBase implements ResponseFactoryInterface
 {
     public function createRedirectResponse(EntityDefinition $definition, string $id, Request $request, Context $context): Response
@@ -36,8 +36,8 @@ abstract class JsonFactoryBase implements ResponseFactoryInterface
     /**
      * @template TEntityCollection of EntityCollection
      *
-     * @param EntitySearchResult<TEntityCollection> $searchResult
-     * @param array<string, mixed>                 $parameters
+     * @param EntitySearchResult<covariant TEntityCollection> $searchResult
+     * @param array<string, mixed> $parameters
      *
      * @return array{first?: string, prev?: string, next?: string, last?: string}
      */
@@ -96,7 +96,7 @@ abstract class JsonFactoryBase implements ResponseFactoryInterface
     }
 
     /**
-     * @param array<string, mixed>  $parameters
+     * @param array<string, mixed> $parameters
      */
     protected function buildPaginationUrl(string $uri, array $parameters, int $limit, int $page): string
     {

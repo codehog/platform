@@ -26,7 +26,7 @@ use Symfony\Component\Validator\Validation;
  *
  * @extends EntityRepository<TEntityCollection>
  *
- * @phpstan-type ResultTypes EntitySearchResult<TEntityCollection>|AggregationResultCollection|mixed|TEntityCollection|IdSearchResult
+ * @phpstan-type ResultTypes EntitySearchResult<TEntityCollection>|AggregationResultCollection|mixed|TEntityCollection|IdSearchResult|array
  */
 class StaticEntityRepository extends EntityRepository
 {
@@ -90,6 +90,10 @@ class StaticEntityRepository extends EntityRepository
             return $result;
         }
 
+        if (\is_array($result)) {
+            $result = new EntityCollection($result);
+        }
+
         if ($result instanceof EntityCollection) {
             /** @var TEntityCollection $result */
             return new EntitySearchResult($this->getDummyEntityName(), $result->count(), $result, null, $criteria, $context);
@@ -131,9 +135,6 @@ class StaticEntityRepository extends EntityRepository
         return new IdSearchResult(\count($result), $result, $criteria, $context);
     }
 
-    /**
-     * @experimental
-     */
     public function create(array $data, Context $context): EntityWrittenContainerEvent
     {
         $writeResults = $this->getDummyWriteResults($data, EntityWriteResult::OPERATION_INSERT, $context);
@@ -145,9 +146,6 @@ class StaticEntityRepository extends EntityRepository
         return new EntityWrittenContainerEvent($context, $writeResults, []);
     }
 
-    /**
-     * @experimental
-     */
     public function update(array $data, Context $context): EntityWrittenContainerEvent
     {
         $this->updates[] = $data;
@@ -159,9 +157,6 @@ class StaticEntityRepository extends EntityRepository
         );
     }
 
-    /**
-     * @experimental
-     */
     public function upsert(array $data, Context $context): EntityWrittenContainerEvent
     {
         $writeResults = $this->getDummyWriteResults($data, EntityWriteResult::OPERATION_INSERT, $context);
@@ -173,9 +168,6 @@ class StaticEntityRepository extends EntityRepository
         return new EntityWrittenContainerEvent($context, $writeResults, []);
     }
 
-    /**
-     * @experimental
-     */
     public function delete(array $ids, Context $context): EntityWrittenContainerEvent
     {
         $this->deletes[] = $ids;
@@ -194,6 +186,14 @@ class StaticEntityRepository extends EntityRepository
         }
 
         return $this->definition;
+    }
+
+    /**
+     * @param callable(Criteria, Context): (ResultTypes)|ResultTypes ...$searches
+     */
+    public function addSearch(...$searches): void
+    {
+        $this->searches = \array_merge($this->searches, $searches);
     }
 
     /**

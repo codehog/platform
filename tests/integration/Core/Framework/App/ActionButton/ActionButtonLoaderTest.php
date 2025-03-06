@@ -34,8 +34,8 @@ class ActionButtonLoaderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->appRepository = $this->getContainer()->get('app.repository');
-        $this->actionButtonLoader = $this->getContainer()->get(ActionButtonLoader::class);
+        $this->appRepository = static::getContainer()->get('app.repository');
+        $this->actionButtonLoader = static::getContainer()->get(ActionButtonLoader::class);
         $this->context = Context::createDefaultContext();
 
         $this->app1OrderDetailButtonId = Uuid::randomHex();
@@ -114,7 +114,6 @@ class ActionButtonLoaderTest extends TestCase
             ],
             'integration' => [
                 'label' => 'App1',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],
@@ -140,7 +139,6 @@ class ActionButtonLoaderTest extends TestCase
             ],
             'integration' => [
                 'label' => 'App2',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],
@@ -166,7 +164,6 @@ class ActionButtonLoaderTest extends TestCase
             ],
             'integration' => [
                 'label' => 'App3',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],

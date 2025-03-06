@@ -1,14 +1,13 @@
 /**
- * @package admin
+ * @sw-package framework
  */
-
 import template from './sw-block-field.html.twig';
 import './sw-block-field.scss';
 
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-block-field', {
     template,
@@ -19,9 +18,17 @@ Component.register('sw-block-field', {
             type: String,
             required: false,
             default: 'default',
-            validValues: ['small', 'medium', 'default'],
+            validValues: [
+                'small',
+                'medium',
+                'default',
+            ],
             validator(val) {
-                return ['small', 'medium', 'default'].includes(val);
+                return [
+                    'small',
+                    'medium',
+                    'default',
+                ].includes(val);
             },
         },
     },

@@ -2,10 +2,15 @@ import template from './sw-flow-sequence-modal.html.twig';
 
 /**
  * @private
- * @package business-ops
+ * @sw-package after-sales
  */
 export default {
     template,
+
+    emits: [
+        'process-finish',
+        'modal-close',
+    ],
 
     props: {
         sequence: {

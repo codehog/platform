@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Content\Flow\Dispatching\Action;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\Event\CheckoutOrderPlacedEvent;
@@ -30,7 +31,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Sorting\FieldSorting;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\CloneBehavior;
 use Shopware\Core\Framework\Event\OrderAware;
-use Shopware\Core\Framework\Test\IdsCollection;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelApiTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
@@ -38,16 +39,16 @@ use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextService;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * @package business-ops
- *
  * @internal
  */
+#[Package('after-sales')]
 class GrantDownloadAccessActionTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -79,25 +80,24 @@ class GrantDownloadAccessActionTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->cartService = $this->getContainer()->get(CartService::class);
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->orderRepository = $this->getContainer()->get('order.repository');
-        $this->orderTransactionRepository = $this->getContainer()->get('order_transaction.repository');
-        $this->flowRepository = $this->getContainer()->get('flow.repository');
+        $this->cartService = static::getContainer()->get(CartService::class);
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->orderRepository = static::getContainer()->get('order.repository');
+        $this->orderTransactionRepository = static::getContainer()->get('order_transaction.repository');
+        $this->flowRepository = static::getContainer()->get('flow.repository');
         $this->customerId = $this->createCustomer();
         $this->salesChannelContext = $this->createDefaultSalesChannelContext();
-        $this->orderTransactionStateHandler = $this->getContainer()->get(OrderTransactionStateHandler::class);
-        $this->eventDispatcher = $this->getContainer()->get('event_dispatcher');
-        $this->downloadRoute = $this->getContainer()->get(DownloadRoute::class);
-        $this->fileSaver = $this->getContainer()->get(FileSaver::class);
-        $this->fileFetcher = $this->getContainer()->get(FileFetcher::class);
+        $this->orderTransactionStateHandler = static::getContainer()->get(OrderTransactionStateHandler::class);
+        $this->eventDispatcher = static::getContainer()->get('event_dispatcher');
+        $this->downloadRoute = static::getContainer()->get(DownloadRoute::class);
+        $this->fileSaver = static::getContainer()->get(FileSaver::class);
+        $this->fileFetcher = static::getContainer()->get(FileFetcher::class);
     }
 
     /**
      * @param array<int, string[]> $productDownloads
-     *
-     * @dataProvider orderCaseProvider
      */
+    #[DataProvider('orderCaseProvider')]
     public function testFlowActionRunsOnEnterState(array $productDownloads): void
     {
         $orderId = $this->placeOrder($productDownloads);
@@ -136,9 +136,8 @@ class GrantDownloadAccessActionTest extends TestCase
 
     /**
      * @param array<int, string[]> $productDownloads
-     *
-     * @dataProvider orderCaseProvider
      */
+    #[DataProvider('orderCaseProvider')]
     public function testFlowActionRunsOnOrderPlaced(array $productDownloads): void
     {
         $this->cloneDefaultFlow();
@@ -212,7 +211,7 @@ class GrantDownloadAccessActionTest extends TestCase
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('mailTemplates.id', $data['templateId']));
 
-        $type = $this->getContainer()->get('mail_template_type.repository')->search($criteria, $event->getContext())->first();
+        $type = static::getContainer()->get('mail_template_type.repository')->search($criteria, $event->getContext())->first();
 
         if (!$type instanceof MailTemplateTypeEntity || $type->getTechnicalName() !== MailTemplateTypes::MAILTYPE_DOWNLOADS_DELIVERY) {
             return null;
@@ -249,14 +248,14 @@ class GrantDownloadAccessActionTest extends TestCase
         $lineItems = $order->getLineItems();
         static::assertNotNull($lineItems);
         $lineItems->sortByPosition();
-        static::assertEquals(\count($productDownloads), $lineItems->count());
+        static::assertCount(\count($productDownloads), $lineItems);
         static::assertTrue($lineItems->hasLineItemWithState(State::IS_DOWNLOAD));
 
         foreach ($productDownloads as $key => $downloadFiles) {
             $lineItem = $lineItems->getAt($key);
             static::assertNotNull($lineItem);
             static::assertNotNull($lineItem->getDownloads());
-            static::assertEquals(\count($downloadFiles), $lineItem->getDownloads()->count());
+            static::assertCount(\count($downloadFiles), $lineItem->getDownloads());
             foreach ($lineItem->getDownloads() as $download) {
                 static::assertFalse($download->isAccessGranted());
 
@@ -267,7 +266,7 @@ class GrantDownloadAccessActionTest extends TestCase
                     static::fail('Download route returned response without access granted');
                 } catch (\Throwable $exception) {
                     static::assertInstanceOf(CustomerException::class, $exception);
-                    static::assertSame(sprintf('Line item download file with id "%s" not found.', $download->getId()), $exception->getMessage());
+                    static::assertSame(\sprintf('Line item download file with id "%s" not found.', $download->getId()), $exception->getMessage());
                 }
             }
         }
@@ -276,9 +275,9 @@ class GrantDownloadAccessActionTest extends TestCase
         if (\in_array([], $productDownloads, true)) {
             static::assertNotNull($order->getLineItems());
             static::assertTrue($order->getLineItems()->hasLineItemWithState(State::IS_PHYSICAL));
-            static::assertEquals(1, $order->getDeliveries()->count());
+            static::assertCount(1, $order->getDeliveries());
         } else {
-            static::assertEquals(0, $order->getDeliveries()->count());
+            static::assertCount(0, $order->getDeliveries());
         }
 
         return $orderId;
@@ -298,14 +297,14 @@ class GrantDownloadAccessActionTest extends TestCase
         $lineItems = $order->getLineItems();
         static::assertNotNull($lineItems);
         $lineItems->sortByPosition();
-        static::assertEquals(\count($productDownloads), $lineItems->count());
+        static::assertCount(\count($productDownloads), $lineItems);
         static::assertTrue($lineItems->hasLineItemWithState(State::IS_DOWNLOAD));
 
         foreach ($productDownloads as $key => $downloadFiles) {
             $lineItem = $lineItems->getAt($key);
             static::assertNotNull($lineItem);
             static::assertNotNull($lineItem->getDownloads());
-            static::assertEquals(\count($downloadFiles), $lineItem->getDownloads()->count());
+            static::assertCount(\count($downloadFiles), $lineItem->getDownloads());
             foreach ($lineItem->getDownloads() as $download) {
                 static::assertTrue($download->isAccessGranted());
                 static::assertNotNull($download->getMedia());
@@ -316,7 +315,7 @@ class GrantDownloadAccessActionTest extends TestCase
                 ob_start();
                 $response->send();
                 $content = ob_get_clean();
-                static::assertEquals($download->getMedia()->getId(), $content);
+                static::assertSame($download->getMediaId(), $content);
             }
         }
     }
@@ -336,7 +335,7 @@ class GrantDownloadAccessActionTest extends TestCase
         foreach ($productDownloads as $key => $files) {
             static::assertNotNull($lineItems->getAt($key));
             static::assertNotNull($lineItems->getAt($key)->getDownloads());
-            static::assertEquals(\count($files), $lineItems->getAt($key)->getDownloads()->count());
+            static::assertCount(\count($files), $lineItems->getAt($key)->getDownloads());
             foreach ($lineItems->getAt($key)->getDownloads() as $download) {
                 static::assertTrue($download->isAccessGranted());
             }
@@ -382,6 +381,7 @@ class GrantDownloadAccessActionTest extends TestCase
                             'id' => Uuid::randomHex(),
                             'fileName' => $fileName,
                             'fileExtension' => $fileExtension,
+                            'path' => 'media/' . $fileName . '.' . $fileExtension,
                             'private' => true,
                         ],
                     ];
@@ -397,6 +397,7 @@ class GrantDownloadAccessActionTest extends TestCase
                 $media = $download['media'];
                 $mediaFile = $this->fileFetcher->fetchBlob($media['id'], $media['fileExtension'], '');
                 $this->fileSaver->persistFileToMedia($mediaFile, $media['fileName'], $media['id'], $context);
+                $this->fileFetcher->cleanUpTempFile($mediaFile);
             }
         });
 
@@ -447,7 +448,7 @@ class GrantDownloadAccessActionTest extends TestCase
 
     private function createDefaultSalesChannelContext(): SalesChannelContext
     {
-        $salesChannelContextFactory = $this->getContainer()->get(SalesChannelContextFactory::class);
+        $salesChannelContextFactory = static::getContainer()->get(SalesChannelContextFactory::class);
 
         return $salesChannelContextFactory->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL, [SalesChannelContextService::CUSTOMER_ID => $this->customerId]);
     }

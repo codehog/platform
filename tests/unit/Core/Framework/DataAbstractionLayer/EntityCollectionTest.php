@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityCollection;
@@ -10,9 +11,8 @@ use Shopware\Core\Framework\Struct\ArrayEntity;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\EntityCollection
  */
+#[CoversClass(EntityCollection::class)]
 class EntityCollectionTest extends TestCase
 {
     public function testSetCustomFields(): void
@@ -40,7 +40,7 @@ class EntityCollectionTest extends TestCase
             new ArrayEntity(['id' => 'element-1', 'foo' => 1, 'bar' => 1]),
         ]);
 
-        static::expectException(\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $collection->setCustomFields([
             'element-1' => ['foo' => 3, 'bar' => 3, 'baz' => 3],
         ]);
@@ -76,7 +76,7 @@ class EntityCollectionTest extends TestCase
             new ArrayEntity(['id' => 'element-1', 'foo' => 1, 'bar' => 1]),
         ]);
 
-        static::expectException(\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $collection->getCustomFieldsValue('foo');
     }
 
@@ -124,7 +124,7 @@ class EntityCollectionTest extends TestCase
             new ArrayEntity(['id' => 'element-1', 'foo' => 1, 'bar' => 1]),
         ]);
 
-        static::expectException(\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $collection->getCustomFieldsValues('foo');
     }
 }
@@ -137,12 +137,13 @@ class MyCollectionEntity extends Entity
     use EntityCustomFieldsTrait;
 
     /**
-     * @param string $_uniqueIdentifier
      * @param array<string, mixed>|null $customFields
      */
     public function __construct(
-        protected $_uniqueIdentifier,
-        protected $customFields = []
+        string $_uniqueIdentifier,
+        ?array $customFields = []
     ) {
+        $this->_uniqueIdentifier = $_uniqueIdentifier;
+        $this->customFields = $customFields;
     }
 }

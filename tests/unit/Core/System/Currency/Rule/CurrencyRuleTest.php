@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\System\Currency\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
@@ -9,16 +11,15 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\Framework\Rule\RuleConstraints;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\System\Currency\Rule\CurrencyRule;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\System\Currency\Rule\CurrencyRule
  */
-#[Package('buyers-experience')]
+#[Package('fundamentals@discovery')]
+#[CoversClass(CurrencyRule::class)]
 class CurrencyRuleTest extends TestCase
 {
     public function testGetName(): void
@@ -52,7 +53,7 @@ class CurrencyRuleTest extends TestCase
                 'isMatchAny' => true,
             ],
             'fields' => [
-                [
+                'currencyIds' => [
                     'name' => 'currencyIds',
                     'type' => 'multi-entity-id-select',
                     'config' => [
@@ -64,10 +65,9 @@ class CurrencyRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider matchCurrencyRuleDataProvider
-     *
      * @param list<string> $currencyIds
      */
+    #[DataProvider('matchCurrencyRuleDataProvider')]
     public function testMatch(string $operator, string $currencyId, array $currencyIds): void
     {
         $rule = new CurrencyRule($operator, $currencyIds);
@@ -76,10 +76,9 @@ class CurrencyRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider noMatchCurrencyRuleDataProvider
-     *
      * @param list<string> $currencyIds
      */
+    #[DataProvider('noMatchCurrencyRuleDataProvider')]
     public function testNoMatch(string $operator, string $currencyId, array $currencyIds): void
     {
         $rule = new CurrencyRule($operator, $currencyIds);

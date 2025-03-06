@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Content\Media\Event;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Flow\Dispatching\StorableFlow;
 use Shopware\Core\Content\Flow\Dispatching\Storer\ScalarValuesStorer;
@@ -15,10 +16,9 @@ use Shopware\Core\Framework\Webhook\AclPrivilegeCollection;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Media\Event\MediaUploadedEvent
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
+#[CoversClass(MediaUploadedEvent::class)]
 class MediaUploadedEventTest extends TestCase
 {
     public function testInstance(): void
@@ -41,8 +41,6 @@ class MediaUploadedEventTest extends TestCase
     public function testGetAvailableData(): void
     {
         $eventDataCollection = MediaUploadedEvent::getAvailableData();
-
-        static::assertInstanceOf(EventDataCollection::class, $eventDataCollection);
         static::assertCount(1, $eventDataCollection->toArray());
         static::assertEquals(
             (new EventDataCollection())->add('mediaId', new ScalarValueType(ScalarValueType::TYPE_STRING)),

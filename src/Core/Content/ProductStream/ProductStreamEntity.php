@@ -12,63 +12,39 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('business-ops')]
+#[Package('inventory')]
 class ProductStreamEntity extends Entity
 {
     use EntityCustomFieldsTrait;
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $name;
+    protected ?string $name = null;
+
+    protected ?string $description = null;
 
     /**
-     * @var string|null
+     * @var array<array<string, string|array<array<string, mixed>>>>|null
      */
-    protected $description;
+    protected ?array $apiFilter = null;
 
-    /**
-     * @var array|null
-     */
-    protected $apiFilter;
+    protected ?ProductStreamFilterCollection $filters = null;
 
-    /**
-     * @var ProductStreamFilterCollection|null
-     */
-    protected $filters;
+    protected bool $invalid;
 
-    /**
-     * @var bool
-     */
-    protected $invalid;
+    protected ?ProductStreamTranslationCollection $translations = null;
 
-    /**
-     * @var ProductStreamTranslationCollection|null
-     */
-    protected $translations;
+    protected ?ProductExportCollection $productExports = null;
 
-    /**
-     * @var ProductExportCollection|null
-     */
-    protected $productExports;
+    protected ?ProductCrossSellingCollection $productCrossSellings = null;
 
-    /**
-     * @var ProductCrossSellingCollection|null
-     */
-    protected $productCrossSellings;
+    protected ?CategoryCollection $categories = null;
 
-    /**
-     * @var CategoryCollection|null
-     */
-    protected $categories;
-
-    public function getName(): string
+    public function getName(): ?string
     {
         return $this->name;
     }
 
-    public function setName(string $name): void
+    public function setName(?string $name): void
     {
         $this->name = $name;
     }
@@ -83,11 +59,17 @@ class ProductStreamEntity extends Entity
         $this->description = $description;
     }
 
+    /**
+     * @return array<array<string, string|array<array<string, mixed>>>>|null
+     */
     public function getApiFilter(): ?array
     {
         return $this->apiFilter;
     }
 
+    /**
+     * @param array<array<string, string|array<array<string, mixed>>>> $apiFilter
+     */
     public function setApiFilter(?array $apiFilter): void
     {
         $this->apiFilter = $apiFilter;

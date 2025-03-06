@@ -1,5 +1,4 @@
 import AnalyticsEvent from 'src/plugin/google-analytics/analytics-event';
-import DomAccessHelper from 'src/helper/dom-access.helper';
 
 export default class RemoveFromCart extends AnalyticsEvent
 {
@@ -16,14 +15,14 @@ export default class RemoveFromCart extends AnalyticsEvent
             return;
         }
 
-        const closest = event.target.closest('.cart-item-remove-button');
+        const closest = event.target.closest('.line-item-remove-button');
         if (!closest) {
             return;
         }
 
         gtag('event', 'remove_from_cart', {
             'items': [{
-                'id': DomAccessHelper.getDataAttribute(closest, 'product-id'),
+                'id': closest.getAttribute('data-product-id'),
             }],
         });
     }

@@ -4,21 +4,24 @@ namespace Shopware\Tests\Integration\Core\Content\Product\DataAbstractionLayer;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Content\Product\DataAbstractionLayer\ProductCategoryDenormalizer;
 use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Content\Test\Product\ProductBuilder;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
-use Shopware\Core\Framework\Test\IdsCollection;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\DataAbstractionLayer\ProductCategoryDenormalizer
  */
+#[Package('inventory')]
+#[CoversClass(ProductCategoryDenormalizer::class)]
 class ProductCategoryDenormalizerTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -31,9 +34,9 @@ class ProductCategoryDenormalizerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->connection = $this->getContainer()->get(Connection::class);
+        $this->connection = static::getContainer()->get(Connection::class);
         $this->context = Context::createDefaultContext();
-        $this->productRepository = $this->getContainer()->get('product.repository');
+        $this->productRepository = static::getContainer()->get('product.repository');
     }
 
     public function testUpdateWithProductAddedCategoriesWillVariantGetSameCategories(): void
@@ -61,11 +64,11 @@ class ProductCategoryDenormalizerTest extends TestCase
     }
 
     /**
-     * @return list<string>|null
+     * @return array<string>|null
      */
     private function getProductCategoryList(string $productId): ?array
     {
-        $productRepository = $this->getContainer()->get('product.repository');
+        $productRepository = static::getContainer()->get('product.repository');
         /** @var ProductEntity $testableProduct */
         $testableProduct = $productRepository->search(new Criteria([$productId]), $this->context)->first();
 
@@ -88,7 +91,7 @@ class ProductCategoryDenormalizerTest extends TestCase
                 'productId' => Uuid::fromHexToBytes($productId),
                 'categoryIds' => Uuid::fromHexToBytesList($categoryIds),
             ],
-            ['categoryIds' => ArrayParameterType::STRING]
+            ['categoryIds' => ArrayParameterType::BINARY]
         );
     }
 
@@ -105,7 +108,7 @@ class ProductCategoryDenormalizerTest extends TestCase
         $builder = new ProductBuilder($ids, $name);
         $builder->price(200)
             ->categories(['cat1', 'cat2'])
-            ->write($this->getContainer());
+            ->write(static::getContainer());
         /** @var array{id: string, children: array<int, array{id: string}>, categories: array<int, array{id: string, name:string}>} $product */
         $product = $builder->build();
         $products[$name] = $product['id'];
@@ -120,7 +123,7 @@ class ProductCategoryDenormalizerTest extends TestCase
                 (new ProductBuilder($ids, 'variant-testable-product'))
                 ->price(100)->build()
             )
-            ->write($this->getContainer());
+            ->write(static::getContainer());
 
         $product = $builder->build();
         $products[$name] = $product['id'];

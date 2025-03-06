@@ -16,7 +16,7 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SystemConfig\Exception\InvalidDomainException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('sales-channel')]
+#[Package('discovery')]
 class SitemapExporter implements SitemapExporterInterface
 {
     /**
@@ -71,7 +71,7 @@ class SitemapExporter implements SitemapExporterInterface
             true,
             $lastProvider,
             null,
-            $context->getSalesChannel()->getId(),
+            $context->getSalesChannelId(),
             $context->getLanguageId()
         );
     }
@@ -95,7 +95,7 @@ class SitemapExporter implements SitemapExporterInterface
 
     private function generateCacheKeyForSalesChannel(SalesChannelContext $salesChannelContext): string
     {
-        return sprintf('sitemap-exporter-running-%s-%s', $salesChannelContext->getSalesChannel()->getId(), $salesChannelContext->getLanguageId());
+        return \sprintf('sitemap-exporter-running-%s-%s', $salesChannelContext->getSalesChannelId(), $salesChannelContext->getLanguageId());
     }
 
     private function initSitemapHandles(SalesChannelContext $context): void
@@ -121,6 +121,7 @@ class SitemapExporter implements SitemapExporterInterface
                     }
 
                     $sitemapDomains[$arrayKey] = [
+                        'domainId' => $domain->getId(),
                         'url' => $domain->getUrl(),
                         'scheme' => $urlParts['scheme'] ?? '',
                     ];
@@ -130,7 +131,7 @@ class SitemapExporter implements SitemapExporterInterface
 
         $sitemapHandles = [];
         foreach ($sitemapDomains as $sitemapDomain) {
-            $sitemapHandles[$sitemapDomain['url']] = $this->sitemapHandleFactory->create($this->filesystem, $context, $sitemapDomain['url']);
+            $sitemapHandles[$sitemapDomain['url']] = $this->sitemapHandleFactory->create($this->filesystem, $context, $sitemapDomain['url'], $sitemapDomain['domainId']);
         }
 
         if (empty($sitemapHandles)) {
@@ -149,7 +150,7 @@ class SitemapExporter implements SitemapExporterInterface
 
             foreach ($result->getUrls() as $url) {
                 $newUrl = clone $url;
-                $newUrl->setLoc(empty($newUrl->getLoc()) ? $host : $host . '/' . $newUrl->getLoc());
+                $newUrl->setLoc(rtrim($host, '/') . '/' . ltrim($newUrl->getLoc(), '/'));
                 $urls[] = $newUrl;
             }
 

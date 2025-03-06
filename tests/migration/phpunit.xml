@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
          bootstrap="../../src/Core/TestBootstrap.php"
          cacheResult="false"
          executionOrder="random"
          convertDeprecationsToExceptions="false">
     <coverage cacheDirectory="../../var/cache/phpunit/" includeUncoveredFiles="true">
         <include >
-            <directory suffix=".php">../../src/Core/Migration</directory>
-            <directory suffix=".php">../../src/Administration/Migration</directory>
-            <directory suffix=".php">../../src/Storefront/Migration</directory>
+            <directory suffix=".php">../../src/Core/Migration/V6_6</directory>
+            <directory suffix=".php">../../src/Core/Migration/V6_7</directory>
+            <directory suffix=".php">../../src/Administration/Migration/V6_6</directory>
+            <directory suffix=".php">../../src/Administration/Migration/V6_7</directory>
+            <directory suffix=".php">../../src/Storefront/Migration/V6_6</directory>
+            <directory suffix=".php">../../src/Storefront/Migration/V6_7</directory>
         </include>
       </coverage>
     <php>
@@ -20,17 +23,17 @@
         <env name="APP_DEBUG" value="1" />
         <env name="APP_SECRET" value="s$cretf0rt3st" />
         <env name="SHOPWARE_HTTP_CACHE_ENABLED" value="0" />
-
+        <server name="TESTS_RUNNING" value="1"/>
         <env name="SHELL_VERBOSITY" value="-1" />
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="disabled" />
         <server name="MAILER_DSN" value="null://localhost"/>
         <server name="HTTPS" value="off"/>
         <!--To see the full stackTrace of a Deprecation set the value to a regex matching the deprecation warning-->
         <!--https://symfony.com/doc/current/components/phpunit_bridge.html#display-the-full-stack-trace-->
-        <!--<env name="SYMFONY_DEPRECATIONS_HELPER" value="/A tree builder without a root node is deprecated since Symfony 4\.2 and will not be supported anymore in 5\.0\./" />-->
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="ignoreFile=../../deprecation.ignore" />
     </php>
     <testsuites>
-        <testsuite name="migration-tests">
+        <testsuite name="migration">
             <directory>.</directory>
         </testsuite>
     </testsuites>

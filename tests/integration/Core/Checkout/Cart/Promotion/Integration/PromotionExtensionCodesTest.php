@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Integration;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\Order\OrderConverter;
@@ -11,6 +12,8 @@ use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscount\PromotionDiscountEntity;
 use Shopware\Core\Checkout\Promotion\Cart\Extension\CartExtension;
 use Shopware\Core\Checkout\Promotion\Cart\PromotionProcessor;
+use Shopware\Core\Checkout\Promotion\PromotionCollection;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -22,9 +25,9 @@ use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextService;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionIntegrationTestBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionIntegrationTestBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
 
 /**
  * @internal
@@ -37,22 +40,28 @@ class PromotionExtensionCodesTest extends TestCase
     use PromotionIntegrationTestBehaviour;
     use PromotionTestFixtureBehaviour;
 
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
     protected EntityRepository $productRepository;
 
     protected CartService $cartService;
 
+    /**
+     * @var EntityRepository<PromotionCollection>
+     */
     protected EntityRepository $promotionRepository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->promotionRepository = $this->getContainer()->get('promotion.repository');
-        $this->cartService = $this->getContainer()->get(CartService::class);
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->promotionRepository = static::getContainer()->get('promotion.repository');
+        $this->cartService = static::getContainer()->get(CartService::class);
         $this->addCountriesToSalesChannel();
 
-        $this->context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $this->context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // make sure we always start with a fresh cart
         $this->cartService->createNew($this->context->getToken());
@@ -63,9 +72,8 @@ class PromotionExtensionCodesTest extends TestCase
      * add our code to the cart within the extension.
      * We do not assert the final price here, only that the code is
      * correctly added
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testAddLineItemAddsToExtension(): void
     {
         $productId = Uuid::randomHex();
@@ -73,10 +81,10 @@ class PromotionExtensionCodesTest extends TestCase
         $promotionCode = 'BF19';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 119, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 119, 19, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -99,9 +107,8 @@ class PromotionExtensionCodesTest extends TestCase
      * We add a product and promotion code, then we grab the promotion
      * line item id and remove it.
      * After that we verify that our code array is empty in our extension.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDeleteLineItemRemovesExtension(): void
     {
         $productId = Uuid::randomHex();
@@ -109,10 +116,10 @@ class PromotionExtensionCodesTest extends TestCase
         $promotionCode = 'BF19';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 119, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 119, 19, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -137,19 +144,18 @@ class PromotionExtensionCodesTest extends TestCase
      * This test verifies that we successfully block any promotion
      * that does not have a code but gets removed by the user.
      * In this case the promotion must not be added automatically again and again.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testAutoPromotionGetsBlockedWhenDeletingItem(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 119, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 119, 19, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, null, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, null, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -171,9 +177,8 @@ class PromotionExtensionCodesTest extends TestCase
      * This test verifies that we can remove a line item
      * and then add that promotion again. In this case we
      * should have the code again in our extension.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDeleteLineItemAndAddItAgainWorks(): void
     {
         $productId = Uuid::randomHex();
@@ -181,10 +186,10 @@ class PromotionExtensionCodesTest extends TestCase
         $promotionCode = 'BF19';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 119, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 119, 19, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -209,16 +214,14 @@ class PromotionExtensionCodesTest extends TestCase
         static::assertCount(1, $extension->getCodes());
     }
 
-    /**
-     * @group promotions
-     */
+    #[Group('promotions')]
     public function testResetCodesAfterOrder(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $promotionCode = 'BF19';
 
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(
                 Uuid::randomHex(),
                 TestDefaults::SALES_CHANNEL,
@@ -226,10 +229,10 @@ class PromotionExtensionCodesTest extends TestCase
             );
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 119, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 119, 19, static::getContainer(), $context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -262,7 +265,7 @@ class PromotionExtensionCodesTest extends TestCase
         $promotionId = Uuid::randomHex();
         $promotionCode = 'BF19';
 
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(
                 Uuid::randomHex(),
                 TestDefaults::SALES_CHANNEL,
@@ -270,10 +273,10 @@ class PromotionExtensionCodesTest extends TestCase
             );
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 119, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 119, 19, static::getContainer(), $context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -294,12 +297,12 @@ class PromotionExtensionCodesTest extends TestCase
             ->addAssociation('deliveries.shippingOrderAddress.countryState');
 
         /** @var OrderEntity $order */
-        $order = $this->getContainer()->get('order.repository')
+        $order = static::getContainer()->get('order.repository')
             ->search($criteria, $context->getContext())
             ->get($orderId);
         static::assertNotNull($order);
 
-        $cart = $this->getContainer()->get(OrderConverter::class)
+        $cart = static::getContainer()->get(OrderConverter::class)
             ->convertToCart($order, $context->getContext());
 
         $context->setPermissions([
@@ -322,9 +325,8 @@ class PromotionExtensionCodesTest extends TestCase
      * line item id and remove it.
      * After that we verify that our code array is empty in our extension (both discounts on the
      * two products are removed).
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testDeleteLineItemFixedDiscountByCode(): void
     {
         $productId = Uuid::randomHex();
@@ -333,13 +335,13 @@ class PromotionExtensionCodesTest extends TestCase
         $promotionCode = 'BF19';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 100, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 100, 19, static::getContainer(), $this->context);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productTwoId, 100, 7, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productTwoId, 100, 7, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureFixedDiscountPromotion($promotionId, 30, PromotionDiscountEntity::SCOPE_CART, $promotionCode, $this->getContainer(), $this->context);
+        $this->createTestFixtureFixedDiscountPromotion($promotionId, 30, PromotionDiscountEntity::SCOPE_CART, $promotionCode, static::getContainer(), $this->context);
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -373,9 +375,8 @@ class PromotionExtensionCodesTest extends TestCase
      * a change in our product line items, it should be added automatically
      * again if the product conditions are back.
      * This improves the UX because the user doesn't have to re-enter a code.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testAutoAddingOfPreviousCodes(): void
     {
         $productId = Uuid::randomHex();
@@ -383,11 +384,11 @@ class PromotionExtensionCodesTest extends TestCase
         $promotionCode = 'BF19';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 30, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 30, 19, static::getContainer(), $this->context);
 
         // add a new promotion with a
         // minimum line item quantity discount rule of 2
-        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 50, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $promotionCode, 50, null, static::getContainer());
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -422,14 +423,14 @@ class PromotionExtensionCodesTest extends TestCase
         $promotion2 = Uuid::randomHex();
         $promotionCode = 'TEST123';
 
-        $this->createTestFixtureProduct($productCheap, 2, 19, $this->getContainer(), $this->context);
-        $this->createTestFixtureProduct($productExpensive, 200, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productCheap, 2, 19, static::getContainer(), $this->context);
+        $this->createTestFixtureProduct($productExpensive, 200, 19, static::getContainer(), $this->context);
 
         // create rule
         $ruleId = Uuid::randomHex();
 
-        $ruleRepository = $this->getContainer()->get('rule.repository');
-        $conditionRepository = $this->getContainer()->get('rule_condition.repository');
+        $ruleRepository = static::getContainer()->get('rule.repository');
+        $conditionRepository = static::getContainer()->get('rule_condition.repository');
 
         $ruleRepository->create([
             [
@@ -506,7 +507,7 @@ class PromotionExtensionCodesTest extends TestCase
             'name' => $name,
             'active' => true,
             'salesChannels' => [
-                ['salesChannelId' => $this->context->getSalesChannel()->getId(), 'priority' => 1],
+                ['salesChannelId' => $this->context->getSalesChannelId(), 'priority' => 1],
             ],
         ], $data);
 
@@ -517,7 +518,7 @@ class PromotionExtensionCodesTest extends TestCase
 
         $this->createPromotionWithCustomData($data, $this->promotionRepository, $this->context);
 
-        return $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, PromotionDiscountEntity::SCOPE_CART, $percentage, $maxValue, $this->getContainer(), $this->context);
+        return $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, PromotionDiscountEntity::SCOPE_CART, $percentage, $maxValue, static::getContainer(), $this->context);
     }
 
     private function createCustomer(): string
@@ -534,7 +535,6 @@ class PromotionExtensionCodesTest extends TestCase
             'customerNumber' => '1337',
             'email' => Uuid::randomHex() . '@example.com',
             'password' => TestDefaults::HASHED_PASSWORD,
-            'defaultPaymentMethodId' => $this->getValidPaymentMethodId(),
             'groupId' => TestDefaults::FALLBACK_CUSTOMER_GROUP,
             'salesChannelId' => TestDefaults::SALES_CHANNEL,
             'defaultBillingAddressId' => $addressId,
@@ -554,7 +554,7 @@ class PromotionExtensionCodesTest extends TestCase
             ],
         ];
 
-        $this->getContainer()
+        static::getContainer()
             ->get('customer.repository')
             ->upsert([$customer], Context::createDefaultContext());
 

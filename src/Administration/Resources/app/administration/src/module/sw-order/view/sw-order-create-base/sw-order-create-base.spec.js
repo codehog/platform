@@ -1,60 +1,71 @@
-import { shallowMount } from '@vue/test-utils';
-import swOrderCreateBase from 'src/module/sw-order/view/sw-order-create-base';
-import orderStore from 'src/module/sw-order/state/order.store';
-
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-order-create-base', swOrderCreateBase);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-order-create-base'), {
-        stubs: {
-            'sw-card-view': true,
-            'sw-card': {
-                template: `
-                    <div class="sw-card__content">
-                        <slot name="grid"></slot>
-                    </div>
-                `,
+    return mount(await wrapTestComponent('sw-order-create-base', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-card-view': await wrapTestComponent('sw-card-view', {
+                    sync: true,
+                }),
+                'mt-card': {
+                    template: `
+                        <div class="sw-card__content">
+                            <slot name="grid"></slot>
+                        </div>
+                    `,
+                },
+                'sw-order-user-card': true,
+                'sw-container': await wrapTestComponent('sw-container', {
+                    sync: true,
+                }),
+                'sw-order-state-select': true,
+                'sw-number-field': await wrapTestComponent('sw-number-field', { sync: true }),
+                'sw-card-section': await wrapTestComponent('sw-card-section', { sync: true }),
+                'sw-description-list': await wrapTestComponent('sw-description-list', { sync: true }),
+                'sw-order-saveable-field': await wrapTestComponent('sw-order-saveable-field', { sync: true }),
+                'sw-contextual-field': await wrapTestComponent('sw-contextual-field'),
+                'sw-block-field': await wrapTestComponent('sw-block-field'),
+                'sw-base-field': await wrapTestComponent('sw-base-field'),
+                'sw-field-copyable': true,
+                'sw-field-error': true,
+                'sw-help-text': true,
+                'sw-ai-copilot-badge': true,
+                'sw-inheritance-switch': true,
+                'sw-order-state-history-card': true,
+                'sw-order-delivery-metadata': true,
+                'sw-order-document-card': true,
+                'sw-order-create-details-header': true,
+                'sw-order-create-details-body': true,
+                'sw-order-create-details-footer': true,
+                'sw-order-promotion-tag-field': true,
+                'sw-order-line-items-grid-sales-channel': true,
+
+                'sw-order-create-address-modal': true,
+                'sw-order-create-promotion-modal': true,
+                'sw-error-summary': true,
+                'sw-loader': true,
+                'router-link': true,
             },
-            'sw-order-user-card': true,
-            'sw-container': true,
-            'sw-order-state-select': true,
-            'sw-card-section': true,
-            'sw-description-list': true,
-            'sw-order-saveable-field': true,
-            'sw-order-state-history-card': true,
-            'sw-order-delivery-metadata': true,
-            'sw-order-document-card': true,
-            'sw-order-create-details-header': true,
-            'sw-order-create-details-body': true,
-            'sw-order-create-details-footer': true,
-            'sw-order-promotion-tag-field': true,
-            'sw-order-line-items-grid-sales-channel': true,
-            'sw-switch-field': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        get: () => { },
-                    };
+            provide: {
+                repositoryFactory: {
+                    create: () => {
+                        return {
+                            get: () => {},
+                        };
+                    },
                 },
             },
         },
     });
 }
 
-
 describe('src/module/sw-order/view/sw-order-create-base', () => {
     beforeEach(() => {
-        if (Shopware.State.get('swOrder')) {
-            Shopware.State.unregisterModule('swOrder');
-        }
-
-        Shopware.State.registerModule('swOrder', orderStore);
+        Shopware.Store.get('swOrder').$reset();
     });
 
     it('should be show successful notification', async () => {
@@ -62,7 +73,7 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
 
         wrapper.vm.createNotificationSuccess = jest.fn();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             errors: {
@@ -88,7 +99,7 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
 
         wrapper.vm.createNotificationError = jest.fn();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             errors: {
@@ -114,7 +125,7 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
 
         wrapper.vm.createNotificationWarning = jest.fn();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             errors: {
@@ -138,7 +149,7 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
     it('should only display Total row when status is tax free', async () => {
         const wrapper = await createWrapper();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             price: {
@@ -147,7 +158,6 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
         });
 
         await wrapper.vm.$nextTick();
-
         const orderSummary = wrapper.find('.sw-order-create-summary__data');
         expect(orderSummary.html()).not.toContain('sw-order.createBase.summaryLabelAmountWithoutTaxes');
         expect(orderSummary.html()).not.toContain('sw-order.createBase.summaryLabelAmountTotal');
@@ -157,7 +167,7 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
     it('should display Total excluding VAT and Total including VAT row when tax status is not tax free', async () => {
         const wrapper = await createWrapper();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
         });
@@ -168,5 +178,45 @@ describe('src/module/sw-order/view/sw-order-create-base', () => {
         expect(orderSummary.html()).toContain('sw-order.createBase.summaryLabelAmountWithoutTaxes');
         expect(orderSummary.html()).toContain('sw-order.createBase.summaryLabelAmountTotal');
         expect(orderSummary.html()).not.toContain('sw-order.createBase.summaryLabelAmountGrandTotal');
+    });
+
+    it('should able to edit shipping cost', async () => {
+        const wrapper = await createWrapper();
+
+        Shopware.Store.get('swOrder').setCart({
+            token: null,
+            lineItems: [],
+            price: {
+                taxStatus: 'tax-free',
+            },
+            deliveries: [
+                {
+                    shippingCosts: {
+                        totalPrice: 50,
+                        calculatedTaxes: [],
+                    },
+                },
+            ],
+        });
+
+        await wrapper.vm.$nextTick();
+
+        const onShippingChargeEditedSpy = jest.spyOn(wrapper.vm, 'onShippingChargeEdited').mockImplementation(() => {});
+
+        let button = wrapper.find('.sw-order-create-summary__data div[role="button"]');
+        await button.trigger('click');
+        await flushPromises();
+
+        const saveableField = wrapper.find('.sw-order-saveable-field input');
+        await saveableField.setValue(20);
+        await saveableField.trigger('input');
+
+        button = wrapper.findByAriaLabel('button', 'global.default.save');
+        await button.trigger('click');
+
+        expect(wrapper.vm.cartDelivery.shippingCosts.totalPrice).toBe(20);
+        expect(wrapper.vm.cartDelivery.shippingCosts.unitPrice).toBe(20);
+
+        expect(onShippingChargeEditedSpy).toHaveBeenCalled();
     });
 });

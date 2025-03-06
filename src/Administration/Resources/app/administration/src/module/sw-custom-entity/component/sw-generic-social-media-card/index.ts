@@ -1,6 +1,9 @@
+/**
+ * @sw-package discovery
+ */
+
 import './sw-generic-social-media-card.scss';
 
-import type { Entity } from '@shopware-ag/admin-extension-sdk/es/data/_internals/Entity';
 import type { PropType } from 'vue';
 
 import type Repository from 'src/core/data/repository.data';
@@ -38,8 +41,8 @@ export default Shopware.Component.wrapComponentConfig({
 
     data(): {
         ogImageEntity: Entity<'media'> | null;
-        mediaModalIsOpen: boolean
-        } {
+        mediaModalIsOpen: boolean;
+    } {
         return {
             ogImageEntity: null as Entity<'media'> | null,
             mediaModalIsOpen: false,

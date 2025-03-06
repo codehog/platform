@@ -1,10 +1,8 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import { mount } from '@vue/test-utils';
-import 'src/app/component/base/sw-circle-icon';
-import 'src/app/component/base/sw-label';
 
 describe('components/base/sw-circle-icon', () => {
     let wrapper;
@@ -12,31 +10,27 @@ describe('components/base/sw-circle-icon', () => {
 
     beforeAll(async () => {
         stubs = {
-            'sw-label': await Shopware.Component.build('sw-label'),
-            'sw-icon': true,
+            'sw-label': await wrapTestComponent('sw-label'),
+            'sw-color-badge': true,
         };
     });
 
-    afterEach(() => {
-        if (wrapper) {
-            wrapper.destroy();
-        }
-    });
-
-    async function createWrapper(propsData) {
-        return mount(await Shopware.Component.build('sw-circle-icon'), {
-            propsData,
-            stubs,
+    async function createWrapper(props) {
+        return mount(await wrapTestComponent('sw-circle-icon', { sync: true }), {
+            props,
+            global: {
+                stubs,
+            },
         });
     }
 
     it('passes default values', async () => {
         wrapper = await createWrapper({
-            iconName: 'default-basic-checkmark-line',
+            iconName: 'regular-checkmark',
         });
+        await flushPromises();
 
-        const swLabel = wrapper.findComponent(stubs['sw-label']);
-
+        const swLabel = wrapper.getComponent({ name: 'sw-label__wrapped' });
         expect(swLabel.props('variant')).toBe('');
         expect(swLabel.props('appearance')).toBe('circle');
         expect(swLabel.props('dismissable')).toBe(false);
@@ -46,17 +40,19 @@ describe('components/base/sw-circle-icon', () => {
         expect(width).toBe('50px');
         expect(height).toBe('50px');
 
-        expect(wrapper.get('sw-icon-stub').attributes('name')).toBe('default-basic-checkmark-line');
-        expect(wrapper.get('sw-icon-stub').attributes('size')).toBe('25px');
+        const icon = wrapper.getComponent('.mt-icon');
+
+        expect(icon.props('name')).toBe('regular-checkmark');
+        expect(icon.props('size')).toBe('25px');
     });
 
     it('passes variant correctly', async () => {
         wrapper = await createWrapper({
-            iconName: 'default-basic-checkmark-line',
+            iconName: 'regular-checkmark',
             variant: 'danger',
         });
 
-        const swLabel = wrapper.findComponent(stubs['sw-label']);
+        const swLabel = wrapper.findComponent({ name: 'sw-label__wrapped' });
 
         expect(swLabel.props('variant')).toBe('danger');
     });
@@ -65,7 +61,7 @@ describe('components/base/sw-circle-icon', () => {
         const size = 72;
 
         wrapper = await createWrapper({
-            iconName: 'default-basic-checkmark-line',
+            iconName: 'regular-checkmark',
             size,
         });
 
@@ -74,6 +70,7 @@ describe('components/base/sw-circle-icon', () => {
         expect(width).toBe(`${size}px`);
         expect(height).toBe(`${size}px`);
 
-        expect(wrapper.get('sw-icon-stub').attributes('size')).toBe(`${size / 2}px`);
+        const icon = wrapper.getComponent('.mt-icon');
+        expect(icon.props('size')).toBe('36px');
     });
 });

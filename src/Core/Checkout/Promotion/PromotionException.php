@@ -2,20 +2,26 @@
 
 namespace Shopware\Core\Checkout\Promotion;
 
+use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscount\PromotionDiscountEntity;
+use Shopware\Core\Checkout\Promotion\Exception\DiscountCalculatorNotFoundException;
 use Shopware\Core\Checkout\Promotion\Exception\InvalidCodePatternException;
-use Shopware\Core\Checkout\Promotion\Exception\PatternAlreadyInUseException;
+use Shopware\Core\Checkout\Promotion\Exception\InvalidScopeDefinitionException;
 use Shopware\Core\Checkout\Promotion\Exception\PatternNotComplexEnoughException;
 use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\HttpException;
 use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('buyers-experience')]
+#[Package('checkout')]
 class PromotionException extends HttpException
 {
     public const PROMOTION_CODE_ALREADY_REDEEMED = 'CHECKOUT__CODE_ALREADY_REDEEMED';
 
+    public const DISCOUNT_CALCULATOR_NOT_FOUND = 'CHECKOUT__PROMOTION_DISCOUNT_CALCULATOR_NOT_FOUND';
+
     public const INVALID_CODE_PATTERN = 'CHECKOUT__INVALID_CODE_PATTERN';
+
+    public const INVALID_DISCOUNT_SCOPE_DEFINITION = 'CHECKOUT__PROMOTION_INVALID_DISCOUNT_SCOPE_DEFINITION';
 
     public const PATTERN_NOT_COMPLEX_ENOUGH = 'PROMOTION__INDIVIDUAL_CODES_PATTERN_INSUFFICIENTLY_COMPLEX';
 
@@ -25,13 +31,38 @@ class PromotionException extends HttpException
 
     public const PROMOTION_DISCOUNT_NOT_FOUND = 'CHECKOUT__PROMOTION_DISCOUNT_NOT_FOUND';
 
+    public const PROMOTION_CODE_NOT_FOUND = 'CHECKOUT__PROMOTION_CODE_NOT_FOUND';
+
+    public const PROMOTION_INVALID_PRICE_DEFINITION = 'CHECKOUT__INVALID_DISCOUNT_PRICE_DEFINITION';
+
+    public const CHECKOUT_UNKNOWN_PROMOTION_DISCOUNT_TYPE = 'CHECKOUT__UNKNOWN_PROMOTION_DISCOUNT_TYPE';
+
+    public const PROMOTION_SET_GROUP_NOT_FOUND = 'CHECKOUT__PROMOTION_SETGROUP_NOT_FOUND';
+
     public static function codeAlreadyRedeemed(string $code): self
     {
         return new self(
             Response::HTTP_BAD_REQUEST,
             self::PROMOTION_CODE_ALREADY_REDEEMED,
-            'Promotion with code "{{ code }}" has already been marked as redeemed!',
+            'Promo code "{{ code }}" has already been marked as redeemed!',
             ['code' => $code]
+        );
+    }
+
+    /**
+     * @deprecated tag:v6.8.0 - reason:return-type-change - Will return self
+     */
+    public static function discountCalculatorNotFound(string $type): self|DiscountCalculatorNotFoundException
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            return new DiscountCalculatorNotFoundException($type);
+        }
+
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::DISCOUNT_CALCULATOR_NOT_FOUND,
+            'Promotion Discount Calculator "{{ type }}" has not been found!',
+            ['type' => $type]
         );
     }
 
@@ -42,6 +73,23 @@ class PromotionException extends HttpException
             self::INVALID_CODE_PATTERN,
             'Invalid code pattern "{{ codePattern }}".',
             ['codePattern' => $codePattern]
+        );
+    }
+
+    /**
+     * @deprecated tag:v6.8.0 - reason:return-type-change - Will return self
+     */
+    public static function invalidScopeDefinition(string $scope): self|InvalidScopeDefinitionException
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            return new InvalidScopeDefinitionException($scope);
+        }
+
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::INVALID_DISCOUNT_SCOPE_DEFINITION,
+            'Invalid discount calculator scope definition "{{ label }}"',
+            ['label' => $scope]
         );
     }
 
@@ -56,10 +104,6 @@ class PromotionException extends HttpException
 
     public static function patternAlreadyInUse(): self
     {
-        if (!Feature::isActive('v6.6.0.0')) {
-            return new PatternAlreadyInUseException();
-        }
-
         return new self(
             Response::HTTP_BAD_REQUEST,
             self::PATTERN_ALREADY_IN_USE,
@@ -90,6 +134,70 @@ class PromotionException extends HttpException
             self::PROMOTION_DISCOUNT_NOT_FOUND,
             'These promotion discounts "{{ ids }}" are not found',
             ['ids' => implode(', ', $ids)]
+        );
+    }
+
+    public static function promotionCodeNotFound(string $code): self
+    {
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::PROMOTION_CODE_NOT_FOUND,
+            'Promotion code "{{ code }}" has not been found!',
+            ['code' => $code]
+        );
+    }
+
+    /**
+     * @param list<string> $codes
+     */
+    public static function promotionCodesNotFound(array $codes): self
+    {
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::PROMOTION_CODE_NOT_FOUND,
+            'None of the promotion codes "{{ code }}" have not been found!',
+            ['code' => \implode(', ', $codes)]
+        );
+    }
+
+    public static function invalidPriceDefinition(string $label, ?string $code): self
+    {
+        if ($code === null) {
+            $messages = [
+                'Invalid discount price definition for automated promotion "{{ label }}"',
+                ['label' => $label],
+            ];
+        } else {
+            $messages = [
+                'Invalid discount price definition for promotion line item with code "{{ code }}"',
+                ['code' => $code],
+            ];
+        }
+
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::PROMOTION_INVALID_PRICE_DEFINITION,
+            ...$messages,
+        );
+    }
+
+    public static function unknownPromotionDiscountType(PromotionDiscountEntity $discount): self
+    {
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::CHECKOUT_UNKNOWN_PROMOTION_DISCOUNT_TYPE,
+            'Unknown promotion discount type detected: {{ type }}',
+            ['type' => $discount->getType()]
+        );
+    }
+
+    public static function promotionSetGroupNotFound(string $groupId): self
+    {
+        return new self(
+            Response::HTTP_BAD_REQUEST,
+            self::PROMOTION_SET_GROUP_NOT_FOUND,
+            'Promotion SetGroup "{{ id }}" has not been found!',
+            ['id' => $groupId],
         );
     }
 }

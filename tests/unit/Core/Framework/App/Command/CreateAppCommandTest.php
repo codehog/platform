@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\App\Command;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\App\Command\CreateAppCommand;
 use Shopware\Core\Framework\App\Lifecycle\RefreshableAppDryRun;
@@ -11,9 +13,8 @@ use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\App\Command\CreateAppCommand
  */
+#[CoversClass(CreateAppCommand::class)]
 class CreateAppCommandTest extends TestCase
 {
     private const APP_NAME = 'TestApp';
@@ -48,7 +49,8 @@ class CreateAppCommandTest extends TestCase
         static::assertEquals(
             <<<EOL
             <?xml version="1.0" encoding="UTF-8"?>
-            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/Framework/App/Manifest/Schema/manifest-2.0.xsd">
+            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/Framework/App/Manifest/Schema/manifest-3.0.xsd">
                 <meta>
                     <name>TestApp</name>
                     <label>My Example App</label>
@@ -81,7 +83,8 @@ class CreateAppCommandTest extends TestCase
         static::assertEquals(
             <<<EOL
             <?xml version="1.0" encoding="UTF-8"?>
-            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/Framework/App/Manifest/Schema/manifest-2.0.xsd">
+            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/Framework/App/Manifest/Schema/manifest-3.0.xsd">
                 <meta>
                     <name>TestApp</name>
                     <label>My Example App</label>
@@ -142,7 +145,8 @@ class CreateAppCommandTest extends TestCase
         static::assertEquals(
             <<<EOL
             <?xml version="1.0" encoding="UTF-8"?>
-            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/Framework/App/Manifest/Schema/manifest-2.0.xsd">
+            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/Framework/App/Manifest/Schema/manifest-3.0.xsd">
                 <meta>
                     <name>TestApp</name>
                     <label>My Example App</label>
@@ -182,7 +186,8 @@ class CreateAppCommandTest extends TestCase
         static::assertEquals(
             <<<EOL
             <?xml version="1.0" encoding="UTF-8"?>
-            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/platform/trunk/src/Core/Framework/App/Manifest/Schema/manifest-2.0.xsd">
+            <manifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/Framework/App/Manifest/Schema/manifest-3.0.xsd">
                 <meta>
                     <name>TestApp</name>
                     <label>My Example App</label>
@@ -226,14 +231,12 @@ class CreateAppCommandTest extends TestCase
         );
 
         static::assertStringContainsString(
-            'App directory TestApp already exists',
+            'Directory for app "TestApp" already exists',
             (string) preg_replace('/\s+/', ' ', trim($commandTester->getDisplay(true)))
         );
     }
 
     /**
-     * @dataProvider invalidInputProvider
-     *
      * @param array{
      *     name: string,
      *     label?: string,
@@ -241,6 +244,7 @@ class CreateAppCommandTest extends TestCase
      *     version?: string
      * } $input
      */
+    #[DataProvider('invalidInputProvider')]
     public function testCommandFailsWithInvalidInput(array $input, string $expectedMessage): void
     {
         $commandTester = $this->getCommandTester();

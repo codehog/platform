@@ -1,3 +1,4 @@
+import { computed } from 'vue';
 import template from './sw-grid.html.twig';
 import './sw-grid.scss';
 
@@ -5,10 +6,9 @@ const { Component } = Shopware;
 const { dom } = Shopware.Utils;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @example-type static
  * @component-example
@@ -33,6 +33,28 @@ const { dom } = Shopware.Utils;
 Component.register('sw-grid', {
     template,
 
+    provide() {
+        return {
+            swGridInlineEditStart: this.inlineEditingStart,
+            swGridInlineEditCancel: this.disableActiveInlineEditing,
+            swOnInlineEditStart: this.onInlineEditStart,
+            swRegisterGridDisableInlineEditListener: this.registerGridDisableInlineEditListener,
+            swUnregisterGridDisableInlineEditListener: this.unregisterGridDisableInlineEditListener,
+            swGridSetColumns: this.setColumns,
+            swGridColumns: computed(() => this.columns),
+        };
+    },
+
+    emits: [
+        'inline-edit-finish',
+        'inline-edit-start',
+        'sw-grid-disable-inline-editing',
+        'inline-edit-cancel',
+        'sw-grid-select-all',
+        'sw-grid-select-item',
+        'sort-column',
+    ],
+
     props: {
         items: {
             type: Array,
@@ -43,7 +65,6 @@ Component.register('sw-grid', {
         selectable: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -57,7 +78,6 @@ Component.register('sw-grid', {
         header: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -89,11 +109,12 @@ Component.register('sw-grid', {
         allowInlineEdit: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
     },
+
+    expose: ['startInlineEditing', 'selectAll', 'selectItem'],
 
     data() {
         return {
@@ -102,6 +123,8 @@ Component.register('sw-grid', {
             scrollbarOffset: 0,
             editing: null,
             allSelectedChecked: false,
+            swGridDisableInlineEditListener: [],
+            rowRefs: [],
         };
     },
 
@@ -138,7 +161,7 @@ Component.register('sw-grid', {
         },
 
         columnFlex() {
-            let flex = (this.selectable === true) ? '50px ' : '';
+            let flex = this.selectable === true ? '50px ' : '';
 
             this.columns.forEach((column) => {
                 if (`${parseInt(column.flex, 10)}` === column.flex) {
@@ -180,6 +203,14 @@ Component.register('sw-grid', {
             this.setScrollbarOffset();
         },
 
+        registerGridDisableInlineEditListener(listener) {
+            this.swGridDisableInlineEditListener.push(listener);
+        },
+
+        unregisterGridDisableInlineEditListener(listener) {
+            this.swGridDisableInlineEditListener = this.swGridDisableInlineEditListener.filter((l) => l !== listener);
+        },
+
         onInlineEditFinish(item) {
             this.editing = null;
             this.$emit('inline-edit-finish', item);
@@ -190,8 +221,7 @@ Component.register('sw-grid', {
         },
 
         registerInlineEditingEvents() {
-            this.$on('sw-row-inline-edit-start', this.inlineEditingStart);
-            this.$on('sw-row-inline-edit-cancel', this.disableActiveInlineEditing);
+            // New way is using the provide/inject
         },
 
         inlineEditingStart(id) {
@@ -202,8 +232,9 @@ Component.register('sw-grid', {
             this.editing = id;
         },
 
-        disableActiveInlineEditing() {
+        disableActiveInlineEditing(item, index) {
             this.editing = null;
+            this.$emit('inline-edit-cancel', item, index);
         },
 
         selectAll(selected) {
@@ -274,6 +305,33 @@ Component.register('sw-grid', {
 
         setScrollbarOffset() {
             this.scrollbarOffset = dom.getScrollbarWidth(this.$refs.swGridBody);
+        },
+
+        setColumns(columns) {
+            this.columns = columns;
+        },
+
+        getKey(item) {
+            if (item.id === undefined || item.id === null) {
+                // see https://vuejs.org/api/built-in-special-attributes.html#key
+                // we use child components with state
+                // (at least sw-grid-row, maybe even form elements, depending on the slot usage)
+                // means not having a proper unique identifier for each row likely causes issues.
+                // For example the child components may not be properly destroyed and created and just
+                // "patched" in place with a completely different item / row
+                Shopware.Utils.debug.error(
+                    'sw-grid item without `id` property',
+                    item,
+                    'more info here: https://vuejs.org/api/built-in-special-attributes.html#key',
+                );
+                return undefined;
+            }
+
+            return item.id;
+        },
+
+        startInlineEditing() {
+            this.$refs.rowRefs.at(-1).startInlineEditing();
         },
     },
 });

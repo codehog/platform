@@ -10,7 +10,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('buyers-experience')]
+#[Package('checkout')]
 class PromotionDiscountEntity extends Entity
 {
     use EntityIdTrait;
@@ -64,70 +64,31 @@ class PromotionDiscountEntity extends Entity
      */
     final public const TYPE_FIXED = 'fixed';
 
-    /**
-     * @var string
-     */
-    protected $promotionId;
+    protected string $promotionId;
 
-    /**
-     * @var string
-     */
-    protected $scope;
+    protected string $scope;
 
-    /**
-     * @var string
-     */
-    protected $type;
+    protected string $type;
 
-    /**
-     * @var float
-     */
-    protected $value;
+    protected float $value;
 
-    /**
-     * @var PromotionEntity|null
-     */
-    protected $promotion;
+    protected ?PromotionEntity $promotion = null;
 
-    /**
-     * @var RuleCollection|null
-     */
-    protected $discountRules;
+    protected ?RuleCollection $discountRules = null;
 
-    /**
-     * @var bool
-     */
-    protected $considerAdvancedRules;
+    protected bool $considerAdvancedRules;
 
-    /**
-     * @var float|null
-     */
-    protected $maxValue;
+    protected ?float $maxValue = null;
 
-    /**
-     * @var PromotionDiscountPriceCollection
-     */
-    protected $promotionDiscountPrices;
+    protected ?PromotionDiscountPriceCollection $promotionDiscountPrices = null;
 
-    /**
-     * @var string
-     */
-    protected $sorterKey;
+    protected string $sorterKey;
 
-    /**
-     * @var string
-     */
-    protected $applierKey;
+    protected string $applierKey;
 
-    /**
-     * @var string
-     */
-    protected $usageKey;
+    protected string $usageKey;
 
-    /**
-     * @var string|null
-     */
-    protected $pickerKey;
+    protected ?string $pickerKey = null;
 
     public function getPromotionId(): string
     {
@@ -201,8 +162,6 @@ class PromotionDiscountEntity extends Entity
     /**
      * if a promotionDiscountPrice has a value for a currency this value should be
      * taken for the discount value and not the value of this entity
-     *
-     * @return PromotionDiscountPriceCollection
      */
     public function getPromotionDiscountPrices(): ?PromotionDiscountPriceCollection
     {
@@ -216,10 +175,6 @@ class PromotionDiscountEntity extends Entity
 
     public function isConsiderAdvancedRules(): bool
     {
-        if ($this->considerAdvancedRules === null) {
-            return false;
-        }
-
         return $this->considerAdvancedRules;
     }
 
@@ -275,10 +230,6 @@ class PromotionDiscountEntity extends Entity
 
     public function getSorterKey(): string
     {
-        if ($this->sorterKey === null) {
-            return '';
-        }
-
         return $this->sorterKey;
     }
 
@@ -289,10 +240,6 @@ class PromotionDiscountEntity extends Entity
 
     public function getApplierKey(): string
     {
-        if ($this->applierKey === null) {
-            return '';
-        }
-
         return $this->applierKey;
     }
 
@@ -303,10 +250,6 @@ class PromotionDiscountEntity extends Entity
 
     public function getUsageKey(): string
     {
-        if ($this->usageKey === null) {
-            return '';
-        }
-
         return $this->usageKey;
     }
 

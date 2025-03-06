@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Core\Framework\App\Lifecycle\Persister;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\App\Flow\Event\Event;
@@ -16,22 +17,15 @@ use Shopware\Core\Framework\Uuid\Uuid;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\App\Lifecycle\Persister\FlowEventPersister
  */
+#[CoversClass(FlowEventPersister::class)]
 class FlowEventPersisterTest extends TestCase
 {
     private FlowEventPersister $flowEventPersister;
 
-    /**
-     * @var EntityRepository|MockObject
-     */
-    private $flowEventsRepositoryMock;
+    private EntityRepository&MockObject $flowEventsRepositoryMock;
 
-    /**
-     * @var Connection|MockObject
-     */
-    private $connectionMock;
+    private Connection&MockObject $connectionMock;
 
     protected function setUp(): void
     {
@@ -130,11 +124,13 @@ class FlowEventPersisterTest extends TestCase
     {
         $appId = Uuid::randomHex();
 
-        $this->connectionMock->expects(static::once())->method('executeStatement')->willReturnCallback(function ($sql, $params) use ($appId): void {
+        $this->connectionMock->expects(static::once())->method('executeStatement')->willReturnCallback(function ($sql, $params) use ($appId): int {
             static::assertSame('UPDATE `flow` SET `active` = false WHERE `event_name` IN (SELECT `name` FROM `app_flow_event` WHERE `app_id` = :appId);', $sql);
             static::assertSame([
                 'appId' => Uuid::fromHexToBytes($appId),
             ], $params);
+
+            return 1;
         });
 
         $this->flowEventPersister->deactivateFlow($appId);

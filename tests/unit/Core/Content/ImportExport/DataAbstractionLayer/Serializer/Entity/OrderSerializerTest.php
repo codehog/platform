@@ -2,12 +2,23 @@
 
 namespace Shopware\Tests\Unit\Core\Content\ImportExport\DataAbstractionLayer\Serializer\Entity;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Checkout\Cart\Price\Struct\CalculatedPrice;
+use Shopware\Core\Checkout\Cart\Price\Struct\CartPrice;
+use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTaxCollection;
+use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
+use Shopware\Core\Checkout\Order\Aggregate\OrderAddress\OrderAddressCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderAddress\OrderAddressEntity;
+use Shopware\Core\Checkout\Order\Aggregate\OrderCustomer\OrderCustomerEntity;
 use Shopware\Core\Checkout\Order\Aggregate\OrderDelivery\OrderDeliveryCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderDelivery\OrderDeliveryEntity;
+use Shopware\Core\Checkout\Order\Aggregate\OrderDeliveryPosition\OrderDeliveryPositionCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderLineItem\OrderLineItemCollection;
 use Shopware\Core\Checkout\Order\Aggregate\OrderLineItem\OrderLineItemEntity;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionCollection;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\OrderDefinition;
 use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Content\ImportExport\Aggregate\ImportExportLog\ImportExportLogEntity;
@@ -15,17 +26,18 @@ use Shopware\Core\Content\ImportExport\DataAbstractionLayer\Serializer\Entity\Or
 use Shopware\Core\Content\ImportExport\DataAbstractionLayer\Serializer\SerializerRegistry;
 use Shopware\Core\Content\ImportExport\Struct\Config;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
+use Shopware\Core\Framework\DataAbstractionLayer\Pricing\CashRoundingConfig;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\Struct;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\System\StateMachine\Aggregation\StateMachineState\StateMachineStateEntity;
 use Shopware\Core\Test\TestDefaults;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\ImportExport\DataAbstractionLayer\Serializer\Entity\OrderSerializer
  */
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(OrderSerializer::class)]
 class OrderSerializerTest extends TestCase
 {
     private OrderSerializer $serializer;
@@ -43,11 +55,10 @@ class OrderSerializerTest extends TestCase
     }
 
     /**
-     * @dataProvider serializeDataProvider
-     *
      * @param array<mixed>|Struct|null $entity
      * @param array<mixed> $expected
      */
+    #[DataProvider('serializeDataProvider')]
     public function testSerialize($entity, array $expected): void
     {
         $logEntity = new ImportExportLogEntity();
@@ -103,10 +114,40 @@ class OrderSerializerTest extends TestCase
 
         yield 'with order empty deliveries' => [
             'entity' => self::createOrderEntity([
-                'deliveries' => [],
+                'deliveries' => new OrderDeliveryCollection(),
             ]),
             'expected' => self::getExpected([
-                'deliveries' => [],
+                'deliveries' => new OrderDeliveryCollection(),
+            ]),
+        ];
+
+        yield 'with order empty transactions' => [
+            'entity' => self::createOrderEntity([
+                'transactions' => new OrderTransactionCollection(),
+            ]),
+            'expected' => self::getExpected([
+                'transactions' => new OrderTransactionCollection(),
+            ]),
+        ];
+
+        yield 'with order item rounding and total rounding' => [
+            'entity' => self::createOrderEntity([
+                'itemRounding' => self::createItemRounding(),
+                'totalRounding' => self::createTotalRounding(),
+            ]),
+            'expected' => self::getExpected([
+                'itemRounding' => [
+                    'extensions' => [],
+                    'decimals' => 2,
+                    'interval' => 0.01,
+                    'roundForNet' => true,
+                ],
+                'totalRounding' => [
+                    'extensions' => [],
+                    'decimals' => 2,
+                    'interval' => 0.1,
+                    'roundForNet' => false,
+                ],
             ]),
         ];
 
@@ -122,64 +163,70 @@ class OrderSerializerTest extends TestCase
                     'translated' => [],
                     'createdAt' => null,
                     'updatedAt' => null,
-                    'orderId' => null,
-                    'shippingOrderAddressId' => null,
                     'shippingMethodId' => 'shipping-method-id',
                     'trackingCodes' => 'CODE-1|CODE-2',
-                    'shippingDateEarliest' => null,
-                    'shippingDateLatest' => null,
-                    'shippingCosts' => [
-                        'unitPrice' => 1,
-                        'quantity' => 1,
-                        'totalPrice' => 1,
-                        'calculatedTaxes' => [],
-                        'taxRules' => [],
-                        'referencePrice' => null,
-                        'listPrice' => null,
-                        'regulationPrice' => null,
-                        'extensions' => [],
-                    ],
-                    'shippingOrderAddress' => [
-                        'city' => 'billing-address-city',
-                        'countryId' => 'billing-address-country-id',
-                        'firstName' => 'billing-address-first-name',
-                        'lastName' => 'billing-address-last-name',
-                        'salutationId' => 'billing-address-salutation-id',
-                        'street' => 'billing-address-street',
-                        'zipcode' => 'billing-address-zipcode',
-                        'extensions' => [],
-                        '_uniqueIdentifier' => null,
-                        'versionId' => null,
-                        'translated' => [],
-                        'createdAt' => null,
-                        'updatedAt' => null,
-                        'countryStateId' => null,
-                        'company' => null,
-                        'department' => null,
-                        'title' => null,
-                        'vatId' => null,
-                        'phoneNumber' => null,
-                        'additionalAddressLine1' => null,
-                        'additionalAddressLine2' => null,
-                        'country' => null,
-                        'countryState' => null,
-                        'order' => null,
-                        'salutation' => null,
-                        'orderDeliveries' => null,
-                        'orderId' => null,
-                        'id' => null,
-                        'customFields' => null,
-                        'orderVersionId' => null,
-                    ],
+                    'shippingCosts' => new CalculatedPrice(
+                        1,
+                        1,
+                        new CalculatedTaxCollection(),
+                        new TaxRuleCollection(),
+                    ),
+                    'shippingOrderAddress' => null,
                     'stateId' => '',
                     'stateMachineState' => null,
                     'shippingMethod' => null,
                     'order' => null,
-                    'positions' => [],
-                    'id' => null,
+                    'positions' => new OrderDeliveryPositionCollection(),
+                    'id' => 'delivery-1',
                     'customFields' => null,
-                    'orderVersionId' => null,
-                    'shippingOrderAddressVersionId' => null,
+                ],
+            ]),
+        ];
+
+        yield 'with order transactions' => [
+            'entity' => self::createOrderEntity([
+                'transactions' => self::createTransactions(),
+            ]),
+            'expected' => self::getExpected([
+                'transactions' => [
+                    'extensions' => [],
+                    '_uniqueIdentifier' => 'transaction-1',
+                    'versionId' => null,
+                    'translated' => [],
+                    'createdAt' => null,
+                    'updatedAt' => null,
+                    'amount' => new CalculatedPrice(
+                        42,
+                        42,
+                        new CalculatedTaxCollection(),
+                        new TaxRuleCollection(),
+                    ),
+                    'paymentMethod' => null,
+                    'order' => null,
+                    'stateMachineState' => [
+                        'extensions' => [],
+                        'versionId' => null,
+                        'translated' => [],
+                        'createdAt' => null,
+                        'updatedAt' => null,
+                        'name' => null,
+                        'stateMachine' => null,
+                        'fromStateMachineTransitions' => null,
+                        'toStateMachineTransitions' => null,
+                        'orders' => null,
+                        'orderTransactionCaptures' => null,
+                        'orderTransactionCaptureRefunds' => null,
+                        'orderTransactions' => null,
+                        'orderDeliveries' => null,
+                        'fromStateMachineHistoryEntries' => null,
+                        'toStateMachineHistoryEntries' => null,
+                        'customFields' => null,
+                        'translations' => null,
+                    ],
+                    'captures' => null,
+                    'customFields' => null,
+                    'id' => 'transaction-1',
+                    'validationData' => [],
                 ],
             ]),
         ];
@@ -198,64 +245,97 @@ class OrderSerializerTest extends TestCase
                     'translated' => [],
                     'createdAt' => null,
                     'updatedAt' => null,
-                    'orderId' => null,
-                    'shippingOrderAddressId' => null,
                     'shippingMethodId' => 'shipping-method-id',
                     'trackingCodes' => 'CODE-1|CODE-2',
-                    'shippingDateEarliest' => null,
-                    'shippingDateLatest' => null,
-                    'shippingCosts' => [
-                        'unitPrice' => 1,
-                        'quantity' => 1,
-                        'totalPrice' => 1,
-                        'calculatedTaxes' => [],
-                        'taxRules' => [],
-                        'referencePrice' => null,
-                        'listPrice' => null,
-                        'regulationPrice' => null,
-                        'extensions' => [],
-                    ],
-                    'shippingOrderAddress' => [
-                        'city' => 'billing-address-city',
-                        'countryId' => 'billing-address-country-id',
-                        'firstName' => 'billing-address-first-name',
-                        'lastName' => 'billing-address-last-name',
-                        'salutationId' => 'billing-address-salutation-id',
-                        'street' => 'billing-address-street',
-                        'zipcode' => 'billing-address-zipcode',
-                        'extensions' => [],
-                        '_uniqueIdentifier' => null,
-                        'versionId' => null,
-                        'translated' => [],
-                        'createdAt' => null,
-                        'updatedAt' => null,
-                        'countryStateId' => null,
-                        'company' => null,
-                        'department' => null,
-                        'title' => null,
-                        'vatId' => null,
-                        'phoneNumber' => null,
-                        'additionalAddressLine1' => null,
-                        'additionalAddressLine2' => null,
-                        'country' => null,
-                        'countryState' => null,
-                        'order' => null,
-                        'salutation' => null,
-                        'orderDeliveries' => null,
-                        'orderId' => null,
-                        'id' => null,
-                        'customFields' => null,
-                        'orderVersionId' => null,
-                    ],
+                    'shippingCosts' => new CalculatedPrice(
+                        1,
+                        1,
+                        new CalculatedTaxCollection(),
+                        new TaxRuleCollection(),
+                    ),
+                    'shippingOrderAddress' => null,
                     'stateId' => '',
                     'stateMachineState' => null,
                     'shippingMethod' => null,
                     'order' => null,
-                    'positions' => [],
-                    'id' => null,
+                    'positions' => new OrderDeliveryPositionCollection(),
+                    'id' => 'delivery-1',
                     'customFields' => null,
-                    'orderVersionId' => null,
-                    'shippingOrderAddressVersionId' => null,
+                ],
+            ]),
+        ];
+
+        yield 'with order with line items and deliveries and transactions' => [
+            'entity' => self::createOrderEntity([
+                'lineItems' => self::createLineItems(),
+                'deliveries' => self::createDeliveries(),
+                'transactions' => self::createTransactions(),
+            ]),
+            'expected' => self::getExpected([
+                'lineItems' => '3x |2x ',
+                'deliveries' => [
+                    'extensions' => [],
+                    '_uniqueIdentifier' => 'delivery-1',
+                    'versionId' => null,
+                    'translated' => [],
+                    'createdAt' => null,
+                    'updatedAt' => null,
+                    'shippingMethodId' => 'shipping-method-id',
+                    'trackingCodes' => 'CODE-1|CODE-2',
+                    'shippingCosts' => new CalculatedPrice(
+                        1,
+                        1,
+                        new CalculatedTaxCollection(),
+                        new TaxRuleCollection(),
+                    ),
+                    'shippingOrderAddress' => null,
+                    'stateId' => '',
+                    'stateMachineState' => null,
+                    'shippingMethod' => null,
+                    'order' => null,
+                    'positions' => new OrderDeliveryPositionCollection(),
+                    'id' => 'delivery-1',
+                    'customFields' => null,
+                ],
+                'transactions' => [
+                    'extensions' => [],
+                    '_uniqueIdentifier' => 'transaction-1',
+                    'versionId' => null,
+                    'translated' => [],
+                    'createdAt' => null,
+                    'updatedAt' => null,
+                    'amount' => new CalculatedPrice(
+                        42,
+                        42,
+                        new CalculatedTaxCollection(),
+                        new TaxRuleCollection(),
+                    ),
+                    'paymentMethod' => null,
+                    'order' => null,
+                    'stateMachineState' => [
+                        'extensions' => [],
+                        'versionId' => null,
+                        'translated' => [],
+                        'createdAt' => null,
+                        'updatedAt' => null,
+                        'name' => null,
+                        'stateMachine' => null,
+                        'fromStateMachineTransitions' => null,
+                        'toStateMachineTransitions' => null,
+                        'orders' => null,
+                        'orderTransactionCaptures' => null,
+                        'orderTransactionCaptureRefunds' => null,
+                        'orderTransactions' => null,
+                        'orderDeliveries' => null,
+                        'fromStateMachineHistoryEntries' => null,
+                        'toStateMachineHistoryEntries' => null,
+                        'customFields' => null,
+                        'translations' => null,
+                    ],
+                    'captures' => null,
+                    'customFields' => null,
+                    'id' => 'transaction-1',
+                    'validationData' => [],
                 ],
             ]),
         ];
@@ -267,36 +347,30 @@ class OrderSerializerTest extends TestCase
     private static function createOrderEntity(array $data = []): OrderEntity
     {
         $rawData = [
-            'price' => [
-                'netPrice' => 0,
-                'totalPrice' => 0,
-                'calculatedTaxes' => [],
-                'taxRules' => [],
-                'positionPrice' => 0,
-                'taxStatus' => 'gross',
-                'rawTotal' => 0,
-                'extensions' => [],
-            ],
-            'shippingCosts' => [
-                'unitPrice' => 0,
-                'quantity' => 1,
-                'totalPrice' => 0,
-                'calculatedTaxes' => [],
-                'taxRules' => [],
-                'referencePrice' => null,
-                'listPrice' => null,
-                'regulationPrice' => null,
-                'extensions' => [],
-            ],
+            'price' => new CartPrice(
+                0,
+                0,
+                0,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+                'gross',
+            ),
+            'shippingCosts' => new CalculatedPrice(
+                0,
+                0,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
             'currencyId' => '',
-            'currencyFactor' => 0,
+            'currencyFactor' => 0.0,
             'salesChannelId' => TestDefaults::SALES_CHANNEL,
             'customerComment' => null,
             'affiliateCode' => null,
             'campaignCode' => null,
-            'itemRounding' => [],
-            'totalRounding' => [],
-            'orderCustomer' => [
+            'itemRounding' => null,
+            'totalRounding' => null,
+            'orderCustomer' => (new OrderCustomerEntity())->assign([
+                'id' => 'order-customer-id',
                 'company' => null,
                 'customFields' => null,
                 'customerId' => 'customer-id',
@@ -308,12 +382,12 @@ class OrderSerializerTest extends TestCase
                 'salutationId' => 'customer-salutation-id',
                 'title' => null,
                 'vatIds' => null,
-            ],
-            'transactions' => [],
+            ]),
             'orderNumber' => '10000',
             'ruleIds' => [],
-            'addresses' => [
-                [
+            'addresses' => new OrderAddressCollection([
+                (new OrderAddressEntity())->assign([
+                    'id' => 'order-address-id',
                     'city' => 'billing-address-city',
                     'countryId' => 'billing-address-country-id',
                     'firstName' => 'billing-address-first-name',
@@ -321,14 +395,22 @@ class OrderSerializerTest extends TestCase
                     'salutationId' => 'billing-address-salutation-id',
                     'street' => 'billing-address-street',
                     'zipcode' => 'billing-address-zipcode',
-                ],
-            ],
+                ]),
+            ]),
             'billingAddressVersionId' => null,
         ];
 
-        $data = array_merge_recursive($rawData, $data);
+        $mergedData = array_merge_recursive($rawData, $data);
 
-        return (new OrderEntity())->assign($data);
+        if (isset($data['itemRounding'])) {
+            $mergedData['itemRounding'] = $data['itemRounding'];
+        }
+
+        if (isset($data['totalRounding'])) {
+            $mergedData['totalRounding'] = $data['totalRounding'];
+        }
+
+        return (new OrderEntity())->assign($mergedData);
     }
 
     private static function createLineItems(): OrderLineItemCollection
@@ -344,17 +426,12 @@ class OrderSerializerTest extends TestCase
             'stackable' => false,
             'states' => [],
             'position' => 1,
-            'price' => [
-                'unitPrice' => 1,
-                'quantity' => 1,
-                'totalPrice' => 1,
-                'calculatedTaxes' => [],
-                'taxRules' => [],
-                'referencePrice' => null,
-                'listPrice' => null,
-                'regulationPrice' => null,
-                'extensions' => [],
-            ],
+            'price' => new CalculatedPrice(
+                1,
+                1,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
             'payload' => [],
         ]);
 
@@ -369,17 +446,12 @@ class OrderSerializerTest extends TestCase
             'stackable' => false,
             'states' => [],
             'position' => 2,
-            'price' => [
-                'unitPrice' => 1,
-                'quantity' => 1,
-                'totalPrice' => 1,
-                'calculatedTaxes' => [],
-                'taxRules' => [],
-                'referencePrice' => null,
-                'listPrice' => null,
-                'regulationPrice' => null,
-                'extensions' => [],
-            ],
+            'price' => new CalculatedPrice(
+                1,
+                1,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
             'payload' => [],
         ]);
 
@@ -394,69 +466,51 @@ class OrderSerializerTest extends TestCase
     private static function getExpected(array $overrided = []): array
     {
         return array_merge([
-            'id' => null,
             'updatedBy' => null,
             'updatedById' => null,
             'customFields' => null,
-            '_uniqueIdentifier' => null,
             'translated' => [],
             'extensions' => [],
             'versionId' => null,
             'createdAt' => null,
             'updatedAt' => null,
-            'shippingTotal' => null,
             'currency' => null,
-            'billingAddressId' => null,
-            'orderDateTime' => null,
-            'orderDate' => null,
-            'amountTotal' => null,
-            'amountNet' => null,
-            'positionPrice' => null,
             'taxStatus' => null,
-            'languageId' => null,
             'language' => null,
             'salesChannel' => null,
             'billingAddress' => null,
             'deliveries' => null,
             'lineItems' => null,
             'deepLinkCode' => null,
-            'autoIncrement' => null,
             'stateMachineState' => null,
-            'stateId' => null,
             'documents' => null,
             'tags' => null,
             'createdById' => null,
             'createdBy' => null,
-            'price' => [
-                'netPrice' => 0,
-                'totalPrice' => 0,
-                'calculatedTaxes' => [],
-                'taxRules' => [],
-                'positionPrice' => 0,
-                'taxStatus' => 'gross',
-                'rawTotal' => 0,
-                'extensions' => [],
-            ],
-            'shippingCosts' => [
-                'unitPrice' => 0,
-                'quantity' => 1,
-                'totalPrice' => 0,
-                'calculatedTaxes' => [],
-                'taxRules' => [],
-                'referencePrice' => null,
-                'listPrice' => null,
-                'regulationPrice' => null,
-                'extensions' => [],
-            ],
+            'price' => new CartPrice(
+                0,
+                0,
+                0,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+                'gross',
+            ),
+            'shippingCosts' => new CalculatedPrice(
+                0,
+                0,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
             'currencyId' => '',
-            'currencyFactor' => 0,
+            'currencyFactor' => 0.0,
             'salesChannelId' => TestDefaults::SALES_CHANNEL,
             'customerComment' => null,
             'affiliateCode' => null,
             'campaignCode' => null,
-            'itemRounding' => [],
-            'totalRounding' => [],
-            'orderCustomer' => [
+            'itemRounding' => null,
+            'totalRounding' => null,
+            'orderCustomer' => (new OrderCustomerEntity())->assign([
+                'id' => 'order-customer-id',
                 'company' => null,
                 'customFields' => null,
                 'customerId' => 'customer-id',
@@ -468,12 +522,13 @@ class OrderSerializerTest extends TestCase
                 'salutationId' => 'customer-salutation-id',
                 'title' => null,
                 'vatIds' => null,
-            ],
-            'transactions' => [],
+            ]),
+            'transactions' => null,
             'orderNumber' => '10000',
             'ruleIds' => [],
-            'addresses' => [
-                [
+            'addresses' => new OrderAddressCollection([
+                (new OrderAddressEntity())->assign([
+                    'id' => 'order-address-id',
                     'city' => 'billing-address-city',
                     'countryId' => 'billing-address-country-id',
                     'firstName' => 'billing-address-first-name',
@@ -481,9 +536,8 @@ class OrderSerializerTest extends TestCase
                     'salutationId' => 'billing-address-salutation-id',
                     'street' => 'billing-address-street',
                     'zipcode' => 'billing-address-zipcode',
-                ],
-            ],
-            'billingAddressVersionId' => null,
+                ]),
+            ]),
             'source' => null,
         ], $overrided);
     }
@@ -491,61 +545,72 @@ class OrderSerializerTest extends TestCase
     private static function createDeliveries(): OrderDeliveryCollection
     {
         $delivery1 = (new OrderDeliveryEntity())->assign([
-            '_uniqueIdentifier' => 'delivery-1',
-            'positions' => [],
-            'shippingCosts' => [
-                'calculatedTaxes' => [],
-                'extensions' => [],
-                'listPrice' => null,
-                'quantity' => 1,
-                'referencePrice' => null,
-                'regulationPrice' => null,
-                'taxRules' => [],
-                'totalPrice' => 1,
-                'unitPrice' => 1,
-            ],
+            'id' => 'delivery-1',
+            'positions' => new OrderDeliveryPositionCollection(),
+            'shippingCosts' => new CalculatedPrice(
+                1,
+                1,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
             'trackingCodes' => ['CODE-1', 'CODE-2'],
             'shippingMethodId' => 'shipping-method-id',
-            'shippingOrderAddress' => (new OrderAddressEntity())->assign([
-                'city' => 'billing-address-city',
-                'countryId' => 'billing-address-country-id',
-                'firstName' => 'billing-address-first-name',
-                'lastName' => 'billing-address-last-name',
-                'salutationId' => 'billing-address-salutation-id',
-                'street' => 'billing-address-street',
-                'zipcode' => 'billing-address-zipcode',
-            ]),
             'stateId' => '',
         ]);
 
         $delivery2 = (new OrderDeliveryEntity())->assign([
-            '_uniqueIdentifier' => 'delivery-2',
-            'positions' => [],
-            'shippingCosts' => [
-                'calculatedTaxes' => [],
-                'extensions' => [],
-                'listPrice' => null,
-                'quantity' => 1,
-                'referencePrice' => null,
-                'regulationPrice' => null,
-                'taxRules' => [],
-                'totalPrice' => 1,
-                'unitPrice' => 1,
-            ],
+            'id' => 'delivery-2',
+            'positions' => new OrderDeliveryPositionCollection(),
+            'shippingCosts' => new CalculatedPrice(
+                1,
+                1,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
             'trackingCodes' => ['CODE-3', 'CODE-4'],
             'shippingMethodId' => 'shipping-method-id',
-            'shippingOrderAddress' => (new OrderAddressEntity())->assign([
-                'city' => 'billing-address-city',
-                'countryId' => 'billing-address-country-id',
-                'firstName' => 'billing-address-first-name',
-                'lastName' => 'billing-address-last-name',
-                'salutationId' => 'billing-address-salutation-id',
-                'street' => 'billing-address-street',
-                'zipcode' => 'billing-address-zipcode',
-            ]),
             'stateId' => '',
         ]);
 
         return new OrderDeliveryCollection([$delivery1, $delivery2]);
+    }
+
+    private static function createTransactions(): OrderTransactionCollection
+    {
+        $transaction1 = (new OrderTransactionEntity())->assign([
+            'id' => 'transaction-1',
+            'amount' => new CalculatedPrice(
+                42,
+                42,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
+            'stateMachineState' => new StateMachineStateEntity(),
+            'stateId' => null,
+        ]);
+
+        $transaction2 = (new OrderTransactionEntity())->assign([
+            'id' => 'transaction-2',
+            'amount' => new CalculatedPrice(
+                50.05,
+                50.05,
+                new CalculatedTaxCollection(),
+                new TaxRuleCollection(),
+            ),
+            'stateMachineState' => null,
+            'stateId' => null,
+        ]);
+
+        return new OrderTransactionCollection([$transaction1, $transaction2]);
+    }
+
+    private static function createItemRounding(): CashRoundingConfig
+    {
+        return new CashRoundingConfig(2, 0.01, true);
+    }
+
+    private static function createTotalRounding(): CashRoundingConfig
+    {
+        return new CashRoundingConfig(2, 0.1, false);
     }
 }

@@ -1,15 +1,12 @@
-import { shallowMount } from '@vue/test-utils';
-import swOrderProductSelect from 'src/module/sw-order/component/sw-order-product-select';
+import { mount } from '@vue/test-utils';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-order-product-select', swOrderProductSelect);
-
 const createWrapper = async () => {
-    return shallowMount(await Shopware.Component.build('sw-order-product-select'), {
-        propsData: {
+    return mount(await wrapTestComponent('sw-order-product-select', { sync: true }), {
+        props: {
             taxStatus: 'net',
             item: {
                 priceDefinition: {
@@ -31,9 +28,13 @@ const createWrapper = async () => {
             },
             salesChannelId: '1',
         },
-        stubs: {
-            'sw-text-field': true,
-            'sw-entity-single-select': true,
+        global: {
+            stubs: {
+                'sw-text-field': true,
+                'sw-entity-single-select': true,
+                'sw-product-variant-info': true,
+                'sw-select-result': true,
+            },
         },
     });
 };
@@ -119,7 +120,7 @@ describe('src/module/sw-order/component/sw-order-product-select', () => {
             },
         });
 
-        const textField = wrapper.find('sw-text-field-stub');
+        const textField = wrapper.find('.mt-text-field');
 
         expect(textField.exists()).toBeTruthy();
     });
@@ -134,7 +135,7 @@ describe('src/module/sw-order/component/sw-order-product-select', () => {
             },
         });
 
-        const textField = wrapper.find('sw-text-field-stub');
+        const textField = wrapper.find('.mt-text-field');
 
         expect(textField.exists()).toBeTruthy();
     });
@@ -151,7 +152,7 @@ describe('src/module/sw-order/component/sw-order-product-select', () => {
         });
 
         const productSelect = wrapper.find('sw-entity-single-select-stub');
-        const textField = wrapper.find('sw-text-field-stub');
+        const textField = wrapper.find('.mt-text-field');
 
         expect(productSelect.exists()).toBeFalsy();
         expect(textField.exists()).toBeFalsy();
@@ -192,5 +193,33 @@ describe('src/module/sw-order/component/sw-order-product-select', () => {
         await flushPromises();
 
         expect(wrapper.vm.item.priceDefinition.price).toBe(110);
+    });
+
+    it('has correct criteria filters', async () => {
+        const wrapper = await createWrapper();
+        const criteria = wrapper.vm.productCriteria;
+
+        expect(criteria.filters[0].type).toBe('multi');
+        expect(criteria.filters[0].operator).toBe('OR');
+        expect(criteria.filters[0].queries[0].type).toBe('equals');
+        expect(criteria.filters[0].queries[0].field).toBe('childCount');
+        expect(criteria.filters[0].queries[0].value).toBe(0);
+        expect(criteria.filters[0].queries[1].type).toBe('equals');
+        expect(criteria.filters[0].queries[1].field).toBe('childCount');
+        expect(criteria.filters[0].queries[1].value).toBeNull();
+
+        expect(criteria.filters[1].type).toBe('equals');
+        expect(criteria.filters[1].field).toBe('visibilities.salesChannelId');
+        expect(criteria.filters[1].value).toBe('1');
+        expect(criteria.filters[2].type).toBe('equals');
+        expect(criteria.filters[2].field).toBe('active');
+        expect(criteria.filters[2].value).toBe(true);
+    });
+
+    it('has correct criteria with total count mode is zero', async () => {
+        const wrapper = await createWrapper();
+        const criteria = wrapper.vm.productCriteria;
+
+        expect(criteria.totalCountMode).toBe(0);
     });
 });

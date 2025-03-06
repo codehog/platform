@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Storefront\Theme\Subscriber;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Media\Event\UnusedMediaSearchEvent;
 use Shopware\Core\Framework\Context;
@@ -10,13 +11,13 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\IdSearchResult;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticEntityRepository;
 use Shopware\Storefront\Theme\Subscriber\UnusedMediaSubscriber;
+use Shopware\Storefront\Theme\ThemeCollection;
 use Shopware\Storefront\Theme\ThemeService;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Theme\Subscriber\UnusedMediaSubscriber
  */
+#[CoversClass(UnusedMediaSubscriber::class)]
 class UnusedMediaSubscriberTest extends TestCase
 {
     public function testSubscribedEvents(): void
@@ -52,6 +53,7 @@ class UnusedMediaSubscriberTest extends TestCase
             ],
         ];
 
+        /** @var StaticEntityRepository<ThemeCollection> $themeRepository */
         $themeRepository = new StaticEntityRepository([
             function (Criteria $criteria, Context $context) use ($themeId1, $themeId2) {
                 return new IdSearchResult(2, [['primaryKey' => $themeId1, 'data' => []], ['primaryKey' => $themeId2, 'data' => []]], $criteria, $context);

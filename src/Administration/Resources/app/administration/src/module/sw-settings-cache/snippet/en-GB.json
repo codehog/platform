@@ -13,16 +13,22 @@
       "cacheAdapter": "Cache adapters"
     },
     "section": {
-      "clearCachesHeadline": "Clear caches",
-      "clearCachesText": "The cache is immediately cleared synchronously for all used adapters.",
-      "clearCachesButton": "Clear caches",
-      "clearAndWarmUpHeadline": "Clear and warm up caches",
-      "clearAndWarmUpText": "After the cache has been cleared, new cache entries are generated asynchronously.",
-      "clearAndWarmUpButton": "Clear and warm up caches",
+      "clearCachesHeadline": "Clear cache",
+      "clearCachesText": "Immediately clears all cached data synchronously for all adapters.",
+      "clearCachesButton": "Clear cache",
+      "clearDataCachesHeadline": "Refresh cache",
+      "clearDataCachesText": "Selectively clears only cached data that has recently been altered. Use this option to make changes to your shop data immediately visible without having to wait for the automatic cache refresh or needlessly having to delete all cached data at once.",
+      "clearDataCachesButton": "Refresh cache",
       "indexesHeadline": "Indexes",
       "indexesText": "All indexes are updated asynchronously. Keep track of the progress by monitoring the notifications.",
       "indexesButton": "Update indexes",
-      "indexesSkipSelectPlaceholder": "Skip indexers and/or updaters"
+      "indexingModeLabel": "Method",
+      "indexingModeOptionSkipLabel": "Update all, but skip selected",
+      "indexingModeOptionOnlyLabel": "Only update selected",
+      "indexesSkipSelectLabel": "Indexers and/or updaters to skip",
+      "indexesOnlySelectLabel": "Indexers and/or updaters",
+      "indexesSkipSelectPlaceholder": "Select indexers and/or updaters to skip",
+      "indexesOnlySelectPlaceholder": "Select indexers and/or updaters"
     },
     "notifications": {
       "clearCache": {
@@ -30,9 +36,10 @@
         "success": "All caches cleared.",
         "error": "Unable to clear caches ."
       },
-      "clearCacheAndWarmup": {
-        "started": "Caches cleared. Now warming up. Hint: Watch the notifications to keep track of the progress.",
-        "success": "Warmup completed."
+      "clearDataCache": {
+        "started": "Clearing data cache.",
+        "success": "All pending changes applied.",
+        "error": "Unable to clear data cache."
       },
       "index": {
         "started": "Building indexes.",
@@ -43,7 +50,6 @@
       "title": "Clear caches",
       "message": "Are you sure you want to clear all caches?",
       "actions": {
-        "cancel": "Cancel",
         "clear": "Clear"
       }
     }

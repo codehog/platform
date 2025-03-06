@@ -2,22 +2,21 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Api\Util;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Api\ApiException;
 use Shopware\Core\Framework\Api\Util\AccessKeyHelper;
+use Shopware\Core\Framework\Log\Package;
 
 /**
  * @internal
- *
- * @package core
- *
- * @covers \Shopware\Core\Framework\Api\Util\AccessKeyHelper
  */
+#[Package('framework')]
+#[CoversClass(AccessKeyHelper::class)]
 class AccessKeyHelperTest extends TestCase
 {
-    /**
-     * @dataProvider mappingIdentifier
-     */
+    #[DataProvider('mappingIdentifier')]
     public function testGenerateAccessKeyWithUserIdentifier(string $origin, string $identifier): void
     {
         $accessKey = AccessKeyHelper::generateAccessKey($identifier);

@@ -1,67 +1,74 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import Vuex from 'vuex';
-import swSettingsShippingList from 'src/module/sw-settings-shipping/page/sw-settings-shipping-list';
-import { searchRankingPoint } from 'src/app/service/search-ranking.service';
+import { mount } from '@vue/test-utils';
 import Criteria from 'src/core/data/criteria.data';
+import { searchRankingPoint } from 'src/app/service/search-ranking.service';
 
 /**
- * @package checkout
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-settings-shipping-list', swSettingsShippingList);
-
 async function createWrapper(privileges = []) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-    localVue.use(Vuex);
-
     const shippingMethod = {};
     shippingMethod.getEntityName = () => 'shipping_method';
     shippingMethod.isNew = () => false;
 
-    return shallowMount(await Shopware.Component.build('sw-settings-shipping-list'), {
-        localVue,
-        mocks: {
-            $route: {
-                query: '',
-            },
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: jest.fn(() => {
-                        return Promise.resolve([]);
-                    }),
-                }),
-            },
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) { return true; }
+    return mount(
+        await wrapTestComponent('sw-settings-shipping-list', {
+            sync: true,
+        }),
+        {
+            global: {
+                renderStubDefaultSlot: true,
+                mocks: {
+                    $route: {
+                        query: '',
+                    },
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            search: jest.fn(() => {
+                                return Promise.resolve([]);
+                            }),
+                        }),
+                    },
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
 
-                    return privileges.includes(identifier);
+                            return privileges.includes(identifier);
+                        },
+                    },
+                    searchRankingService: {
+                        getSearchFieldsByEntity: () => {
+                            return Promise.resolve({
+                                name: searchRankingPoint.HIGH_SEARCH_RANKING,
+                            });
+                        },
+                        buildSearchQueriesForEntity: (searchFields, term, criteria) => {
+                            return criteria;
+                        },
+                    },
                 },
-            },
-            searchRankingService: {
-                getSearchFieldsByEntity: () => {
-                    return Promise.resolve({
-                        name: searchRankingPoint.HIGH_SEARCH_RANKING,
-                    });
-                },
-                buildSearchQueriesForEntity: (searchFields, term, criteria) => {
-                    return criteria;
+                stubs: {
+                    'sw-page': {
+                        template: '<div><slot name="content"></slot><slot name="smart-bar-actions"></slot></div>',
+                    },
+                    'sw-entity-listing': true,
+                    'sw-empty-state': true,
+                    'router-link': true,
+                    'sw-search-bar': true,
+                    'sw-language-switch': true,
+                    'sw-checkbox-field': true,
+                    'sw-single-select': true,
+                    'sw-context-menu-item': true,
+                    'sw-sidebar-item': true,
+                    'sw-sidebar': true,
                 },
             },
         },
-        stubs: {
-            'sw-page': {
-                template: '<div><slot name="content"></slot><slot name="smart-bar-actions"></slot></div>',
-            },
-            'sw-button': true,
-            'sw-entity-listing': true,
-            'sw-empty-state': true,
-            'router-link': true,
-        },
-    });
+    );
 }
 
 describe('module/sw-settings-shipping/page/sw-settings-shipping-list', () => {
@@ -75,12 +82,12 @@ describe('module/sw-settings-shipping/page/sw-settings-shipping-list', () => {
         const wrapper = await createWrapper();
 
         const entityListing = wrapper.find('sw-entity-listing-stub');
-        const button = wrapper.find('sw-button-stub');
+        const button = wrapper.findByText('button', 'sw-settings-shipping.list.buttonAddShippingMethod');
 
         expect(entityListing.attributes()['allow-edit']).toBeFalsy();
         expect(entityListing.attributes()['allow-delete']).toBeFalsy();
         expect(entityListing.attributes()['show-selection']).toBeFalsy();
-        expect(button.attributes().disabled).toBe('true');
+        expect(button.attributes('disabled')).toBeDefined();
     });
 
     it('should have edit fields enabled', async () => {
@@ -89,13 +96,13 @@ describe('module/sw-settings-shipping/page/sw-settings-shipping-list', () => {
         ]);
 
         const entityListing = wrapper.find('sw-entity-listing-stub');
-        const button = wrapper.find('sw-button-stub');
+        const button = wrapper.findByText('button', 'sw-settings-shipping.list.buttonAddShippingMethod');
 
         expect(entityListing.attributes()['allow-edit']).toBe('true');
         expect(entityListing.attributes()['allow-delete']).toBeFalsy();
         expect(entityListing.attributes()['show-selection']).toBeFalsy();
 
-        expect(button.attributes().disabled).toBe('true');
+        expect(button.attributes('disabled')).toBeDefined();
     });
 
     it('should have delete fields enabled', async () => {
@@ -105,12 +112,12 @@ describe('module/sw-settings-shipping/page/sw-settings-shipping-list', () => {
         ]);
 
         const entityListing = wrapper.find('sw-entity-listing-stub');
-        const button = wrapper.find('sw-button-stub');
+        const button = wrapper.findByText('button', 'sw-settings-shipping.list.buttonAddShippingMethod');
 
         expect(entityListing.attributes()['allow-edit']).toBe('true');
         expect(entityListing.attributes()['allow-delete']).toBe('true');
 
-        expect(button.attributes().disabled).toBe('true');
+        expect(button.attributes('disabled')).toBeDefined();
     });
 
     it('should have creator fields enabled', async () => {
@@ -121,12 +128,12 @@ describe('module/sw-settings-shipping/page/sw-settings-shipping-list', () => {
         ]);
 
         const entityListing = wrapper.find('sw-entity-listing-stub');
-        const button = wrapper.find('sw-button-stub');
+        const button = wrapper.findByText('button', 'sw-settings-shipping.list.buttonAddShippingMethod');
 
         expect(entityListing.attributes()['allow-edit']).toBe('true');
         expect(entityListing.attributes()['allow-delete']).toBe('true');
 
-        expect(button.attributes().disabled).toBeUndefined();
+        expect(button.attributes('disabled')).toBeUndefined();
     });
 
     it('should add query score to the criteria', async () => {
@@ -218,4 +225,3 @@ describe('module/sw-settings-shipping/page/sw-settings-shipping-list', () => {
         wrapper.vm.searchRankingService.getSearchFieldsByEntity.mockRestore();
     });
 });
-

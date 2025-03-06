@@ -9,7 +9,7 @@ use Shopware\Core\Framework\Migration\MigrationStep;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class Migration1688556247FixCoverMediaVersionID extends MigrationStep
 {
     public function getCreationTimestamp(): int
@@ -22,9 +22,5 @@ class Migration1688556247FixCoverMediaVersionID extends MigrationStep
         do {
             $stmt = $connection->executeQuery('UPDATE product SET product_media_version_id = 0x0fa91ce3e96a4bc2be4bd9ce752c3425 WHERE product_media_id IS NOT NULL AND product_media_version_id IS NULL LIMIT 100');
         } while ($stmt->rowCount() > 0);
-    }
-
-    public function updateDestructive(Connection $connection): void
-    {
     }
 }

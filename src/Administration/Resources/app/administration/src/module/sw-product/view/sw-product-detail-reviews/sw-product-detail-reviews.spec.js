@@ -1,67 +1,70 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import Vuex from 'vuex';
-import swProductDetailReviews from 'src/module/sw-product/view/sw-product-detail-reviews';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-product-detail-reviews', swProductDetailReviews);
-
-const { State } = Shopware;
+const { Store } = Shopware;
 
 async function createWrapper(privileges = []) {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
+    return mount(await wrapTestComponent('sw-product-detail-reviews', { sync: true }), {
+        global: {
+            provide: {
+                repositoryFactory: {
+                    create: () => ({
+                        search: () => {
+                            return Promise.resolve([]);
+                        },
+                        delete: () => {
+                            return Promise.resolve();
+                        },
+                    }),
+                },
+                acl: {
+                    can: (identifier) => {
+                        if (!identifier) {
+                            return true;
+                        }
 
-    return shallowMount(await Shopware.Component.build('sw-product-detail-reviews'), {
-        localVue,
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: () => {
-                        return Promise.resolve([]);
+                        return privileges.includes(identifier);
                     },
-                    delete: () => {
-                        return Promise.resolve();
-                    },
-                }),
-            },
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) {
-                        return true;
-                    }
-
-                    return privileges.includes(identifier);
                 },
             },
-
-        },
-        stubs: {
-            'sw-card': {
-                template: `
-                    <div class="sw-card">
+            stubs: {
+                'mt-card': {
+                    template: `
+                    <div class="mt-card">
                         <slot name="grid"></slot>
                         <slot></slot>
                     </div>
                 `,
-            },
-            'sw-data-grid': {
-                props: ['dataSource'],
-                template: `
+                },
+                'sw-data-grid': {
+                    props: ['dataSource'],
+                    template: `
                     <div class="sw-data-grid">
                         <template v-for="item in dataSource">
                             <slot name="actions" v-bind="{ item }"></slot>
                         </template>
                     </div>
                 `,
+                },
+                'sw-empty-state': true,
+                'sw-context-menu-item': true,
+                'sw-modal': {
+                    template: `
+                    <div class="sw-modal sw-modal-stub">
+                        <slot />
+                        <slot name="content" />
+                        <slot name="modal-footer" />
+                    </div>
+`,
+                },
+                'sw-skeleton': true,
+                'sw-rating-stars': true,
+                'sw-data-grid-column-boolean': true,
+                'sw-pagination': true,
             },
-            'sw-empty-state': true,
-            'sw-context-menu-item': true,
-            'sw-modal': true,
-            'sw-skeleton': true,
-            'sw-button': true,
         },
     });
 }
@@ -73,13 +76,18 @@ describe('src/module/sw-product/view/sw-product-detail-reviews', () => {
     ];
 
     beforeAll(() => {
-        State.registerModule('swProductDetail', {
-            namespaced: true,
-            state: {
+        Store.register({
+            id: 'swProductDetail',
+            state: () => ({
                 product: {},
-            },
+            }),
             getters: {
                 isLoading: () => false,
+            },
+            actions: {
+                setProduct(state, newProduct) {
+                    state.product = newProduct;
+                },
             },
         });
     });
@@ -135,7 +143,7 @@ describe('src/module/sw-product/view/sw-product-detail-reviews', () => {
 
         await wrapper.vm.onStartReviewDelete({ id: '101' });
 
-        const modal = wrapper.find('sw-modal-stub');
+        const modal = wrapper.find('.sw-modal-stub');
 
         expect(wrapper.vm.deleteReviewId).toBe('101');
         expect(wrapper.vm.showReviewDeleteModal).toBe(true);
@@ -169,7 +177,10 @@ describe('src/module/sw-product/view/sw-product-detail-reviews', () => {
         const wrapper = await createWrapper();
         wrapper.vm.getReviews = jest.fn();
 
-        await wrapper.setData({ product: { id: '101' } });
+        Shopware.Store.get('swProductDetail').product = {
+            id: '101',
+        };
+        await flushPromises();
 
         expect(wrapper.vm.getReviews).toHaveBeenCalled();
         wrapper.vm.getReviews.mockRestore();

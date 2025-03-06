@@ -11,7 +11,7 @@ use Shopware\Core\System\StateMachine\StateMachineException;
 use Shopware\Core\System\StateMachine\StateMachineRegistry;
 use Shopware\Core\System\StateMachine\Transition;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class OrderTransactionCaptureRefundStateHandler
 {
     /**
@@ -50,7 +50,7 @@ class OrderTransactionCaptureRefundStateHandler
             new Transition(
                 OrderTransactionCaptureRefundDefinition::ENTITY_NAME,
                 $transactionCaptureRefundId,
-                StateMachineTransitionActions::ACTION_COMPLETE,
+                StateMachineTransitionActions::ACTION_PROCESS,
                 'stateId'
             ),
             $context

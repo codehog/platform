@@ -1,41 +1,73 @@
-import { shallowMount } from '@vue/test-utils';
-import swExtensionCardBase from 'src/module/sw-extension/component/sw-extension-card-base';
-
-Shopware.Component.register('sw-extension-card-base', swExtensionCardBase);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(propsData = {}, provide = {}) {
-    return shallowMount(await Shopware.Component.build('sw-extension-card-base'), {
-        propsData: {
+    return mount(await wrapTestComponent('sw-extension-card-base', { sync: true }), {
+        global: {
+            provide: {
+                shopwareExtensionService: {
+                    getOpenLink: () => null,
+                },
+                extensionStoreActionService: {},
+                cacheApiService: {},
+                ...provide,
+            },
+            stubs: {
+                'sw-loader': true,
+
+                'sw-extension-icon': true,
+                'sw-context-menu-item': {
+                    name: 'sw-context-menu-item',
+                    template: '<div class="sw-context-menu-item"><slot></slot></div>',
+                },
+                'sw-context-button': {
+                    template: '<div class="sw-context-button"><slot></slot></div>',
+                },
+                'sw-extension-uninstall-modal': true,
+                'sw-extension-removal-modal': true,
+                'sw-extension-permissions-modal': {
+                    template: '<div class="sw-extension-permissions-modal"><slot></slot></div>',
+                },
+                'sw-extension-privacy-policy-extensions-modal': true,
+                'sw-meteor-card': {
+                    template: '<div><slot></slot></div>',
+                },
+                'router-link': true,
+            },
+        },
+        props: {
             extension: { installedAt: null },
             ...propsData,
-        },
-        stubs: {
-            'sw-meteor-card': true,
-            'sw-switch-field': true,
-            'sw-context-button': true,
-            'sw-context-menu': true,
-            'sw-context-menu-item': true,
-            'sw-loader': true,
-            'sw-extension-permissions-modal': true,
-            'sw-extension-icon': true,
-        },
-        provide: {
-            shopwareExtensionService: {
-                getOpenLink: () => null,
-            },
-            extensionStoreActionService: {},
-            cacheApiService: {},
-            ...provide,
         },
     });
 }
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  */
 describe('src/module/sw-extension/component/sw-extension-card-base', () => {
     beforeAll(() => {
-        Shopware.Context.api.assetsPath = '';
+        if (Shopware.Store.get('context')) {
+            Shopware.Store.unregister('context');
+        }
+
+        Shopware.Store.register({
+            id: 'context',
+            state: () => ({
+                app: {
+                    config: {
+                        settings: {
+                            disableExtensionManagement: false,
+                        },
+                    },
+                },
+                api: {
+                    assetPath: 'http://localhost:8000/bundles/administration/',
+                    authToken: {
+                        token: 'testToken',
+                    },
+                },
+            }),
+        });
     });
 
     it('should show the correct image (icon)', async () => {
@@ -97,17 +129,20 @@ describe('src/module/sw-extension/component/sw-extension-card-base', () => {
     });
 
     it('should not show config menu item: not active and not activated once', async () => {
-        const wrapper = await createWrapper({
-            extension: {
-                installedAt: null,
-                active: false,
+        const wrapper = await createWrapper(
+            {
+                extension: {
+                    installedAt: null,
+                    active: false,
+                },
             },
-        }, {
-            shopwareExtensionService: {
-                canBeOpened: () => false,
-                getOpenLink: () => null,
+            {
+                shopwareExtensionService: {
+                    canBeOpened: () => false,
+                    getOpenLink: () => null,
+                },
             },
-        });
+        );
 
         await wrapper.vm.$nextTick();
 
@@ -116,41 +151,47 @@ describe('src/module/sw-extension/component/sw-extension-card-base', () => {
     });
 
     it('should show config menu item: active and activated once', async () => {
-        const wrapper = await createWrapper({
-            extension: {
-                installedAt: null,
-                active: true,
-            },
-        }, {
-            shopwareExtensionService: {
-                getOpenLink: () => {
-                    return Promise.resolve({
-                        name: 'jest',
-                        params: {
-                            appName: 'JestApp',
-                        },
-                    });
+        const wrapper = await createWrapper(
+            {
+                extension: {
+                    installedAt: null,
+                    active: true,
                 },
             },
-        });
+            {
+                shopwareExtensionService: {
+                    getOpenLink: () => {
+                        return Promise.resolve({
+                            name: 'jest',
+                            params: {
+                                appName: 'JestApp',
+                            },
+                        });
+                    },
+                },
+            },
+        );
         await wrapper.vm.$nextTick();
 
-        const state = wrapper.findAll('sw-context-menu-item-stub');
+        const state = wrapper.findAll('.sw-context-menu-item');
         expect(state).toHaveLength(1);
     });
 
     it('should not show config menu item: not active and activated once', async () => {
-        const wrapper = await createWrapper({
-            extension: {
-                installedAt: null,
-                active: false,
+        const wrapper = await createWrapper(
+            {
+                extension: {
+                    installedAt: null,
+                    active: false,
+                },
             },
-        }, {
-            shopwareExtensionService: {
-                canBeOpened: () => true,
-                getOpenLink: () => null,
+            {
+                shopwareExtensionService: {
+                    canBeOpened: () => true,
+                    getOpenLink: () => null,
+                },
             },
-        });
+        );
         await wrapper.vm.$nextTick();
 
         const state = wrapper.findAll('sw-context-menu-item-stub');
@@ -158,35 +199,40 @@ describe('src/module/sw-extension/component/sw-extension-card-base', () => {
     });
 
     it('should show a consent affirmation modal if an app requires new permissions on update', async () => {
-        const wrapper = await createWrapper({
-            extension: {
-                installedAt: '845618651',
-                permissions: [],
-            },
-        }, {
-            shopwareExtensionService: {
-                getOpenLink: () => null,
-                updateExtension: async () => {
-                    const error = new Error();
-                    error.response = {
-                        data: {
-                            errors: [{
-                                code: 'FRAMEWORK__EXTENSION_UPDATE_REQUIRES_CONSENT_AFFIRMATION',
-                                meta: {
-                                    parameters: {
-                                        deltas: ['permissions'],
-                                    },
-                                },
-                            }],
-                        },
-                    };
-
-                    throw error;
+        const wrapper = await createWrapper(
+            {
+                extension: {
+                    installedAt: '845618651',
+                    permissions: [],
                 },
             },
-        });
+            {
+                shopwareExtensionService: {
+                    getOpenLink: () => null,
+                    updateExtension: async () => {
+                        const error = new Error();
+                        error.response = {
+                            data: {
+                                errors: [
+                                    {
+                                        code: 'FRAMEWORK__EXTENSION_UPDATE_REQUIRES_CONSENT_AFFIRMATION',
+                                        meta: {
+                                            parameters: {
+                                                deltas: ['permissions'],
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        };
+
+                        throw error;
+                    },
+                },
+            },
+        );
 
         await wrapper.vm.updateExtension(false);
-        expect(wrapper.get('sw-extension-permissions-modal-stub').exists()).toBe(true);
+        expect(wrapper.get('.sw-extension-permissions-modal').exists()).toBe(true);
     });
 });

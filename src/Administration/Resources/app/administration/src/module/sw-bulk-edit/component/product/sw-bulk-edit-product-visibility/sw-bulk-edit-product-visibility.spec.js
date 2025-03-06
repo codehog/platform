@@ -1,70 +1,62 @@
 /**
- * @package system-settings
+ * @sw-package inventory
  */
-import { shallowMount } from '@vue/test-utils';
-import swBulkEditProductVisibility from 'src/module/sw-bulk-edit/component/product/sw-bulk-edit-product-visibility';
-
-Shopware.Component.register('sw-bulk-edit-product-visibility', swBulkEditProductVisibility);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-bulk-edit-product-visibility'), {
-        stubs: {
-            'sw-inherit-wrapper': {
-                template: '<div class="sw-inherit-wrapper"><slot name="content"></slot></div>',
-            },
-            'sw-product-visibility-select': true,
-            'sw-container': true,
-            'sw-icon': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
+    return mount(
+        await wrapTestComponent('sw-bulk-edit-product-visibility', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-inherit-wrapper': {
+                        template: '<div class="sw-inherit-wrapper"><slot name="content"></slot></div>',
+                    },
+                    'sw-product-visibility-select': true,
+                    'sw-container': await wrapTestComponent('sw-container'),
+                    'sw-product-visibility-detail': true,
+                },
+                provide: {
+                    repositoryFactory: {
                         create: () => {
-                            return Promise.resolve();
+                            return {
+                                create: () => {
+                                    return Promise.resolve();
+                                },
+                            };
                         },
-                    };
+                    },
                 },
             },
+            props: {
+                bulkEditProduct: {},
+                disabled: false,
+            },
         },
-        propsData: {
-            bulkEditProduct: {},
-            disabled: false,
-        },
-    });
+    );
 }
 
 describe('sw-bulk-edit-product-visibility', () => {
     let wrapper;
-    const consoleError = console.error;
 
     beforeAll(() => {
-        Shopware.State.registerModule('swProductDetail', {
-            namespaced: true,
-            state: () => {
-                return {
-                    product: {
-                        visibilities: [{
-                            productId: 'productId',
-                            productVersionId: 'productVersionId',
-                            salesChannel: {},
-                            salesChannelId: 'salesChannelId',
-                            visibility: 30,
-                        }],
-                    },
-                };
-            },
-        });
+        Shopware.Store.get('swProductDetail').product = {
+            visibilities: [
+                {
+                    productId: 'productId',
+                    productVersionId: 'productVersionId',
+                    salesChannel: {},
+                    salesChannelId: 'salesChannelId',
+                    visibility: 30,
+                },
+            ],
+        };
     });
 
     beforeEach(async () => {
-        console.error = jest.fn();
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        console.error = consoleError;
-        wrapper.destroy();
     });
 
     it('should be a Vue.js component', async () => {

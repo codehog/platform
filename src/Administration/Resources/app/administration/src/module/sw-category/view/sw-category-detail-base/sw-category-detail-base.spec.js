@@ -1,72 +1,72 @@
 /**
- * @package content
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
-import swCategoryDetailBase from 'src/module/sw-category/view/sw-category-detail-base';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-category-detail-base', swCategoryDetailBase);
+const categoryMock = {
+    media: [],
+    name: 'Computer parts',
+    footerSalesChannels: [],
+    navigationSalesChannels: [],
+    serviceSalesChannels: [],
+    productAssignmentType: 'product',
+    isNew: () => false,
+};
+
+async function createWrapper() {
+    Shopware.Store.get('swCategoryDetail').$reset();
+    Shopware.Store.get('swCategoryDetail').category = categoryMock;
+
+    return mount(await wrapTestComponent('sw-category-detail-base', { sync: true }), {
+        global: {
+            stubs: {
+                'mt-card': {
+                    template: '<div class="mt-card"><slot></slot></div>',
+                },
+                'sw-container': {
+                    template: '<div class="sw-container"><slot></slot></div>',
+                },
+                'sw-single-select': {
+                    template: '<input type="select" class="sw-single-select"></input>',
+                    props: ['disabled'],
+                },
+                'sw-entity-tag-select': {
+                    template: '<input type="select" class="sw-entity-tag-select"></input>',
+                    props: ['disabled'],
+                },
+                'sw-category-detail-menu': {
+                    template: '<div class="sw-category-detail-menu"></div>',
+                },
+                'sw-category-entry-point-card': true,
+                'sw-category-link-settings': true,
+                'sw-custom-field-set-renderer': true,
+            },
+        },
+        props: {
+            isLoading: false,
+            manualAssignedProductsCount: 0,
+        },
+    });
+}
 
 describe('module/sw-category/view/sw-category-detail-base.spec', () => {
-    let wrapper;
+    it('should disable all interactive elements', async () => {
+        global.activeAclRoles = [];
 
-    const categoryMock = {
-        media: [],
-        name: 'Computer parts',
-        footerSalesChannels: [],
-        navigationSalesChannels: [],
-        serviceSalesChannels: [],
-        productAssignmentType: 'product',
-        isNew: () => false,
-    };
+        const wrapper = await createWrapper();
 
-    beforeEach(async () => {
-        if (Shopware.State.get('swCategoryDetail')) {
-            Shopware.State.unregisterModule('swCategoryDetail');
-        }
-
-        Shopware.State.registerModule('swCategoryDetail', {
-            namespaced: true,
-            state: {
-                category: categoryMock,
-            },
-        });
-
-        wrapper = shallowMount(await Shopware.Component.build('sw-category-detail-base'), {
-            stubs: {
-                'sw-card': true,
-                'sw-container': true,
-                'sw-text-field': true,
-                'sw-switch-field': true,
-                'sw-single-select': true,
-                'sw-entity-tag-select': true,
-                'sw-category-detail-menu': true,
-                'sw-category-detail-products': true,
-                'sw-entity-single-select': true,
-                'sw-category-seo-form': true,
-                'sw-alert': {
-                    template: '<div class="sw-alert"><slot></slot></div>',
-                },
-            },
-            mocks: {
-                placeholder: () => {},
-            },
-            propsData: {
-                isLoading: false,
-                manualAssignedProductsCount: 0,
-            },
-            provide: {
-                repositoryFactory: {
-                    create: () => {
-                        return {
-                            get: () => Promise.resolve(null),
-                        };
-                    },
-                },
-            },
+        wrapper.findAllComponents('input').forEach((element) => {
+            expect(element.props('disabled')).toBe(true);
         });
     });
 
-    it('should be a Vue.js component', async () => {
-        expect(wrapper.vm).toBeTruthy();
+    it('should enable all interactive elements', async () => {
+        global.activeAclRoles = ['category.editor'];
+
+        const wrapper = await createWrapper();
+
+        wrapper.findAllComponents('input').forEach((element) => {
+            expect(element.props('disabled')).toBe(false);
+        });
     });
 });

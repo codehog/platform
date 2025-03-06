@@ -2,11 +2,14 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Integration\Calculation;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscount\PromotionDiscountEntity;
+use Shopware\Core\Checkout\Promotion\PromotionCollection;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
@@ -14,9 +17,9 @@ use Shopware\Core\Framework\Util\Random;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\PromotionFixtureBuilder;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionIntegrationTestBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
+use Shopware\Core\Test\Integration\Builder\Promotion\PromotionFixtureBuilder;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionIntegrationTestBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -29,10 +32,16 @@ class PromotionSetGroupCalculationTest extends TestCase
     use PromotionIntegrationTestBehaviour;
     use PromotionTestFixtureBehaviour;
 
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
     protected EntityRepository $productRepository;
 
     protected CartService $cartService;
 
+    /**
+     * @var EntityRepository<PromotionCollection>
+     */
     protected EntityRepository $promotionRepository;
 
     private SalesChannelContext $context;
@@ -41,9 +50,9 @@ class PromotionSetGroupCalculationTest extends TestCase
     {
         parent::setUp();
 
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->promotionRepository = $this->getContainer()->get('promotion.repository');
-        $this->cartService = $this->getContainer()->get(CartService::class);
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->promotionRepository = static::getContainer()->get('promotion.repository');
+        $this->cartService = static::getContainer()->get(CartService::class);
 
         $this->context = $this->getContext();
     }
@@ -58,13 +67,12 @@ class PromotionSetGroupCalculationTest extends TestCase
      * We give 100% discount on that package, which means the customer has to
      * only pay the 1 product that is left.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testPercentageOnMultipleItemsAndSubsetQuantities(): void
     {
-        $container = $this->getContainer();
+        $container = static::getContainer();
         $productId1 = Uuid::randomHex();
         $productId2 = Uuid::randomHex();
 
@@ -98,13 +106,12 @@ class PromotionSetGroupCalculationTest extends TestCase
      * We give 50 EUR discount on that package, which means the customer has to
      * pay (product 1 + product 2 - 50) + product 2.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testAbsoluteOnMultipleItemsAndSubsetQuantities(): void
     {
-        $container = $this->getContainer();
+        $container = static::getContainer();
         $productId1 = Uuid::randomHex();
         $productId2 = Uuid::randomHex();
 
@@ -145,13 +152,12 @@ class PromotionSetGroupCalculationTest extends TestCase
      * We give 20 EUR fixed count on every product in the group, which means the customer has to
      * pay 20 EUR + 20 EUR + product 2.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testFixedUnitPriceOnMultipleItemsAndSubsetQuantities(): void
     {
-        $container = $this->getContainer();
+        $container = static::getContainer();
         $productId1 = Uuid::randomHex();
         $productId2 = Uuid::randomHex();
 
@@ -192,13 +198,12 @@ class PromotionSetGroupCalculationTest extends TestCase
      * We give 50 EUR fixed price for the whole package, which means the customer has to
      * pay 50 EUR + product 2.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testFixedPriceOnMultipleItemsAndSubsetQuantities(): void
     {
-        $container = $this->getContainer();
+        $container = static::getContainer();
         $productId1 = Uuid::randomHex();
         $productId2 = Uuid::randomHex();
 

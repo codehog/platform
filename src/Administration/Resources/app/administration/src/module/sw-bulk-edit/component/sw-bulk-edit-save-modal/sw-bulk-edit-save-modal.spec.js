@@ -1,23 +1,57 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
-import { shallowMount } from '@vue/test-utils';
-import swBulkEditSaveModal from 'src/module/sw-bulk-edit/component/sw-bulk-edit-save-modal';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/base/sw-modal';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-bulk-edit-save-modal', swBulkEditSaveModal);
+const modalConfirmButtonConfig = [
+    {
+        key: 'cancel',
+        label: 'global.sw-modal.labelClose',
+        position: 'left',
+        action: '',
+        disabled: false,
+    },
+    {
+        key: 'next',
+        label: 'sw-bulk-edit.modal.confirm.buttons.applyChanges',
+        position: 'right',
+        variant: 'primary',
+        action: 'process',
+        disabled: false,
+    },
+];
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-bulk-edit-save-modal'), {
-        stubs: {
-            'sw-modal': await Shopware.Component.build('sw-modal'),
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-icon': {
-                template: '<div />',
+    return mount(await wrapTestComponent('sw-bulk-edit-save-modal', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-modal': await wrapTestComponent('sw-modal'),
+                'router-view': {
+                    template: '<div class="router-view"><slot v-bind="slotBindings"></slot></div>',
+                    data() {
+                        return {
+                            slotBindings: {
+                                Component: 'sw-bulk-edit-save-modal-confirm',
+                            },
+                        };
+                    },
+                },
+                'sw-bulk-edit-save-modal-confirm': await wrapTestComponent('sw-bulk-edit-save-modal-confirm'),
+                'sw-loader': true,
+
+                'router-link': true,
             },
-            'router-view': {
-                template: '<div id="router-view" />',
+            mocks: {
+                $route: { name: 'sw.bulk.edit.product.save.confirm' },
+            },
+            provide: {
+                shortcutService: {
+                    startEventListener: () => {},
+                    stopEventListener: () => {},
+                },
+                feature: {
+                    isActive: () => true,
+                },
             },
         },
         props: {
@@ -25,18 +59,6 @@ async function createWrapper() {
             isLoading: false,
             processStatus: '',
             bulkEditData: {},
-        },
-        mocks: {
-            $route: { name: 'sw.bulk.edit.product.save.confirm' },
-        },
-        provide: {
-            shortcutService: {
-                startEventListener: () => {},
-                stopEventListener: () => {},
-            },
-            feature: {
-                isActive: () => true,
-            },
         },
     });
 }
@@ -46,28 +68,23 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
 
     beforeEach(async () => {
         wrapper = await createWrapper();
+        await flushPromises();
     });
 
-    afterEach(async () => {
-        await wrapper.destroy();
+    it('the default button config should be the bulk-edit-save-modal-confirm button config', async () => {
+        expect(wrapper.vm.$data.buttonConfig).toStrictEqual(modalConfirmButtonConfig);
     });
 
-    it('the default button config should be empty', async () => {
-        expect(wrapper.vm.$data.buttonConfig).toStrictEqual([]);
-    });
+    it('the footer should contain two buttons', async () => {
+        const footerLeft = wrapper.findAll('.footer-left > button');
+        const footerRight = wrapper.findAll('.footer-right > button');
 
-    it('the footer should not contain buttons', async () => {
-        const footerLeft = wrapper.find('.footer-left');
-        const footerRight = wrapper.find('.footer-right');
-
-        expect(footerLeft.element).toBeEmptyDOMElement();
-        expect(footerRight.element).toBeEmptyDOMElement();
+        expect(footerLeft).toHaveLength(1);
+        expect(footerRight).toHaveLength(1);
     });
 
     it('the button config should have the same config which are emitted by an event', async () => {
-        const routerView = wrapper.find('#router-view');
-
-        expect(wrapper.vm.$data.buttonConfig).toStrictEqual([]);
+        const modalComponent = await wrapper.findComponent('.sw-bulk-edit-save-modal__component');
 
         const newButtonConfig = [
             {
@@ -96,19 +113,13 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
             },
         ];
 
-        routerView.vm.$emit('buttons-update', newButtonConfig);
+        modalComponent.vm.$emit('buttons-update', newButtonConfig);
 
         expect(wrapper.vm.$data.buttonConfig).toStrictEqual(newButtonConfig);
     });
 
     it('the footer should have the button config which are emitted by an event', async () => {
-        const routerView = wrapper.find('#router-view');
-
-        let footerLeft = wrapper.find('.footer-left');
-        let footerRight = wrapper.find('.footer-right');
-
-        expect(footerLeft.element).toBeEmptyDOMElement();
-        expect(footerRight.element).toBeEmptyDOMElement();
+        const modalComponent = wrapper.findComponent('.sw-bulk-edit-save-modal__component');
 
         const newButtonConfig = [
             {
@@ -137,17 +148,17 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
             },
         ];
 
-        await routerView.vm.$emit('buttons-update', newButtonConfig);
+        await modalComponent.vm.$emit('buttons-update', newButtonConfig);
 
-        footerLeft = wrapper.find('.footer-left');
-        footerRight = wrapper.find('.footer-right');
+        const footerLeft = wrapper.findAll('.footer-left > button');
+        const footerRight = wrapper.findAll('.footer-right > button');
 
-        expect(footerLeft.element).not.toBeEmptyDOMElement();
-        expect(footerRight.element).not.toBeEmptyDOMElement();
+        expect(footerLeft).toHaveLength(1);
+        expect(footerRight).toHaveLength(2);
     });
 
     it('the buttonConfig should push a button in the left footer', async () => {
-        const routerView = wrapper.find('#router-view');
+        const modalComponent = wrapper.findComponent('.sw-bulk-edit-save-modal__component');
 
         const newButtonConfig = [
             {
@@ -160,17 +171,17 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
             },
         ];
 
-        await routerView.vm.$emit('buttons-update', newButtonConfig);
+        await modalComponent.vm.$emit('buttons-update', newButtonConfig);
 
-        const footerLeft = wrapper.find('.footer-left');
-        const footerRight = wrapper.find('.footer-right');
+        const footerLeft = wrapper.findAll('.footer-left > button');
+        const footerRight = wrapper.findAll('.footer-right > button');
 
-        expect(footerLeft.element).not.toBeEmptyDOMElement();
-        expect(footerRight.element).toBeEmptyDOMElement();
+        expect(footerLeft).toHaveLength(1);
+        expect(footerRight).toHaveLength(0);
     });
 
     it('the buttonConfig should push a button in the right footer', async () => {
-        const routerView = wrapper.find('#router-view');
+        const modalComponent = wrapper.findComponent('.sw-bulk-edit-save-modal__component');
 
         const newButtonConfig = [
             {
@@ -183,17 +194,17 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
             },
         ];
 
-        await routerView.vm.$emit('buttons-update', newButtonConfig);
+        await modalComponent.vm.$emit('buttons-update', newButtonConfig);
 
-        const footerLeft = wrapper.find('.footer-left');
-        const footerRight = wrapper.find('.footer-right');
+        const footerLeft = wrapper.findAll('.footer-left > button');
+        const footerRight = wrapper.findAll('.footer-right > button');
 
-        expect(footerLeft.element).toBeEmptyDOMElement();
-        expect(footerRight.element).not.toBeEmptyDOMElement();
+        expect(footerLeft).toHaveLength(0);
+        expect(footerRight).toHaveLength(1);
     });
 
     it('the buttonConfig should overwrite the previous one', async () => {
-        const routerView = wrapper.find('#router-view');
+        const modalComponent = wrapper.findComponent('.sw-bulk-edit-save-modal__component');
         let footerLeft;
         let footerRight;
 
@@ -208,13 +219,13 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
             },
         ];
 
-        await routerView.vm.$emit('buttons-update', firstButtonConfig);
+        await modalComponent.vm.$emit('buttons-update', firstButtonConfig);
 
-        footerLeft = wrapper.find('.footer-left');
-        footerRight = wrapper.find('.footer-right');
+        footerLeft = wrapper.findAll('.footer-left > button');
+        footerRight = wrapper.findAll('.footer-right > button');
 
-        expect(footerLeft.element).toBeEmptyDOMElement();
-        expect(footerRight.element).not.toBeEmptyDOMElement();
+        expect(footerLeft).toHaveLength(0);
+        expect(footerRight).toHaveLength(1);
 
         const secondButtonConfig = [
             {
@@ -227,21 +238,21 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
             },
         ];
 
-        await routerView.vm.$emit('buttons-update', secondButtonConfig);
+        await modalComponent.vm.$emit('buttons-update', secondButtonConfig);
 
-        footerLeft = wrapper.find('.footer-left');
-        footerRight = wrapper.find('.footer-right');
+        footerLeft = wrapper.findAll('.footer-left > button');
+        footerRight = wrapper.findAll('.footer-right > button');
 
-        expect(footerLeft.element).not.toBeEmptyDOMElement();
-        expect(footerRight.element).toBeEmptyDOMElement();
+        expect(footerLeft).toHaveLength(1);
+        expect(footerRight).toHaveLength(0);
     });
 
     it('the title should be updated when the router view emits an event', async () => {
-        const routerView = wrapper.find('#router-view');
+        const modalComponent = wrapper.findComponent('.sw-bulk-edit-save-modal__component');
 
         const newTitle = 'fooBar';
 
-        routerView.vm.$emit('title-set', newTitle);
+        modalComponent.vm.$emit('title-set', newTitle);
 
         expect(wrapper.vm.$data.title).toBe(newTitle);
     });
@@ -267,9 +278,8 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
     });
 
     it('should emit bulk save event', async () => {
-        const routerView = wrapper.find('#router-view');
-
-        routerView.vm.$emit('changes-apply');
+        const modalComponent = wrapper.findComponent('.sw-bulk-edit-save-modal__component');
+        modalComponent.vm.$emit('changes-apply');
 
         expect(wrapper.emitted()['bulk-save']).toBeTruthy();
     });
@@ -293,12 +303,18 @@ describe('src/module/sw-bulk-edit/modal/sw-bulk-edit-save-modal', () => {
     it('should be able to listen to beforeunload event', async () => {
         await wrapper.setProps({ isLoading: false });
         expect(
-            wrapper.vm.beforeUnloadListener({ preventDefault: () => {}, returnValue: '' }),
+            wrapper.vm.beforeUnloadListener({
+                preventDefault: () => {},
+                returnValue: '',
+            }),
         ).toBe('');
 
         await wrapper.setProps({ isLoading: true });
         expect(
-            wrapper.vm.beforeUnloadListener({ preventDefault: () => {}, returnValue: '' }),
+            wrapper.vm.beforeUnloadListener({
+                preventDefault: () => {},
+                returnValue: '',
+            }),
         ).toBe('sw-bulk-edit.modal.messageBeforeTabLeave');
     });
 });

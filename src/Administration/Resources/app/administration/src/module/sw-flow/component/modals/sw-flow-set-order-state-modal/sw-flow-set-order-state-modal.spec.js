@@ -1,17 +1,21 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swFlowSetOrderStateModal from 'src/module/sw-flow/component/modals/sw-flow-set-order-state-modal';
-import 'src/app/component/form/sw-checkbox-field';
-import 'src/app/component/form/field-base/sw-base-field';
+import { mount } from '@vue/test-utils';
+import selectMtSelectOptionByText from 'test/_helper_/select-mt-select-by-text';
 
-import Vuex from 'vuex';
-import flowState from 'src/module/sw-flow/state/flow.state';
-
-Shopware.Component.register('sw-flow-set-order-state-modal', swFlowSetOrderStateModal);
+/**
+ * @sw-package after-sales
+ */
 
 const stateMachineStateMock = [
     {
         technicalName: 'paid',
         translated: { name: 'Paid' },
+        stateMachine: {
+            technicalName: 'order_transaction.state',
+        },
+    },
+    {
+        technicalName: 'open',
+        translated: { name: 'Open' },
         stateMachine: {
             technicalName: 'order_transaction.state',
         },
@@ -33,71 +37,60 @@ const stateMachineStateMock = [
 ];
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
-
-    return shallowMount(await Shopware.Component.build('sw-flow-set-order-state-modal'), {
-        localVue,
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        search: () => Promise.resolve(stateMachineStateMock),
-                    };
-                },
+    return mount(
+        await wrapTestComponent('sw-flow-set-order-state-modal', {
+            sync: true,
+        }),
+        {
+            props: {
+                sequence: {},
             },
-        },
 
-        propsData: {
-            sequence: {},
-        },
-
-        stubs: {
-            'sw-modal': {
-                template: `
+            global: {
+                mocks: {
+                    $i18n: {
+                        locale: 'en-US',
+                    },
+                },
+                stubs: {
+                    'sw-modal': {
+                        template: `
                     <div class="sw-modal">
                       <slot name="modal-header"></slot>
                       <slot></slot>
                       <slot name="modal-footer"></slot>
                     </div>
                 `,
-            },
-            'sw-button': {
-                template: '<button @click="$emit(\'click\', $event)"><slot></slot></button>',
-            },
-            'sw-icon': true,
-            'sw-select-field': {
-                model: {
-                    prop: 'value',
-                    event: 'change',
+                    },
+                    'sw-block-field': await wrapTestComponent('sw-block-field'),
+                    'sw-checkbox-field': await wrapTestComponent('sw-checkbox-field'),
+                    'sw-checkbox-field-deprecated': await wrapTestComponent('sw-checkbox-field-deprecated', { sync: true }),
+                    'sw-base-field': await wrapTestComponent('sw-base-field'),
+                    transition: {
+                        template: `<div class="transition"><slot/></div>`,
+                    },
+                    'sw-help-text': true,
+                    'sw-field-error': true,
+                    'sw-loader': true,
+                    'sw-inheritance-switch': true,
+                    'sw-ai-copilot-badge': true,
                 },
-                template: `
-                    <select class="sw-select-field"
-                            :value="value"
-                            @change="$emit('change', $event.target.value)">
-                        <option
-                            v-for="option in options"
-                            :key="option.id"
-                            :value="option.id"
-                        >
-                            {{ option.name }}
-                        </option>
-                    </select>`,
-                props: ['value', 'options'],
+
+                provide: {
+                    repositoryFactory: {
+                        create: () => {
+                            return {
+                                search: () => Promise.resolve(stateMachineStateMock),
+                            };
+                        },
+                    },
+                },
             },
-            'sw-checkbox-field': await Shopware.Component.build('sw-checkbox-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-help-text': true,
-            'sw-field-error': true,
         },
-    });
+    );
 }
 
 describe('module/sw-flow/component/sw-flow-set-order-state-modal', () => {
-    beforeAll(() => {
-        Shopware.State.registerModule('swFlowState', flowState);
-    });
-
     it('should show error notification if no field is selected', async () => {
         const wrapper = await createWrapper();
         wrapper.vm.createNotificationError = jest.fn();
@@ -110,29 +103,28 @@ describe('module/sw-flow/component/sw-flow-set-order-state-modal', () => {
 
     it('should emit process-finish when selecting at least 1 status', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
-        const paymentSelect = wrapper.find('.sw-flow-set-order-state-modal__payment-status');
-        await paymentSelect.setValue('paid');
-
-        const deliverySelect = wrapper.find('.sw-flow-set-order-state-modal__delivery-status');
-        await deliverySelect.setValue('shipped');
-
-        const orderSelect = wrapper.find('.sw-flow-set-order-state-modal__order-status');
-        await orderSelect.setValue('in_progress');
+        await selectMtSelectOptionByText(wrapper, 'Paid', '.sw-flow-set-order-state-modal__payment-status input');
+        await selectMtSelectOptionByText(wrapper, 'Shipped', '.sw-flow-set-order-state-modal__delivery-status input');
+        await selectMtSelectOptionByText(wrapper, 'In progress', '.sw-flow-set-order-state-modal__order-status input');
 
         const forceTransitionCheckBox = wrapper.find('.sw-flow-set-order-state-modal__force-transition input');
         await forceTransitionCheckBox.setChecked(true);
 
         const saveButton = wrapper.find('.sw-flow-set-order-state-modal__save-button');
         await saveButton.trigger('click');
+        await flushPromises();
 
-        expect(wrapper.emitted()['process-finish'][0]).toEqual([{
-            config: {
-                order: 'in_progress',
-                order_delivery: 'shipped',
-                order_transaction: 'paid',
-                force_transition: true,
+        expect(wrapper.emitted()['process-finish'][0]).toEqual([
+            {
+                config: {
+                    order: 'in_progress',
+                    order_delivery: 'shipped',
+                    order_transaction: 'paid',
+                    force_transition: true,
+                },
             },
-        }]);
+        ]);
     });
 });

@@ -4,10 +4,9 @@ import template from './sw-label.html.twig';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @example-type dynamic
  * @component-example
@@ -18,35 +17,74 @@ const { Component } = Shopware;
 Component.register('sw-label', {
     template,
 
+    emits: [
+        'selected',
+        'dismiss',
+    ],
+
     props: {
         variant: {
             type: String,
             required: false,
             default: '',
-            validValues: ['info', 'danger', 'success', 'warning', 'neutral', 'primary'],
+            validValues: [
+                'info',
+                'danger',
+                'success',
+                'warning',
+                'neutral',
+                'neutral-reversed',
+                'primary',
+            ],
             validator(value) {
                 if (!value.length) {
                     return true;
                 }
-                return ['info', 'danger', 'success', 'warning', 'neutral', 'primary'].includes(value);
+                return [
+                    'info',
+                    'danger',
+                    'success',
+                    'warning',
+                    'neutral',
+                    'neutral-reversed',
+                    'primary',
+                ].includes(value);
             },
         },
         size: {
             type: String,
             required: false,
             default: 'default',
-            validValues: ['small', 'medium', 'default'],
+            validValues: [
+                'small',
+                'medium',
+                'default',
+            ],
             validator(value) {
-                return ['small', 'medium', 'default'].includes(value);
+                return [
+                    'small',
+                    'medium',
+                    'default',
+                ].includes(value);
             },
         },
         appearance: {
             type: String,
             required: false,
             default: 'default',
-            validValues: ['default', 'pill', 'circle', 'badged'],
+            validValues: [
+                'default',
+                'pill',
+                'circle',
+                'badged',
+            ],
             validator(value) {
-                return ['default', 'pill', 'circle', 'badged'].includes(value);
+                return [
+                    'default',
+                    'pill',
+                    'circle',
+                    'badged',
+                ].includes(value);
             },
         },
         ghost: {
@@ -62,9 +100,18 @@ Component.register('sw-label', {
         dismissable: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
+        },
+        light: {
+            type: Boolean,
+            required: false,
+            default: false,
+        },
+        onDismiss: {
+            type: Function,
+            required: false,
+            default: null,
         },
     },
 
@@ -83,7 +130,7 @@ Component.register('sw-label', {
             ];
         },
         showDismissable() {
-            return !!this.$listeners.dismiss && this.dismissable;
+            return !!this.$props.onDismiss && this.dismissable;
         },
     },
 });

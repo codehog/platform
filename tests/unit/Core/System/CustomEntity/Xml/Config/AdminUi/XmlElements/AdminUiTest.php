@@ -2,17 +2,15 @@
 
 namespace Shopware\Tests\Unit\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\AdminUi;
 use Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\Entity as AdminUiEntity;
 
 /**
- * @package content
- *
  * @internal
- *
- * @covers \Shopware\Core\System\CustomEntity\Xml\Config\AdminUi\XmlElements\AdminUi
  */
+#[CoversClass(AdminUi::class)]
 class AdminUiTest extends TestCase
 {
     public function testFromXml(): void
@@ -34,8 +32,6 @@ class AdminUiTest extends TestCase
         $adminUi = AdminUi::fromXml($adminUiElement);
 
         $adminUiEntities = $adminUi->getEntities();
-        static::assertInstanceOf(AdminUi::class, $adminUi);
-        static::assertIsArray($adminUiEntities);
         static::assertInstanceOf(AdminUiEntity::class, \array_pop($adminUiEntities));
     }
 }

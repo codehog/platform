@@ -1,7 +1,11 @@
-import { shallowMount, config } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
 import swGenericCustomEntityDetail from 'src/module/sw-custom-entity/page/sw-generic-custom-entity-detail';
 import 'src/app/component/base/sw-button-process';
+
+/**
+ * @sw-package framework
+ */
 
 Shopware.Component.register('sw-generic-custom-entity-detail', swGenericCustomEntityDetail);
 
@@ -44,34 +48,51 @@ const customEntityDefinition = {
         'admin-ui': {
             color: 'some-hex-color',
             detail: {
-                tabs: [{
-                    name: 'main',
-                    cards: [{
-                        name: 'general',
-                        fields: [{
-                            ref: 'title',
-                        }, {
-                            ref: 'description',
-                        }, {
-                            ref: 'position',
-                        }],
-                    }, {
-                        name: 'useless',
-                        fields: [{
-                            ref: 'description',
-                        }, {
-                            ref: 'position',
-                        }],
-                    }],
-                }, {
-                    name: 'secondary',
-                    cards: [{
-                        name: 'secondary-useless',
-                        fields: [{
-                            ref: 'position',
-                        }],
-                    }],
-                }],
+                tabs: [
+                    {
+                        name: 'main',
+                        cards: [
+                            {
+                                name: 'general',
+                                fields: [
+                                    {
+                                        ref: 'title',
+                                    },
+                                    {
+                                        ref: 'description',
+                                    },
+                                    {
+                                        ref: 'position',
+                                    },
+                                ],
+                            },
+                            {
+                                name: 'useless',
+                                fields: [
+                                    {
+                                        ref: 'description',
+                                    },
+                                    {
+                                        ref: 'position',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        name: 'secondary',
+                        cards: [
+                            {
+                                name: 'secondary-useless',
+                                fields: [
+                                    {
+                                        ref: 'position',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
             },
         },
         'cms-aware': true,
@@ -90,128 +111,155 @@ const customEntityRepository = {
 
         throw new Error(`Mocked entity for id "${id}" not found`);
     },
-    save: async (customEntityData) => {
-        if (customEntityData?.id) {
-            config.mocks.$router.push({
-                name: 'sw.custom.entity.detail',
-                params: {
-                    id: customEntityData.id,
-                },
-            });
-        }
-    },
+    save: () => Promise.resolve(),
 };
 
 async function createWrapper({ activeTab = 'main', routeId = null, entityName = testEntityName } = {}) {
-    config.mocks.$route = {
-        params: {
-            entityName,
-            id: routeId,
-        },
-        meta: {
-            $module: {
-                icon: null,
+    return mount(await Shopware.Component.build('sw-generic-custom-entity-detail'), {
+        global: {
+            stubs: {
+                'sw-page': {
+                    template:
+                        '<div class="sw-page"><slot name="search-bar"/><slot name="smart-bar-header" /><slot name="smart-bar-actions"/><slot name="language-switch" /><slot name="content"/></div>',
+                },
+                'sw-search-bar': {
+                    template: '<div class="sw-search-bar"></div>',
+                    props: [
+                        'initial-search-type',
+                        'initial-search',
+                    ],
+                },
+                'sw-card-view': {
+                    template: '<div class="sw-card-view"><slot></slot></div>',
+                },
+                'mt-card': {
+                    template: '<div class="mt-card"><slot></slot></div>',
+                },
+                'sw-tabs': {
+                    template: `<div class="sw-tabs"><slot></slot><slot name="content" active="${activeTab}"></slot></div>`,
+                },
+                'sw-tabs-item': {
+                    template: '<div class="sw-tabs-item"><slot></slot></div>',
+                },
+                'sw-button-process': {
+                    template: '<div class="sw-button-process" @click="$emit(`click`)"></div>',
+                },
+                'sw-language-switch': {
+                    template: '<div class="sw-language-switch"></div>',
+                },
+                'sw-custom-entity-input-field': {
+                    template: '<input/>',
+                },
+                'sw-generic-cms-page-assignment': {
+                    template: '<div class="sw-generic-cms-page-assignment"></div>',
+                    props: [
+                        'cms-page-id',
+                        'slot-overrides',
+                    ],
+                },
+                'sw-generic-seo-general-card': {
+                    template: '<div class="sw-generic-seo-general-card"></div>',
+                    props: [
+                        'seo-meta-title',
+                        'seo-meta-description',
+                        'seo-keywords',
+                        'seo-url',
+                    ],
+                },
+                'sw-generic-social-media-card': {
+                    template: '<div class="sw-generic-social-media-card"></div>',
+                    props: [
+                        'og-title',
+                        'og-description',
+                        'og-image-id',
+                    ],
+                },
             },
-        },
-    };
+            provide: {
+                customEntityDefinitionService: {
+                    getDefinitionByName: (name) => (name === testEntityName ? customEntityDefinition : undefined),
+                },
+                repositoryFactory: {
+                    create(name) {
+                        if (name === 'custom_test_entity') {
+                            return customEntityRepository;
+                        }
 
-    return shallowMount(await Shopware.Component.build('sw-generic-custom-entity-detail'), {
-        provide: {
-            customEntityDefinitionService: {
-                getDefinitionByName: (name) => (name === testEntityName ? customEntityDefinition : undefined),
+                        throw new Error(`Repository for ${name} is not mocked`);
+                    },
+                },
             },
-            repositoryFactory: {
-                create(name) {
-                    if (name === 'custom_test_entity') {
-                        return customEntityRepository;
-                    }
-
-                    throw new Error(`Repository for ${name} is not mocked`);
+            mixins: [{ createNotificationError: jest.fn() }],
+            mocks: {
+                $route: {
+                    params: {
+                        entityName,
+                        id: routeId,
+                    },
+                    meta: {
+                        $module: {
+                            icon: null,
+                        },
+                    },
                 },
             },
         },
-        stubs: {
-            'sw-page': {
-                template: '<div class="sw-page"><slot name="search-bar"/><slot name="smart-bar-header" /><slot name="smart-bar-actions"/><slot name="language-switch" /><slot name="content"/></div>',
-            },
-            'sw-search-bar': {
-                template: '<div class="sw-search-bar"></div>',
-                props: [
-                    'initial-search-type',
-                    'initial-search',
-                ],
-            },
-            'sw-card-view': true,
-            'sw-card': true,
-            'sw-tabs': {
-                template: `<div class="sw-tabs"><slot></slot><slot name="content" active="${activeTab}"></slot></div>`,
-            },
-            'sw-tabs-item': true,
-            'sw-button-process': {
-                template: '<div class="sw-button-process" @click="$emit(`click`)"></div>',
-            },
-            'sw-button': {
-                template: '<button></button>',
-            },
-            'sw-language-switch': {
-                template: '<div class="sw-language-switch"></div>',
-            },
-            'sw-custom-entity-input-field': {
-                template: '<input/>',
-            },
-            'sw-generic-cms-page-assignment': {
-                template: '<div class="sw-generic-cms-page-assignment"></div>',
-                props: ['cms-page-id', 'slot-overrides'],
-            },
-            'sw-generic-seo-general-card': {
-                template: '<div class="sw-generic-seo-general-card"></div>',
-                props: ['seo-meta-title', 'seo-meta-description', 'seo-keywords', 'seo-url'],
-            },
-            'sw-generic-social-media-card': {
-                template: '<div class="sw-generic-social-media-card"></div>',
-                props: ['og-title', 'og-description', 'og-image-id'],
-            },
-        },
-        mixins: [{ createNotificationError: jest.fn() }],
     });
 }
 
-const numberOfElementsDataProvider = [{
-    activeTab: 'main',
-    cardCount: 2,
-    cards: [{
-        name: 'general',
-        fieldCount: 3,
-        fields: [{
-            ref: 'title',
-        }, {
-            ref: 'description',
-        }, {
-            ref: 'position',
-        }],
-    }, {
-        name: 'useless',
-        fieldCount: 2,
-        fields: [{
-            ref: 'description',
-        }, {
-            ref: 'position',
-        }],
-    }],
-}, {
-    activeTab: 'secondary',
-    cardCount: 1,
-    cards: [{
-        name: 'secondary-useless',
-        fieldCount: 1,
-        fields: [{
-            ref: 'position',
-        }],
-    }],
-}];
+const numberOfElementsDataProvider = [
+    {
+        activeTab: 'main',
+        cardCount: 2,
+        cards: [
+            {
+                name: 'general',
+                fieldCount: 3,
+                fields: [
+                    {
+                        ref: 'title',
+                    },
+                    {
+                        ref: 'description',
+                    },
+                    {
+                        ref: 'position',
+                    },
+                ],
+            },
+            {
+                name: 'useless',
+                fieldCount: 2,
+                fields: [
+                    {
+                        ref: 'description',
+                    },
+                    {
+                        ref: 'position',
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        activeTab: 'secondary',
+        cardCount: 1,
+        cards: [
+            {
+                name: 'secondary-useless',
+                fieldCount: 1,
+                fields: [
+                    {
+                        ref: 'position',
+                    },
+                ],
+            },
+        ],
+    },
+];
 
 /**
- * @package content
+ * @sw-package framework
  */
 describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
     it('should render the correct number of tabs, tab-items and activeTabs with correct labels', async () => {
@@ -236,8 +284,7 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
 
             // Check title and amount of children in each card
             data.cards.forEach((card, cardIndex) => {
-                expect(cardElements.at(cardIndex).attributes().title)
-                    .toBe(`custom_test_entity.cards.${card.name}`);
+                expect(wrapper.find(`[title="custom_test_entity.cards.${card.name}"]`).exists()).toBe(true);
 
                 const fieldElements = cardElements.at(cardIndex).findAll('.sw-generic-custom-entity-detail__field');
                 expect(fieldElements).toHaveLength(card.fieldCount);
@@ -262,7 +309,7 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         await wrapper.get('.sw-generic-custom-entity-detail__save-action').trigger('click');
         await flushPromises();
 
-        expect(config.mocks.$router.push).toHaveBeenCalledWith({
+        expect(wrapper.vm.$router.push).toHaveBeenCalledWith({
             name: 'sw.custom.entity.detail',
             params: {
                 id: testEntityCreateId,
@@ -292,11 +339,9 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         });
         await flushPromises();
 
-        const cmsAwareTab = wrapper.find('.sw-generic-custom-entity-detail__tab-cms-aware');
-        expect(cmsAwareTab.props()).toStrictEqual({
-            cmsPageId: testEntityData.swCmsPageId,
-            slotOverrides: testEntityData.swSlotConfig,
-        });
+        const cmsAwareTab = wrapper.getComponent('.sw-generic-custom-entity-detail__tab-cms-aware');
+        expect(cmsAwareTab.props('cmsPageId')).toBe(testEntityData.swCmsPageId);
+        expect(cmsAwareTab.props('slotOverrides')).toStrictEqual(testEntityData.swSlotConfig);
 
         const mockCMSPageId = 'mockCMSPageId';
         const mockSlotOverrides = 'mockSlotOverride';
@@ -305,10 +350,8 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         cmsAwareTab.vm.$emit('update:slot-overrides', mockSlotOverrides);
         await flushPromises();
 
-        expect(cmsAwareTab.props()).toStrictEqual({
-            cmsPageId: mockCMSPageId,
-            slotOverrides: mockSlotOverrides,
-        });
+        expect(cmsAwareTab.props('cmsPageId')).toBe(mockCMSPageId);
+        expect(cmsAwareTab.props('slotOverrides')).toStrictEqual(mockSlotOverrides);
 
         expect(wrapper.vm.customEntityData).toStrictEqual({
             ...testEntityData,
@@ -324,7 +367,7 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         });
         await flushPromises();
 
-        const cmsAwareTab = wrapper.find('.sw-generic-custom-entity-detail__tab-cms-aware');
+        const cmsAwareTab = wrapper.getComponent('.sw-generic-custom-entity-detail__tab-cms-aware');
         cmsAwareTab.vm.$emit('create-layout');
         await flushPromises();
 
@@ -344,14 +387,12 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         });
         await flushPromises();
 
-        const seoGeneralCard = wrapper.get('.sw-generic-seo-general-card');
+        const seoGeneralCard = wrapper.getComponent('.sw-generic-seo-general-card');
 
-        expect(seoGeneralCard.props()).toStrictEqual({
-            seoKeywords: undefined,
-            seoMetaDescription: testEntityData.swSeoMetaDescription,
-            seoMetaTitle: testEntityData.swSeoMetaTitle,
-            seoUrl: testEntityData.swSeoUrl,
-        });
+        expect(seoGeneralCard.props('seoKeywords')).toBeUndefined();
+        expect(seoGeneralCard.props('seoMetaDescription')).toBe(testEntityData.swSeoMetaDescription);
+        expect(seoGeneralCard.props('seoMetaTitle')).toBe(testEntityData.swSeoMetaTitle);
+        expect(seoGeneralCard.props('seoUrl')).toBe(testEntityData.swSeoUrl);
 
         const mockSEOTitle = 'MOCK-SEO-TITLE';
         const mockSEOMetaDescription = 'MOCK-SEO-META-DESCRIPTION';
@@ -362,12 +403,10 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         seoGeneralCard.vm.$emit('update:seo-url', mockSEOUrl);
         await flushPromises();
 
-        expect(seoGeneralCard.props()).toStrictEqual({
-            seoKeywords: undefined,
-            seoMetaDescription: mockSEOMetaDescription,
-            seoMetaTitle: mockSEOTitle,
-            seoUrl: mockSEOUrl,
-        });
+        expect(seoGeneralCard.props('seoKeywords')).toBeUndefined();
+        expect(seoGeneralCard.props('seoMetaDescription')).toBe(mockSEOMetaDescription);
+        expect(seoGeneralCard.props('seoMetaTitle')).toBe(mockSEOTitle);
+        expect(seoGeneralCard.props('seoUrl')).toBe(mockSEOUrl);
 
         expect(wrapper.vm.customEntityData).toStrictEqual({
             ...testEntityData,
@@ -384,13 +423,11 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         });
         await flushPromises();
 
-        const seoSocialMediaCard = wrapper.get('.sw-generic-social-media-card');
+        const seoSocialMediaCard = wrapper.getComponent('.sw-generic-social-media-card');
 
-        expect(seoSocialMediaCard.props()).toStrictEqual({
-            ogTitle: testEntityData.swOgTitle,
-            ogDescription: testEntityData.swOgDescription,
-            ogImageId: testEntityData.swOgImageId,
-        });
+        expect(seoSocialMediaCard.props('ogTitle')).toBe(testEntityData.swOgTitle);
+        expect(seoSocialMediaCard.props('ogDescription')).toBe(testEntityData.swOgDescription);
+        expect(seoSocialMediaCard.props('ogImageId')).toBe(testEntityData.swOgImageId);
 
         const mockOgTitle = 'MOCK-OG-TITLE';
         const mockOgDescription = 'MOCK-OG-META-DESCRIPTION';
@@ -401,11 +438,9 @@ describe('module/sw-custom-entity/page/sw-generic-custom-entity-detail', () => {
         seoSocialMediaCard.vm.$emit('update:og-image-id', mockOgImageId);
         await flushPromises();
 
-        expect(seoSocialMediaCard.props()).toStrictEqual({
-            ogTitle: mockOgTitle,
-            ogDescription: mockOgDescription,
-            ogImageId: mockOgImageId,
-        });
+        expect(seoSocialMediaCard.props('ogTitle')).toBe(mockOgTitle);
+        expect(seoSocialMediaCard.props('ogDescription')).toBe(mockOgDescription);
+        expect(seoSocialMediaCard.props('ogImageId')).toBe(mockOgImageId);
 
         expect(wrapper.vm.customEntityData).toStrictEqual({
             ...testEntityData,

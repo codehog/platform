@@ -2,6 +2,7 @@
 
 namespace Shopware\Core\Checkout\Order\SalesChannel;
 
+use Shopware\Core\Checkout\Order\OrderCollection;
 use Shopware\Core\Checkout\Order\OrderException;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -12,14 +13,16 @@ use Shopware\Core\Framework\Routing\RoutingException;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(defaults: ['_routeScope' => ['store-api']])]
-#[Package('customer-order')]
+#[Package('checkout')]
 class CancelOrderRoute extends AbstractCancelOrderRoute
 {
     /**
      * @internal
+     *
+     * @param EntityRepository<OrderCollection> $orderRepository
      */
     public function __construct(
         private readonly OrderService $orderService,
@@ -55,14 +58,15 @@ class CancelOrderRoute extends AbstractCancelOrderRoute
 
     private function verify(string $orderId, SalesChannelContext $context): void
     {
-        if ($context->getCustomer() === null) {
+        if (!$context->getCustomer()) {
             throw OrderException::customerNotLoggedIn();
         }
 
-        $criteria = new Criteria([$orderId]);
-        $criteria->addFilter(new EqualsFilter('orderCustomer.customerId', $context->getCustomer()->getId()));
+        $criteria = (new Criteria([$orderId]))
+            ->addFilter(new EqualsFilter('orderCustomer.customerId', $context->getCustomerId()));
 
-        if ($this->orderRepository->searchIds($criteria, $context->getContext())->firstId() === null) {
+        $total = $this->orderRepository->searchIds($criteria, $context->getContext())->getTotal();
+        if ($total === 0) {
             throw OrderException::orderNotFound($orderId);
         }
     }

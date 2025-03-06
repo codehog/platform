@@ -9,6 +9,7 @@ use PHPStan\Analyser\Scope;
 use PHPStan\Node\InClassNode;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleError;
+use PHPStan\Rules\RuleErrorBuilder;
 use Shopware\Core\Framework\Event\FlowEventAware;
 use Shopware\Core\Framework\Log\Package;
 
@@ -17,7 +18,7 @@ use Shopware\Core\Framework\Log\Package;
  *
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class NoFlowEventAwareExtendsRule implements Rule
 {
     public function getNodeType(): string
@@ -42,18 +43,13 @@ class NoFlowEventAwareExtendsRule implements Rule
             return [];
         }
 
-        $text = $node->getDocComment()?->getText() ?? '';
-
-        if (\str_contains($text, '@deprecated tag:v6.6.0 - Will be removed')) {
-            return [];
-        }
-
-        if (\str_contains($text, '@deprecated tag:v6.6.0 - reason:class-hierarchy-change')) {
-            return [];
-        }
-
         return [
-            \sprintf('Class %s should not extend FlowEventAware. Flow events should not be derived from each other to make them easier to test', $reflection->getName()),
+            RuleErrorBuilder::message(\sprintf(
+                'Class %s should not extend FlowEventAware. Flow events should not be derived from each other to make them easier to test',
+                $reflection->getName()
+            ))
+                ->identifier('shopware.flowEventAwareExtend')
+                ->build(),
         ];
     }
 }

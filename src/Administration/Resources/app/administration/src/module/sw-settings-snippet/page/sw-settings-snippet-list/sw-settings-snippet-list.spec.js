@@ -1,15 +1,8 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@discovery
  */
-import { shallowMount, createLocalVue } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/module/sw-settings/mixin/sw-settings-list.mixin';
-import swSettingsSnippetList from 'src/module/sw-settings-snippet/page/sw-settings-snippet-list';
-import 'src/app/component/data-grid/sw-data-grid';
-import 'src/app/component/context-menu/sw-context-button';
-import 'src/app/component/context-menu/sw-context-menu-item';
-import 'src/app/component/context-menu/sw-context-menu';
-
-Shopware.Component.register('sw-settings-snippet-list', swSettingsSnippetList);
 
 function getSnippets() {
     const data = {
@@ -60,83 +53,97 @@ function getSnippetSets() {
 
 describe('module/sw-settings-snippet/page/sw-settings-snippet-list', () => {
     async function createWrapper(privileges = []) {
-        const localVue = createLocalVue();
-        localVue.directive('tooltip', {});
+        return mount(
+            await wrapTestComponent('sw-settings-snippet-list', {
+                sync: true,
+            }),
+            {
+                global: {
+                    renderStubDefaultSlot: true,
+                    provide: {
+                        repositoryFactory: {
+                            create: () => ({
+                                search: () => Promise.resolve(getSnippetSets()),
+                            }),
+                        },
+                        acl: {
+                            can: (identifier) => {
+                                if (!identifier) {
+                                    return true;
+                                }
 
-        return shallowMount(await Shopware.Component.build('sw-settings-snippet-list'), {
-            localVue,
-            provide: {
-                repositoryFactory: {
-                    create: () => ({
-                        search: () => Promise.resolve(getSnippetSets()),
-                    }),
-                },
-                acl: {
-                    can: (identifier) => {
-                        if (!identifier) {
-                            return true;
-                        }
-
-                        return privileges.includes(identifier);
-                    },
-                },
-                userService: {
-                    getUser: () => Promise.resolve({ data: { username: 'admin' } }),
-                },
-                snippetSetService: {
-                    getAuthors: () => {
-                        return Promise.resolve({ data: [] });
-                    },
-                    getCustomList: () => {
-                        return Promise.resolve(getSnippets());
-                    },
-                },
-                snippetService: {
-                    save: () => Promise.resolve(),
-                    delete: () => Promise.resolve(),
-                    getFilter: () => Promise.resolve({ data: [] }),
-                },
-                searchRankingService: {},
-                userConfigService: {
-                    search: () => ({ data: [] }),
-                    upsert: () => null,
-                },
-            },
-            mocks: {
-                $route: {
-                    meta: {
-                        $module: {
-                            icon: 'test',
+                                return privileges.includes(identifier);
+                            },
+                        },
+                        userService: {
+                            getUser: () =>
+                                Promise.resolve({
+                                    data: { username: 'admin' },
+                                }),
+                        },
+                        snippetSetService: {
+                            getAuthors: () => {
+                                return Promise.resolve({ data: [] });
+                            },
+                            getCustomList: () => {
+                                return Promise.resolve(getSnippets());
+                            },
+                        },
+                        snippetService: {
+                            save: () => Promise.resolve(),
+                            delete: () => Promise.resolve(),
+                            getFilter: () => Promise.resolve({ data: [] }),
+                        },
+                        searchRankingService: {},
+                        userConfigService: {
+                            search: () => ({ data: [] }),
+                            upsert: () => null,
                         },
                     },
-                    query: {
-                        ids: 'a2f95068665e4498ae98a2318a7963df',
+                    mocks: {
+                        $route: {
+                            meta: {
+                                $module: {
+                                    icon: 'test',
+                                },
+                            },
+                            query: {
+                                ids: 'a2f95068665e4498ae98a2318a7963df',
+                            },
+                        },
                     },
-                },
-            },
-            stubs: {
-                'sw-page': {
-                    template: `
+                    stubs: {
+                        'sw-page': {
+                            template: `
                     <div class="sw-page">
                         <div class="smart-bar__actions">
                             <slot name="smart-bar-actions"></slot>
                         </div>
                         <slot name="content"></slot>
                     </div>`,
+                        },
+                        'sw-data-grid': await wrapTestComponent('sw-data-grid'),
+                        'sw-pagination': true,
+                        'sw-data-grid-skeleton': true,
+                        'sw-context-menu-item': await wrapTestComponent('sw-context-menu-item'),
+                        'sw-context-menu': await wrapTestComponent('sw-context-menu'),
+                        'sw-context-button': await wrapTestComponent('sw-context-button'),
+                        'sw-data-grid-settings': true,
+                        'router-link': true,
+                        'sw-popover': true,
+                        'sw-search-bar': true,
+                        'sw-text-field': true,
+                        'sw-grid-column': true,
+                        'sw-grid': true,
+                        'sw-settings-snippet-sidebar': true,
+                        'sw-checkbox-field': true,
+                        'sw-data-grid-column-boolean': true,
+                        'sw-data-grid-inline-edit': true,
+                        'sw-provide': true,
+                    },
                 },
-                'sw-data-grid': await Shopware.Component.build('sw-data-grid'),
-                'sw-pagination': true,
-                'sw-data-grid-skeleton': true,
-                'sw-icon': true,
-                'sw-context-menu-item': await Shopware.Component.build('sw-context-menu-item'),
-                'sw-context-menu': await Shopware.Component.build('sw-context-menu'),
-                'sw-context-button': await Shopware.Component.build('sw-context-button'),
-                'sw-data-grid-settings': true,
-                'router-link': true,
-                'sw-popover': true,
-                'sw-button': true,
             },
-        });
+        );
     }
 
     it('should be a Vue.js component', async () => {
@@ -146,20 +153,32 @@ describe('module/sw-settings-snippet/page/sw-settings-snippet-list', () => {
     });
 
     it.each([
-        [true, 'snippet.viewer'],
-        [true, 'snippet.viewer, snippet.editor'],
-        [true, 'snippet.viewer, snippet.editor, snippet.creator'],
-        [false, 'snippet.viewer, snippet.editor, snippet.deleter'],
+        [
+            true,
+            'snippet.viewer',
+        ],
+        [
+            true,
+            'snippet.viewer, snippet.editor',
+        ],
+        [
+            true,
+            'snippet.viewer, snippet.editor, snippet.creator',
+        ],
+        [
+            false,
+            'snippet.viewer, snippet.editor, snippet.deleter',
+        ],
     ])('should have a reset button with an disabled state of %p with the roles: %s', async (state, role) => {
         const roles = role.split(', ');
         const wrapper = await createWrapper(roles);
 
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const contextMenuButton = wrapper.find('.sw-data-grid__row--0 .sw-context-button__button');
         await contextMenuButton.trigger('click');
 
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const resetButton = wrapper.find('.sw-settings-snippet-list__delete-action');
 
@@ -174,10 +193,22 @@ describe('module/sw-settings-snippet/page/sw-settings-snippet-list', () => {
     });
 
     it.each([
-        ['true', 'snippet.viewer'],
-        ['true', 'snippet.viewer, snippet.editor'],
-        [undefined, 'snippet.viewer, snippet.editor, snippet.creator'],
-        ['true', 'snippet.viewer, snippet.editor, snippet.deleter'],
+        [
+            true,
+            'snippet.viewer',
+        ],
+        [
+            true,
+            'snippet.viewer, snippet.editor',
+        ],
+        [
+            false,
+            'snippet.viewer, snippet.editor, snippet.creator',
+        ],
+        [
+            true,
+            'snippet.viewer, snippet.editor, snippet.deleter',
+        ],
     ])('should have a disabled state of %p on the new snippet button when using role: %s', async (state, role) => {
         const roles = role.split(', ');
 
@@ -186,8 +217,8 @@ describe('module/sw-settings-snippet/page/sw-settings-snippet-list', () => {
 
         await wrapper.vm.$nextTick();
 
-        const createSnippetButton = wrapper.find('.smart-bar__actions sw-button-stub');
+        const createSnippetButton = wrapper.findByText('button', 'sw-settings-snippet.list.buttonAdd');
 
-        expect(createSnippetButton.attributes('disabled')).toBe(state);
+        expect(createSnippetButton.attributes('disabled') !== undefined).toBe(state);
     });
 });

@@ -2,6 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
@@ -9,19 +12,21 @@ use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
 use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
 use Shopware\Core\Checkout\Cart\Rule\LineItemActualStockRule;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
+use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\Framework\Rule\Rule;
+use Shopware\Core\Framework\Rule\RuleScope;
+use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
 
 /**
- * @covers \Shopware\Core\Checkout\Cart\Rule\LineItemActualStockRule
- *
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(LineItemActualStockRule::class)]
+#[Group('rules')]
 class LineItemActualStockRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -46,9 +51,7 @@ class LineItemActualStockRuleTest extends TestCase
         static::assertArrayHasKey('operator', $ruleConstraints, 'Rule Constraint operator is not defined');
     }
 
-    /**
-     * @dataProvider getMatchingRuleTestData
-     */
+    #[DataProvider('getMatchingRuleTestData')]
     public function testIfMatchesCorrectWithLineItem(
         string $operator,
         int $stock,
@@ -94,9 +97,7 @@ class LineItemActualStockRuleTest extends TestCase
         yield 'no match / operator lower than equals / higher stock' => [Rule::OPERATOR_LTE, 100, 200, false];
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScope(
         string $operator,
         int $stock,
@@ -123,9 +124,7 @@ class LineItemActualStockRuleTest extends TestCase
         static::assertSame($expected, $match);
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScopeNested(
         string $operator,
         int $stock,
@@ -187,12 +186,64 @@ class LineItemActualStockRuleTest extends TestCase
     {
         $this->rule->assign(['stock' => 100, 'operator' => Rule::OPERATOR_EQ]);
 
-        $match = $this->rule->match(new LineItemScope(
+        $scope = new LineItemScope(
             $this->createLineItem(),
             $this->createMock(SalesChannelContext::class)
-        ));
+        );
 
-        static::assertFalse($match);
+        static::assertFalse($this->rule->match($scope));
+    }
+
+    public function testMatchWithWrongScopeShouldReturnFalse(): void
+    {
+        $goodsCountRule = new LineItemActualStockRule();
+        $wrongScope = $this->createMock(RuleScope::class);
+
+        static::assertFalse($goodsCountRule->match($wrongScope));
+    }
+
+    public function testMatchWithoutStockExpectException(): void
+    {
+        $goodsCountRule = new LineItemActualStockRule();
+        $scope = new LineItemScope(
+            $this->createLineItem(),
+            $this->createMock(SalesChannelContext::class)
+        );
+
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CartException::class);
+        }
+        $this->expectExceptionMessage('Unsupported value of type NULL in Shopware\Core\Checkout\Cart\Rule\LineItemActualStockRule');
+
+        $goodsCountRule->match($scope);
+    }
+
+    public function testGetConfig(): void
+    {
+        $cartVolumeRule = new LineItemActualStockRule();
+
+        $result = $cartVolumeRule->getConfig()->getData();
+
+        static::assertIsArray($result['operatorSet']['operators']);
+        static::assertSame('stock', $result['fields']['stock']['name']);
+    }
+
+    public function testMatchThrowsException(): void
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CartException::class);
+        }
+
+        (new LineItemActualStockRule())->match(
+            new LineItemScope(
+                new LineItem(Uuid::randomHex(), 'product'),
+                $this->createMock(SalesChannelContext::class)
+            )
+        );
     }
 
     private function createLineItemWithStock(int $stock): LineItem

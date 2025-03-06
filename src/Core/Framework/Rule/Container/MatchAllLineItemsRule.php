@@ -2,14 +2,19 @@
 
 namespace Shopware\Core\Framework\Rule\Container;
 
+use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
 use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\RuleScope;
 use Symfony\Component\Validator\Constraints\Type;
 
-#[Package('business-ops
-MatchAllLineItemsRule returns true, if all rules are true for all line items')]
+/**
+ * @final
+ *
+ * MatchAllLineItemsRule returns true, if all rules are true for all line items
+ */
+#[Package('fundamentals@after-sales')]
 class MatchAllLineItemsRule extends Container
 {
     final public const RULE_NAME = 'allLineItemsContainer';
@@ -27,11 +32,11 @@ class MatchAllLineItemsRule extends Container
 
     public function match(RuleScope $scope): bool
     {
-        if (!$scope instanceof CartRuleScope) {
+        if (!$scope instanceof CartRuleScope && !$scope instanceof LineItemScope) {
             return false;
         }
 
-        $lineItems = $scope->getCart()->getLineItems();
+        $lineItems = $scope instanceof LineItemScope ? new LineItemCollection([$scope->getLineItem()]) : $scope->getCart()->getLineItems();
 
         if ($this->type !== null) {
             $lineItems = $lineItems->filterFlatByType($this->type);

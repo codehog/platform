@@ -12,21 +12,18 @@ use Shopware\Core\System\CustomEntity\Xml\Config\ConfigXmlElement;
  *
  * @internal
  */
-#[Package('content')]
+#[Package('framework')]
 final class Detail extends ConfigXmlElement
 {
-    private function __construct(
-        protected readonly Tabs $tabs
-    ) {
-    }
-
-    public static function fromXml(\DOMElement $element): self
-    {
-        return new self(Tabs::fromXml($element));
-    }
+    protected Tabs $tabs;
 
     public function getTabs(): Tabs
     {
         return $this->tabs;
+    }
+
+    protected static function parse(\DOMElement $element): array
+    {
+        return ['tabs' => Tabs::fromXml($element)];
     }
 }

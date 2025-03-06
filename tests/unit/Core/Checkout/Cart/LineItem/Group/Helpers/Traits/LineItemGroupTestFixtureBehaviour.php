@@ -7,6 +7,9 @@ use Shopware\Core\Content\Rule\RuleCollection;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
+/**
+ * @internal
+ */
 #[Package('checkout')]
 trait LineItemGroupTestFixtureBehaviour
 {

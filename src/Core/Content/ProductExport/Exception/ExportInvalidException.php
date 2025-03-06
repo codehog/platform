@@ -8,13 +8,13 @@ use Shopware\Core\Content\ProductExport\ProductExportEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\ShopwareHttpException;
 
-#[Package('sales-channel')]
+#[Package('inventory')]
 class ExportInvalidException extends ShopwareHttpException
 {
     /**
      * @var ErrorMessage[]
      */
-    protected $errorMessages;
+    protected array $errorMessages;
 
     /**
      * @param Error[] $errors
@@ -33,7 +33,7 @@ class ExportInvalidException extends ShopwareHttpException
         $this->errorMessages = $errorMessages;
 
         parent::__construct(
-            sprintf(
+            \sprintf(
                 'Export file generation for product export %s (%s) resulted in validation errors',
                 $productExportEntity->getId(),
                 $productExportEntity->getFileName()
@@ -47,6 +47,9 @@ class ExportInvalidException extends ShopwareHttpException
         return 'CONTENT__PRODUCT_EXPORT_INVALID_CONTENT';
     }
 
+    /**
+     * @return ErrorMessage[]
+     */
     public function getErrorMessages(): array
     {
         return $this->errorMessages;

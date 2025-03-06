@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Integration\Core\Framework\App;
 
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\AppStateService;
 use Shopware\Core\Framework\App\Event\AppActivatedEvent;
@@ -10,7 +11,9 @@ use Shopware\Core\Framework\App\Event\AppDeactivatedEvent;
 use Shopware\Core\Framework\App\Event\Hooks\AppActivatedHook;
 use Shopware\Core\Framework\App\Event\Hooks\AppDeactivatedHook;
 use Shopware\Core\Framework\App\Exception\AppNotFoundException;
+use Shopware\Core\Framework\App\Lifecycle\AbstractAppLifecycle;
 use Shopware\Core\Framework\App\Lifecycle\AppLifecycle;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppInstallParameters;
 use Shopware\Core\Framework\App\Manifest\Manifest;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -19,6 +22,7 @@ use Shopware\Core\Framework\Script\Debugging\ScriptTraces;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\Constraint\ArrayOfUuid;
+use Shopware\Core\Test\AppSystemTestBehaviour;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -31,41 +35,44 @@ class AppStateServiceTest extends TestCase
     use AppSystemTestBehaviour;
     use IntegrationTestBehaviour;
 
+    /**
+     * @var EntityRepository<AppCollection>
+     */
     private EntityRepository $appRepository;
 
     private AppStateService $appStateService;
 
     private EventDispatcherInterface $eventDispatcher;
 
-    private AppLifecycle $appLifecycle;
+    private AbstractAppLifecycle $appLifecycle;
 
     private Context $context;
 
     protected function setUp(): void
     {
-        $this->appRepository = $this->getContainer()->get('app.repository');
-        $this->appStateService = $this->getContainer()->get(AppStateService::class);
-        $this->eventDispatcher = $this->getContainer()->get('event_dispatcher');
-        $this->appLifecycle = $this->getContainer()->get(AppLifecycle::class);
+        $this->appRepository = static::getContainer()->get('app.repository');
+        $this->appStateService = static::getContainer()->get(AppStateService::class);
+        $this->eventDispatcher = static::getContainer()->get('event_dispatcher');
+        $this->appLifecycle = static::getContainer()->get(AppLifecycle::class);
         $this->context = Context::createDefaultContext();
     }
 
     public function testNotFoundAppThrowsOnActivate(): void
     {
-        static::expectException(AppNotFoundException::class);
+        $this->expectException(AppNotFoundException::class);
         $this->appStateService->activateApp(Uuid::randomHex(), Context::createDefaultContext());
     }
 
     public function testNotFoundAppThrowsOnDeactivate(): void
     {
-        static::expectException(AppNotFoundException::class);
+        $this->expectException(AppNotFoundException::class);
         $this->appStateService->deactivateApp(Uuid::randomHex(), Context::createDefaultContext());
     }
 
     public function testActivate(): void
     {
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/Manifest/_fixtures/test/manifest.xml');
-        $this->appLifecycle->install($manifest, false, $this->context);
+        $this->appLifecycle->install($manifest, new AppInstallParameters(activate: false), $this->context);
         $appId = $this->appRepository->searchIds(new Criteria(), $this->context)->firstId();
         static::assertNotNull($appId);
         $this->assertAppState($appId, false);
@@ -78,9 +85,9 @@ class AppStateServiceTest extends TestCase
         $this->eventDispatcher->addListener(AppActivatedEvent::class, $onAppInstalled);
         $this->appStateService->activateApp($appId, $this->context);
 
-        $traces = $this->getContainer()->get(ScriptTraces::class)->getTraces();
+        $traces = static::getContainer()->get(ScriptTraces::class)->getTraces();
         static::assertArrayHasKey(AppActivatedHook::HOOK_NAME, $traces);
-        static::assertEquals('activated', $traces[AppActivatedHook::HOOK_NAME][0]['output'][0]);
+        static::assertSame('activated', $traces[AppActivatedHook::HOOK_NAME][0]['output'][0]);
 
         static::assertTrue($eventWasReceived);
         $this->eventDispatcher->removeListener(AppActivatedEvent::class, $onAppInstalled);
@@ -91,7 +98,7 @@ class AppStateServiceTest extends TestCase
     public function testDeactivate(): void
     {
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/Manifest/_fixtures/test/manifest.xml');
-        $this->appLifecycle->install($manifest, true, $this->context);
+        $this->appLifecycle->install($manifest, new AppInstallParameters(), $this->context);
         $appId = $this->appRepository->searchIds(new Criteria(), $this->context)->firstId();
         static::assertNotNull($appId);
         $this->assertAppState($appId, true);
@@ -104,9 +111,9 @@ class AppStateServiceTest extends TestCase
         $this->eventDispatcher->addListener(AppDeactivatedEvent::class, $onAppInstalled);
         $this->appStateService->deactivateApp($appId, $this->context);
 
-        $traces = $this->getContainer()->get(ScriptTraces::class)->getTraces();
+        $traces = static::getContainer()->get(ScriptTraces::class)->getTraces();
         static::assertArrayHasKey(AppDeactivatedHook::HOOK_NAME, $traces);
-        static::assertEquals('deactivated', $traces[AppDeactivatedHook::HOOK_NAME][0]['output'][0]);
+        static::assertSame('deactivated', $traces[AppDeactivatedHook::HOOK_NAME][0]['output'][0]);
 
         static::assertTrue($eventWasReceived);
         $this->eventDispatcher->removeListener(AppDeactivatedEvent::class, $onAppInstalled);
@@ -117,7 +124,7 @@ class AppStateServiceTest extends TestCase
     public function testDeactivateThrowsIfDeactivationIsNotAllowed(): void
     {
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/Manifest/_fixtures/test/manifest.xml');
-        $this->appLifecycle->install($manifest, true, $this->context);
+        $this->appLifecycle->install($manifest, new AppInstallParameters(), $this->context);
         $appId = $this->appRepository->searchIds(new Criteria(), $this->context)->firstId();
         static::assertNotNull($appId);
         $this->assertAppState($appId, true);
@@ -128,7 +135,7 @@ class AppStateServiceTest extends TestCase
             ],
         ], $this->context);
 
-        static::expectException(\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $this->appStateService->deactivateApp($appId, $this->context);
     }
 
@@ -142,8 +149,7 @@ class AppStateServiceTest extends TestCase
         $criteria->addAssociation('scripts');
         $criteria->addAssociation('scriptConditions');
 
-        /** @var AppEntity|null $app */
-        $app = $this->appRepository->search($criteria, $this->context)->first();
+        $app = $this->appRepository->search($criteria, $this->context)->getEntities()->first();
         static::assertNotNull($app);
         static::assertSame($active, $app->isActive());
         $this->assertDefaultTemplate($app);
@@ -187,9 +193,11 @@ class AppStateServiceTest extends TestCase
         $scriptCondition = $app->getScriptConditions()->first();
         static::assertNotNull($scriptCondition);
         static::assertSame($app->isActive(), $scriptCondition->isActive());
-        static::assertEquals(
-            file_get_contents(__DIR__ . '/Manifest/_fixtures/test/Resources/scripts/rule-conditions/customer-group-rule-script.twig'),
-            $scriptCondition->getScript()
+        $script = $scriptCondition->getScript();
+        static::assertIsString($script);
+        static::assertStringEqualsFile(
+            __DIR__ . '/Manifest/_fixtures/test/Resources/scripts/rule-conditions/customer-group-rule-script.twig',
+            $script
         );
         static::assertIsArray($scriptCondition->getConstraints());
         static::assertArrayHasKey('operator', $scriptCondition->getConstraints());
@@ -198,6 +206,6 @@ class AppStateServiceTest extends TestCase
         static::assertInstanceOf(NotBlank::class, $scriptCondition->getConstraints()['customerGroupIds'][0]);
         static::assertInstanceOf(Choice::class, $scriptCondition->getConstraints()['operator'][1]);
         static::assertInstanceOf(ArrayOfUuid::class, $scriptCondition->getConstraints()['customerGroupIds'][1]);
-        static::assertEquals(['=', '!='], $scriptCondition->getConstraints()['operator'][1]->choices);
+        static::assertSame(['=', '!='], $scriptCondition->getConstraints()['operator'][1]->choices);
     }
 }

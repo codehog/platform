@@ -2,24 +2,29 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Adapter\Twig\TokenParser;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Adapter\Twig\TokenParser\FeatureFlagCallTokenParser;
 use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Test\TestCaseBase\EnvTestBehaviour;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Adapter\Twig\TokenParser\FeatureFlagCallTokenParser
  */
+#[CoversClass(FeatureFlagCallTokenParser::class)]
 class FeatureFlagCallTokenParserTest extends TestCase
 {
-    /**
-     * @dataProvider providerCode
-     */
+    use EnvTestBehaviour;
+
+    #[DataProvider('providerCode')]
     public function testCodeRun(string $twigCode, bool $shouldThrow): void
     {
+        // deprecation warning wouldn't be rendered otherwise
+        $this->setEnvVars(['TESTS_RUNNING' => false]);
+
         $_SERVER['TEST_TWIG'] = false;
 
         $deprecationMessage = null;
@@ -58,6 +63,11 @@ class FeatureFlagCallTokenParserTest extends TestCase
 
         yield 'triggers deprecation' => [
             '{% do foo.call %}',
+            true,
+        ];
+
+        yield 'test injection' => [
+            '{% sw_silent_feature_call "aaa\' . system(\'id\') . \'bbb" %}{% do foo.call %}{% endsw_silent_feature_call %}',
             true,
         ];
     }

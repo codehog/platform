@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import './sw-single-select.scss';
@@ -9,28 +9,31 @@ const { Component, Mixin } = Shopware;
 const { debounce, get } = Shopware.Utils;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-single-select', {
     template,
 
     inject: ['feature'],
 
+    emits: [
+        'update:value',
+        'item-selected',
+        'on-open-change',
+        'before-selection-clear',
+        'search',
+        'paginate',
+    ],
+
     mixins: [
         Mixin.getByName('remove-api-error'),
     ],
-
-    model: {
-        prop: 'value',
-        event: 'change',
-    },
 
     props: {
         options: {
             required: true,
             type: Array,
         },
-        // FIXME: add property type
         // eslint-disable-next-line vue/require-prop-types
         value: {
             required: true,
@@ -43,7 +46,6 @@ Component.register('sw-single-select', {
         highlightSearchTerm: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -77,7 +79,7 @@ Component.register('sw-single-select', {
             type: Function,
             required: false,
             default({ options, labelProperty, searchTerm }) {
-                return options.filter(option => {
+                return options.filter((option) => {
                     const label = this.getKey(option, labelProperty);
                     if (!label) {
                         return false;
@@ -91,6 +93,12 @@ Component.register('sw-single-select', {
             type: Boolean,
             required: false,
             default: false,
+        },
+
+        label: {
+            type: String,
+            required: false,
+            default: undefined,
         },
     },
 
@@ -110,13 +118,7 @@ Component.register('sw-single-select', {
                 return this.value;
             },
             set(newValue) {
-                if (this.feature.isActive('VUE3')) {
-                    this.$emit('update:value', newValue);
-
-                    return;
-                }
-
-                this.$emit('change', newValue);
+                this.$emit('update:value', newValue);
             },
         },
 
@@ -134,7 +136,7 @@ Component.register('sw-single-select', {
 
         singleSelection: {
             get() {
-                return this.options.find(option => {
+                return this.options.find((option) => {
                     return this.getKey(option, this.valueProperty) === this.currentValue;
                 });
             },
@@ -148,7 +150,7 @@ Component.register('sw-single-select', {
          * @returns {Array}
          */
         visibleResults() {
-            return this.results.filter(result => !result.hidden);
+            return this.results.filter((result) => !result.hidden);
         },
     },
 
@@ -229,14 +231,12 @@ Component.register('sw-single-select', {
                 return;
             }
 
-            this.results = this.searchFunction(
-                {
-                    options: this.options,
-                    labelProperty: this.labelProperty,
-                    valueProperty: this.valueProperty,
-                    searchTerm: this.searchTerm,
-                },
-            );
+            this.results = this.searchFunction({
+                options: this.options,
+                labelProperty: this.labelProperty,
+                valueProperty: this.valueProperty,
+                searchTerm: this.searchTerm,
+            });
 
             this.$nextTick(() => {
                 this.resetActiveItem();

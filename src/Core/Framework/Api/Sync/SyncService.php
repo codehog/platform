@@ -2,17 +2,15 @@
 
 namespace Shopware\Core\Framework\Api\Sync;
 
-use Doctrine\DBAL\ConnectionException;
 use Shopware\Core\Framework\Adapter\Database\ReplicaConnection;
 use Shopware\Core\Framework\Api\ApiException;
-use Shopware\Core\Framework\Api\Exception\InvalidSyncOperationException;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityWriteResult;
 use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenContainerEvent;
 use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenEvent;
+use Shopware\Core\Framework\DataAbstractionLayer\Field\IdField;
 use Shopware\Core\Framework\DataAbstractionLayer\Indexing\EntityIndexerRegistry;
-use Shopware\Core\Framework\DataAbstractionLayer\MappingEntityDefinition;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\EntitySearcherInterface;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\RequestCriteriaBuilder;
@@ -22,7 +20,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\ArrayEntity;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class SyncService implements SyncServiceInterface
 {
     /**
@@ -38,12 +36,6 @@ class SyncService implements SyncServiceInterface
     ) {
     }
 
-    /**
-     * @param SyncOperation[] $operations
-     *
-     * @throws ConnectionException
-     * @throws InvalidSyncOperationException
-     */
     public function sync(array $operations, Context $context, SyncBehavior $behavior): SyncResult
     {
         ReplicaConnection::ensurePrimary();
@@ -129,7 +121,7 @@ class SyncService implements SyncServiceInterface
     /**
      * Function to loop through all operations and provide some special handling for wildcard operations, or other short hands
      *
-     * @param SyncOperation[] $operations
+     * @param list<SyncOperation> $operations
      */
     private function loopOperations(array $operations, Context $context): void
     {
@@ -141,7 +133,7 @@ class SyncService implements SyncServiceInterface
             }
 
             if ($operation->getAction() === SyncOperation::ACTION_UPSERT) {
-                $resolved = $this->syncFkResolver->resolve($operation->getEntity(), $operation->getPayload());
+                $resolved = $this->syncFkResolver->resolve($operation->getKey(), $operation->getEntity(), $operation->getPayload());
 
                 $operation->replacePayload($resolved);
             }
@@ -152,11 +144,10 @@ class SyncService implements SyncServiceInterface
     {
         $definition = $this->registry->getByEntityName($operation->getEntity());
 
-        if (!$definition instanceof MappingEntityDefinition) {
-            throw ApiException::invalidSyncCriteriaException($operation->getKey());
-        }
+        $filters = $this->criteriaBuilder->fromArray(['filter' => $operation->getCriteria()], new Criteria(), $definition, $context);
 
-        $criteria = $this->criteriaBuilder->fromArray(['filter' => $operation->getCriteria()], new Criteria(), $definition, $context);
+        $criteria = new Criteria();
+        $criteria->addFilter(...$filters->getFilters());
 
         if (empty($criteria->getFilters())) {
             throw ApiException::invalidSyncCriteriaException($operation->getKey());
@@ -164,6 +155,15 @@ class SyncService implements SyncServiceInterface
 
         $ids = $this->searcher->search($definition, $criteria, $context);
 
-        $operation->replacePayload(\array_values($ids->getIds()));
+        $values = \array_values($ids->getIds());
+
+        $primaries = $definition->getPrimaryKeys()->filterInstance(IdField::class);
+        if (\count($primaries) === 1) {
+            $first = $primaries->first();
+            \assert($first instanceof IdField); // we already checked with the count
+            $values = \array_map(static fn ($id) => [$first->getPropertyName() => $id], $values);
+        }
+
+        $operation->replacePayload($values);
     }
 }

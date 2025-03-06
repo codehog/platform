@@ -9,14 +9,7 @@ use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Exception\InvalidOptionsException;
 use Symfony\Component\Validator\Exception\MissingOptionsException;
 
-/**
- * @Annotation
- *
- * @Target({"PROPERTY", "METHOD", "ANNOTATION"})
- *
- * @deprecated tag:v6.6.0 - reason:remove-constraint-annotation The @Annotation & @Target annotations will be removed, it's not possible to use this constraint via annotations
- */
-#[Package('core')]
+#[Package('framework')]
 class EntityExists extends Constraint
 {
     final public const ENTITY_DOES_NOT_EXISTS = 'f1e5c873-5baf-4d5b-8ab7-e422bfce91f1';
@@ -48,15 +41,15 @@ class EntityExists extends Constraint
         );
 
         if (!\is_string($options['entity'] ?? null)) {
-            throw new MissingOptionsException(sprintf('Option "entity" must be given for constraint %s', self::class), ['entity']);
+            throw new MissingOptionsException(\sprintf('Option "entity" must be given for constraint %s', self::class), ['entity']);
         }
 
         if (!($options['context'] ?? null) instanceof Context) {
-            throw new MissingOptionsException(sprintf('Option "context" must be given for constraint %s', self::class), ['context']);
+            throw new MissingOptionsException(\sprintf('Option "context" must be given for constraint %s', self::class), ['context']);
         }
 
         if (!($options['criteria'] ?? null) instanceof Criteria) {
-            throw new InvalidOptionsException(sprintf('Option "criteria" must be an instance of Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria for constraint %s', self::class), ['criteria']);
+            throw new InvalidOptionsException(\sprintf('Option "criteria" must be an instance of Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria for constraint %s', self::class), ['criteria']);
         }
 
         parent::__construct($options);

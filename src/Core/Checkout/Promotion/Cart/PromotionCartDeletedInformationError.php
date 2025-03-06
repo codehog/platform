@@ -6,7 +6,7 @@ use Shopware\Core\Checkout\Cart\Error\Error;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('buyers-experience')]
+#[Package('checkout')]
 class PromotionCartDeletedInformationError extends Error
 {
     private const KEY = 'promotion-discount-deleted';
@@ -19,7 +19,7 @@ class PromotionCartDeletedInformationError extends Error
     {
         $this->name = $discountLineItem->getLabel();
         $this->discountLineItemId = $discountLineItem->getId();
-        $this->message = sprintf(
+        $this->message = \sprintf(
             'Discount %s has been added',
             $this->name
         );
@@ -46,7 +46,7 @@ class PromotionCartDeletedInformationError extends Error
 
     public function getId(): string
     {
-        return sprintf('%s-%s', self::KEY, $this->discountLineItemId);
+        return \sprintf('%s-%s', self::KEY, $this->discountLineItemId);
     }
 
     public function getLevel(): int

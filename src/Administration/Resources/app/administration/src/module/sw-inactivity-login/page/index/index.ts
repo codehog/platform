@@ -1,12 +1,10 @@
 import './sw-inactivity-login.scss';
-import type { MetaInfo } from 'vue-meta';
 import template from './sw-inactivity-login.html.twig';
 
 const { Component } = Shopware;
 
 /**
- * @package admin
- *
+ * @sw-package framework
  * @private
  */
 Component.register('sw-inactivity-login', {
@@ -25,18 +23,20 @@ Component.register('sw-inactivity-login', {
     },
 
     data(): {
-        isLoading: boolean,
-        lastKnownUser: string,
-        password: string,
-        passwordError: null | { detail: string },
-        sessionChannel: null | BroadcastChannel,
-        } {
+        isLoading: boolean;
+        lastKnownUser: string;
+        password: string;
+        passwordError: null | { detail: string };
+        sessionChannel: null | BroadcastChannel;
+        rememberMe: boolean;
+    } {
         return {
             isLoading: false,
             lastKnownUser: '',
             password: '',
             passwordError: null,
             sessionChannel: null,
+            rememberMe: false,
         };
     },
 
@@ -49,16 +49,14 @@ Component.register('sw-inactivity-login', {
         },
     },
 
-    metaInfo(): MetaInfo {
+    metaInfo() {
         return {
             title: this.title,
         };
     },
 
     created() {
-        if (this.feature.isActive('VUE3')) {
-            window.processingInactivityLogout = false;
-        }
+        window.processingInactivityLogout = false;
 
         const lastKnownUser = sessionStorage.getItem('lastKnownUser');
 
@@ -71,7 +69,7 @@ Component.register('sw-inactivity-login', {
         this.sessionChannel = new BroadcastChannel('session_channel');
         this.sessionChannel.postMessage({ inactive: true });
         this.sessionChannel.onmessage = (event) => {
-            const data = event.data as {inactive?: boolean};
+            const data = event.data as { inactive?: boolean };
             if (!data || !Shopware.Utils.object.hasOwnProperty(data, 'inactive')) {
                 return;
             }
@@ -81,19 +79,12 @@ Component.register('sw-inactivity-login', {
             }
 
             this.forwardLogin();
-
-            // Vue router v4 behaves differently than v3 and does not require a reload
-            if (this.feature.isActive('VUE3')) {
-                return;
-            }
-
-            window.location.reload();
         };
         this.lastKnownUser = lastKnownUser;
     },
 
     mounted() {
-        const dataUrl = localStorage.getItem(`inactivityBackground_${this.hash}`);
+        const dataUrl = sessionStorage.getItem(`inactivityBackground_${this.hash}`);
         if (!dataUrl) {
             return;
         }
@@ -102,17 +93,20 @@ Component.register('sw-inactivity-login', {
         (document.querySelector('.sw-inactivity-login') as HTMLElement).style.backgroundImage = `url('${dataUrl}')`;
     },
 
-    beforeDestroy() {
+    beforeUnmount() {
         this.sessionChannel?.close();
 
-        localStorage.removeItem(`inactivityBackground_${this.hash}`);
+        sessionStorage.removeItem(`inactivityBackground_${this.hash}`);
     },
 
     methods: {
         loginUserWithPassword() {
             this.isLoading = true;
 
-            return this.loginService.loginByUsername(this.lastKnownUser, this.password)
+            this.loginService.setRememberMe(this.rememberMe);
+
+            return this.loginService
+                .loginByUsername(this.lastKnownUser, this.password)
                 .then(() => {
                     this.handleLoginSuccess();
                     this.isLoading = false;
@@ -132,13 +126,6 @@ Component.register('sw-inactivity-login', {
             this.forwardLogin();
 
             this.sessionChannel?.postMessage({ inactive: false });
-
-            // Vue router v4 behaves differently than v3 and does not require a reload
-            if (this.feature.isActive('VUE3')) {
-                return;
-            }
-
-            window.location.reload();
         },
 
         forwardLogin() {
@@ -146,8 +133,8 @@ Component.register('sw-inactivity-login', {
             sessionStorage.removeItem('lastKnownUser');
 
             const previousRoute = JSON.parse(sessionStorage.getItem(`sw-admin-previous-route_${this.hash}`) || '{}') as {
-                fullPath?: string,
-                name?: string,
+                fullPath?: string;
+                name?: string;
             };
             sessionStorage.removeItem(`sw-admin-previous-route_${this.hash}`);
 

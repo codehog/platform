@@ -2,7 +2,10 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\SalesChannel;
 
+use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressCollection;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressDefinition;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
@@ -28,10 +31,9 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Customer\SalesChannel\UpsertAddressRoute
  */
-#[Package('customer-order')]
+#[Package('checkout')]
+#[CoversClass(UpsertAddressRoute::class)]
 class UpsertAddressRouteTest extends TestCase
 {
     public function testCustomFields(): void
@@ -44,7 +46,7 @@ class UpsertAddressRouteTest extends TestCase
         $result = $this->createMock(EntitySearchResult::class);
         $address = new CustomerAddressEntity();
         $address->setId(Uuid::randomHex());
-        $result->method('first')->willReturn($address);
+        $result->method('getEntities')->willReturn(new CustomerAddressCollection([$address]));
 
         $addressRepository = $this->createMock(EntityRepository::class);
         $addressRepository->method('search')->willReturn($result);
@@ -57,15 +59,11 @@ class UpsertAddressRouteTest extends TestCase
                 return new EntityWrittenContainerEvent(Context::createDefaultContext(), new NestedEventCollection([]), []);
             });
 
-        $customFieldMapper = $this->createMock(StoreApiCustomFieldMapper::class);
-        $customFieldMapper
-            ->expects(static::once())
-            ->method('map')
-            ->with(CustomerAddressDefinition::ENTITY_NAME, new RequestDataBag([
-                'test' => 1,
-                'mapped' => 1,
-            ]))
-            ->willReturn(['mapped' => 1]);
+        $customFieldMapper = new StoreApiCustomFieldMapper($this->createMock(Connection::class), [
+            CustomerAddressDefinition::ENTITY_NAME => [
+                ['name' => 'mapped', 'type' => 'int'],
+            ],
+        ]);
 
         $upsert = new UpsertAddressRoute(
             $addressRepository,
@@ -87,8 +85,8 @@ class UpsertAddressRouteTest extends TestCase
             'accountType' => CustomerEntity::ACCOUNT_TYPE_BUSINESS,
             'salutationId' => '1',
             'customFields' => [
-                'test' => 1,
-                'mapped' => 1,
+                'test' => '1',
+                'mapped' => '1',
             ],
         ]);
 

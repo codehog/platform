@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\Content\Product\Cms;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Cms\Aggregate\CmsSlot\CmsSlotEntity;
@@ -26,9 +28,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\Cms\ProductBoxCmsElementResolver
  */
+#[CoversClass(ProductBoxCmsElementResolver::class)]
 class ProductBoxCmsElementResolverTest extends TestCase
 {
     private ProductBoxCmsElementResolver $boxCmsElementResolver;
@@ -65,8 +66,9 @@ class ProductBoxCmsElementResolverTest extends TestCase
     {
         $resolverContext = new ResolverContext($this->createMock(SalesChannelContext::class), new Request());
 
-        $fieldConfig = new FieldConfigCollection();
-        $fieldConfig->add(new FieldConfig('products', FieldConfig::SOURCE_STATIC, []));
+        $fieldConfig = new FieldConfigCollection([
+            new FieldConfig('products', FieldConfig::SOURCE_STATIC, []),
+        ]);
 
         $slot = new CmsSlotEntity();
         $slot->setUniqueIdentifier('id');
@@ -83,8 +85,9 @@ class ProductBoxCmsElementResolverTest extends TestCase
         $resolverContext = new ResolverContext($this->createMock(SalesChannelContext::class), new Request());
 
         $productId = Uuid::randomHex();
-        $fieldConfig = new FieldConfigCollection();
-        $fieldConfig->add(new FieldConfig('product', FieldConfig::SOURCE_STATIC, $productId));
+        $fieldConfig = new FieldConfigCollection([
+            new FieldConfig('product', FieldConfig::SOURCE_STATIC, $productId),
+        ]);
 
         $slot = new CmsSlotEntity();
         $slot->setUniqueIdentifier('id');
@@ -102,8 +105,9 @@ class ProductBoxCmsElementResolverTest extends TestCase
     {
         $resolverContext = new ResolverContext($this->createMock(SalesChannelContext::class), new Request());
 
-        $fieldConfig = new FieldConfigCollection();
-        $fieldConfig->add(new FieldConfig('product', FieldConfig::SOURCE_MAPPED, 'category.products'));
+        $fieldConfig = new FieldConfigCollection([
+            new FieldConfig('product', FieldConfig::SOURCE_MAPPED, 'category.products'),
+        ]);
 
         $slot = new CmsSlotEntity();
         $slot->setUniqueIdentifier('id');
@@ -148,8 +152,9 @@ class ProductBoxCmsElementResolverTest extends TestCase
 
         $resolverContext = new EntityResolverContext($salesChannelContext, new Request(), $this->createMock(SalesChannelProductDefinition::class), $product);
         $result = new ElementDataCollection();
-        $fieldConfig = new FieldConfigCollection();
-        $fieldConfig->add(new FieldConfig('product', FieldConfig::SOURCE_MAPPED, $productId));
+        $fieldConfig = new FieldConfigCollection([
+            new FieldConfig('product', FieldConfig::SOURCE_MAPPED, $productId),
+        ]);
 
         $slot = new CmsSlotEntity();
         $slot->setUniqueIdentifier('id');
@@ -168,19 +173,18 @@ class ProductBoxCmsElementResolverTest extends TestCase
         static::assertEquals($productId, $product->getId());
     }
 
-    /**
-     * @dataProvider enrichDataProvider
-     */
+    #[DataProvider('enrichDataProvider')]
     public function testEnrich(bool $closeout, bool $hidden, int $availableStock): void
     {
         if ($hidden) {
-            $this->systemConfig->method('get')->willReturn(true);
+            $this->systemConfig->method('getBool')->willReturn(true);
         }
 
         $salesChannelId = 'f3489c46df62422abdea4aa1bb03511c';
         $productId = Uuid::randomHex();
         $product = new SalesChannelProductEntity();
         $product->setId($productId);
+        $product->setStock($availableStock);
         $product->setAvailableStock($availableStock);
         $product->setIsCloseout($closeout);
 
@@ -224,7 +228,6 @@ class ProductBoxCmsElementResolverTest extends TestCase
         } else {
             static::assertNotNull($product);
             static::assertSame($productId, $product->getId());
-            static::assertSame($product, $product);
         }
     }
 

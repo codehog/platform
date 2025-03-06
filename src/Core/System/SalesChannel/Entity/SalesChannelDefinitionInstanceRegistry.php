@@ -8,11 +8,14 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\SalesChannel\Exception\SalesChannelRepositoryNotFoundException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
-#[Package('buyers-experience')]
+#[Package('discovery')]
 class SalesChannelDefinitionInstanceRegistry extends DefinitionInstanceRegistry
 {
     /**
      * @internal
+     *
+     * @param array<string, string|class-string<EntityDefinition>> $definitionMap
+     * @param array<string, string> $repositoryMap
      */
     public function __construct(
         private readonly string $prefix,
@@ -30,15 +33,15 @@ class SalesChannelDefinitionInstanceRegistry extends DefinitionInstanceRegistry
     {
         $salesChannelRepositoryClass = $this->getSalesChannelRepositoryClassByEntityName($entityName);
 
-        /** @var SalesChannelRepository $salesChannelRepository */
         $salesChannelRepository = $this->container->get($salesChannelRepositoryClass);
+        \assert($salesChannelRepository instanceof SalesChannelRepository);
 
         return $salesChannelRepository;
     }
 
     public function get(string $class): EntityDefinition
     {
-        if (mb_strpos($class, $this->prefix) !== 0) {
+        if (!str_starts_with($class, $this->prefix)) {
             $class = $this->prefix . $class;
         }
 
@@ -46,7 +49,7 @@ class SalesChannelDefinitionInstanceRegistry extends DefinitionInstanceRegistry
     }
 
     /**
-     * @return SalesChannelDefinitionInterface[]
+     * @return array<SalesChannelDefinitionInterface>
      */
     public function getSalesChannelDefinitions(): array
     {

@@ -24,7 +24,7 @@ class HookableValidatorTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->hookableValidator = $this->getContainer()->get(HookableValidator::class);
+        $this->hookableValidator = static::getContainer()->get(HookableValidator::class);
         $this->roleId = Uuid::randomHex();
     }
 
@@ -53,7 +53,7 @@ class HookableValidatorTest extends TestCase
 
         static::assertCount(1, $validations);
         static::assertInstanceOf(NotHookableError::class, $validations->first());
-        static::assertEquals('The following webhooks are not hookable:
+        static::assertSame('The following webhooks are not hookable:
 - hook1: tax.written
 - hook2: test.event', $validations->first()->getMessage());
     }
@@ -67,14 +67,14 @@ class HookableValidatorTest extends TestCase
 
         static::assertCount(1, $validations);
         static::assertInstanceOf(MissingPermissionError::class, $validations->first());
-        static::assertEquals('The following permissions are missing:
+        static::assertSame('The following permissions are missing:
 - order:read
 - product:read', $validations->first()->getMessage());
     }
 
     private function createAppWithAclRole(string $appName): void
     {
-        $this->getContainer()->get('app.repository')->create([[
+        static::getContainer()->get('app.repository')->create([[
             'id' => Uuid::randomHex(),
             'name' => $appName,
             'path' => __DIR__ . '/../../App/Manifest/_fixtures/' . $appName,
@@ -82,7 +82,6 @@ class HookableValidatorTest extends TestCase
             'label' => 'test',
             'integration' => [
                 'label' => 'test',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],

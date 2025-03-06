@@ -10,11 +10,11 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Store\Services\StoreClient;
 
 /**
- * @internal only for use by the app-system, will be considered internal from v6.4.0 onward
+ * @internal only for use by the app-system
  *
  * @final
  */
-#[Package('core')]
+#[Package('framework')]
 class HandshakeFactory
 {
     public function __construct(
@@ -34,7 +34,7 @@ class HandshakeFactory
         if (!$setup) {
             throw AppException::registrationFailed(
                 $appName,
-                sprintf('No setup for registration provided in manifest for app "%s".', $metadata->getName())
+                \sprintf('No setup for registration provided in manifest for app "%s".', $metadata->getName())
             );
         }
 

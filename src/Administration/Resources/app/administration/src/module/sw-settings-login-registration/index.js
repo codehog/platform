@@ -3,6 +3,9 @@ Shopware.Component.register('sw-settings-login-registration', () => import('./pa
 
 const { Module } = Shopware;
 
+/**
+ * @sw-package fundamentals@framework
+ */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 Module.register('sw-settings-login-registration', {
     type: 'core',
@@ -27,7 +30,7 @@ Module.register('sw-settings-login-registration', {
     },
 
     settingsItem: {
-        group: 'shop',
+        group: 'customer',
         to: 'sw.settings.login.registration.index',
         icon: 'regular-sign-in',
         privilege: 'system.system_config',

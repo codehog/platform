@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Content\Product\ProductDefinition;
@@ -35,9 +36,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\EntityRepository
  */
+#[CoversClass(EntityRepository::class)]
 class EntityRepositoryTest extends TestCase
 {
     public function testSearchWithoutFilterDoesNotSearch(): void
@@ -256,7 +256,6 @@ class EntityRepositoryTest extends TestCase
         $criteria->addFields(['foo']);
         $repo->search($criteria, Context::createDefaultContext());
 
-        static::assertTrue(true);
         static::assertInstanceOf(EntityLoadedContainerEvent::class, $event);
 
         $events = $event->getEvents();

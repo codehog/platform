@@ -1,5 +1,5 @@
 /**
- * @package customer-order
+ * @sw-package discovery
  */
 
 Shopware.Service('privileges').addPrivilegeMappingEntry({

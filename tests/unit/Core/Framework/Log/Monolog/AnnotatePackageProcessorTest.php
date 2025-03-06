@@ -2,9 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Log\Monolog;
 
-use Monolog\Handler\AbstractHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Monolog\AnnotatePackageProcessor;
 use Shopware\Core\Framework\Log\Package;
@@ -20,17 +20,16 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
 
 /**
- * @covers \Shopware\Core\Framework\Log\Monolog\AnnotatePackageProcessor
- *
  * @internal
  */
+// @phpstan-ignore-next-line
 #[Package('cause')]
+#[CoversClass(AnnotatePackageProcessor::class)]
 class AnnotatePackageProcessorTest extends TestCase
 {
     public function testOnlyController(): void
     {
         $requestStack = new RequestStack();
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($requestStack, $container);
 
@@ -62,7 +61,6 @@ class AnnotatePackageProcessorTest extends TestCase
     public function testOnlyControllerWithNonClassServiceId(): void
     {
         $requestStack = new RequestStack();
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($requestStack, $container);
 
@@ -98,7 +96,6 @@ class AnnotatePackageProcessorTest extends TestCase
     public function testOnlyControllerWithInvalidServiceId(): void
     {
         $requestStack = new RequestStack();
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($requestStack, $container);
 
@@ -123,7 +120,6 @@ class AnnotatePackageProcessorTest extends TestCase
     public function testExceptionInController(): void
     {
         $requestStack = new RequestStack();
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($requestStack, $container);
 
@@ -131,14 +127,8 @@ class AnnotatePackageProcessorTest extends TestCase
         $request->attributes->set('_controller', TestController::class . '::load');
         $requestStack->push($request);
 
-        try {
-            throw new TestException('test');
-        } catch (\Throwable $e) {
-            $exception = $e;
-        }
-
         $context = [
-            'exception' => $exception,
+            'exception' => new TestException('test'),
         ];
 
         $record = new LogRecord(
@@ -168,7 +158,6 @@ class AnnotatePackageProcessorTest extends TestCase
     public function testNoPackageAttributes(): void
     {
         $requestStack = new RequestStack();
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($requestStack, $container);
 
@@ -176,14 +165,8 @@ class AnnotatePackageProcessorTest extends TestCase
         $request->attributes->set('_controller', TestControllerNoPackage::class . '::load');
         $requestStack->push($request);
 
-        try {
-            throw new TestExceptionNoPackage('test');
-        } catch (\Throwable $e) {
-            $exception = $e;
-        }
-
         $context = [
-            'exception' => $exception,
+            'exception' => new TestExceptionNoPackage('test'),
         ];
 
         $record = new LogRecord(
@@ -219,7 +202,6 @@ class AnnotatePackageProcessorTest extends TestCase
             $exception = $e;
         }
 
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($this->createMock(RequestStack::class), $container);
 
@@ -262,7 +244,6 @@ class AnnotatePackageProcessorTest extends TestCase
             $exception = $e;
         }
 
-        $inner = $this->createMock(AbstractHandler::class);
         $container = $this->createMock(ContainerInterface::class);
         $handler = new AnnotatePackageProcessor($this->createMock(RequestStack::class), $container);
 
@@ -298,6 +279,7 @@ class AnnotatePackageProcessorTest extends TestCase
 /**
  * @internal
  */
+// @phpstan-ignore-next-line
 #[Package('controller')]
 class TestController
 {
@@ -321,6 +303,7 @@ class TestControllerNoPackage
 /**
  * @internal
  */
+// @phpstan-ignore-next-line
 #[Package('exception')]
 class TestException extends ShopwareHttpException
 {
@@ -344,6 +327,7 @@ class TestExceptionNoPackage extends ShopwareHttpException
 /**
  * @internal
  */
+// @phpstan-ignore-next-line
 #[Package('command')]
 class TestCommand extends Command
 {
@@ -359,6 +343,7 @@ class TestCommand extends Command
 /**
  * @internal
  */
+// @phpstan-ignore-next-line
 #[Package('command')]
 class TestNestedCommand extends Command
 {
@@ -374,6 +359,7 @@ class TestNestedCommand extends Command
 /**
  * @internal
  */
+// @phpstan-ignore-next-line
 #[Package('cause')]
 class TestCause extends Command
 {

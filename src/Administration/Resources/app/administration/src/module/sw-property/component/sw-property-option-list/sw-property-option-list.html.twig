@@ -1,36 +1,31 @@
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_property_option_list %}
-<sw-card
+<mt-card
     :is-loading="isLoading"
     class="sw-property-option-list"
     position-identifier="sw-property-option-list"
     :title="$tc('sw-property.detail.cardTitle')"
 >
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_property_option_list_toolbar %}
     <div class="sw-property-option-list__toolbar">
 
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_property_option_list_toolbar_container %}
         <sw-container
             columns="1fr 32px minmax(100px, 200px)"
             gap="0 10px"
         >
 
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_property_option_list_toolbar_search %}
             <sw-simple-search-field
-                v-model="term"
+                v-model:value="term"
                 size="small"
                 variant="form"
                 @search-term-change="onSearch"
             />
             {% endblock %}
 
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_property_option_list_toolbar_delete %}
-            <sw-button
+            <mt-button
                 v-tooltip="{
                     message: $tc('sw-privileges.tooltip.warning'),
                     disabled: acl.can('property.editor'),
@@ -40,19 +35,19 @@
                 square
                 size="small"
                 class="sw-property-option-list__delete-button"
+                variant="secondary"
                 @click="onDeleteOptions"
             >
-                <sw-icon
+                <mt-icon
                     name="regular-trash"
-                    small
+                    size="16px"
                 />
-            </sw-button>
+            </mt-button>
             {% endblock %}
 
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_property_option_list_toolbar_add %}
             <sw-container v-tooltip="tooltipAdd">
-                <sw-button
+                <mt-button
                     v-tooltip="{
                         message: $tc('sw-privileges.tooltip.warning'),
                         disabled: acl.can('property.editor'),
@@ -61,10 +56,11 @@
                     :disabled="disableAddButton"
                     size="small"
                     class="sw-property-option-list__add-button"
+                    variant="secondary"
                     @click="onAddOption(propertyGroup)"
                 >
                     {{ $tc('sw-property.detail.addOption') }}
-                </sw-button>
+                </mt-button>
             </sw-container>
             {% endblock %}
         </sw-container>
@@ -72,13 +68,13 @@
     </div>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_property_option_list_grid %}
     <template #grid>
         <sw-one-to-many-grid
             ref="grid"
             :is-loading="isLoading"
             :collection="propertyGroup.options"
+            :data-source="dataSource"
             :columns="getGroupColumns()"
             :full-page="false"
             :local-mode="propertyGroup.isNew()"
@@ -90,12 +86,9 @@
 
             <template #column-name="{ item, isInlineEdit }">
                 <template v-if="isInlineEdit">
-                    <sw-text-field
-                        {% if VUE3 %}
-                        v-model:value="item.name"
-                        {% else %}
+
+                    <mt-text-field
                         v-model="item.name"
-                        {% endif %}
                         size="small"
                     />
                 </template>
@@ -112,10 +105,8 @@
                 </a>
             </template>
 
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_settings_property_list_grid_columns_actions %}
             <template #more-actions="{ item }">
-                <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
                 {% block sw_settings_property_list_grid_columns_actions_edit %}
                 <sw-context-menu-item
                     class="sw-property-option-list__edit-action"
@@ -128,7 +119,6 @@
             </template>
             {% endblock %}
 
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_property_list_grid_columns_actions_delete %}
             <template #delete-action="{ item }">
                 <sw-context-menu-item
@@ -143,7 +133,6 @@
         </sw-one-to-many-grid>
         {% endblock %}
     </template>
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_property_option_list_detail %}
     <sw-property-option-detail
         v-if="currentOption"
@@ -154,9 +143,8 @@
     />
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_property_option_list_loader %}
     <sw-loader v-if="isLoading" />
     {% endblock %}
-</sw-card>
+</mt-card>
 {% endblock %}

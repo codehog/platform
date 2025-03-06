@@ -1,59 +1,51 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { shallowMount } from '@vue/test-utils';
-import swProductStreamFieldSelect from 'src/module/sw-product-stream/component/sw-product-stream-field-select';
-import 'src/app/component/form/select/base/sw-single-select';
-import 'src/app/component/form/select/base/sw-select-base';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/form/field-base/sw-field-error';
-
-Shopware.Component.register('sw-product-stream-field-select', swProductStreamFieldSelect);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(propsData = {}) {
-    return shallowMount(await Shopware.Component.build('sw-product-stream-field-select'), {
-        provide: {
-            conditionDataProviderService: {
-                isPropertyInAllowList: () => true,
-                allowedJsonAccessors: {
-                    'json.test': {
-                        value: 'json.test',
-                        type: 'string',
-                        trans: 'jsontest',
+    return mount(
+        await wrapTestComponent('sw-product-stream-field-select', {
+            sync: true,
+        }),
+        {
+            props: {
+                index: 0,
+                definition: {
+                    entity: 'product',
+                    properties: {},
+                },
+                ...propsData,
+            },
+            global: {
+                provide: {
+                    conditionDataProviderService: {
+                        isPropertyInAllowList: () => true,
+                        allowedJsonAccessors: {
+                            'json.test': {
+                                value: 'json.test',
+                                type: 'string',
+                                trans: 'jsontest',
+                            },
+                        },
                     },
+                    productCustomFields: [],
+                },
+                stubs: {
+                    'sw-arrow-field': true,
+                    'sw-single-select': await wrapTestComponent('sw-single-select'),
+                    'sw-select-base': await wrapTestComponent('sw-select-base'),
+                    'sw-block-field': await wrapTestComponent('sw-block-field'),
+                    'sw-base-field': await wrapTestComponent('sw-base-field'),
+                    'sw-field-error': await wrapTestComponent('sw-field-error'),
                 },
             },
-            productCustomFields: [],
         },
-        stubs: {
-            'sw-arrow-field': true,
-            'sw-single-select': await Shopware.Component.build('sw-single-select'),
-            'sw-select-base': await Shopware.Component.build('sw-select-base'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-field-error': await Shopware.Component.build('sw-field-error'),
-            'sw-icon': true,
-        },
-        propsData: {
-            index: 0,
-            definition: {
-                entity: 'product',
-                properties: {},
-            },
-            ...propsData,
-        },
-    });
+    );
 }
 
 describe('src/module/sw-product-stream/component/sw-product-stream-field-select', () => {
-    it('should be a Vue.js component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should have a disabled prop', async () => {
         const wrapper = await createWrapper();
         expect(wrapper.props('disabled')).toBe(false);
@@ -67,10 +59,12 @@ describe('src/module/sw-product-stream/component/sw-product-stream-field-select'
         const wrapper = await createWrapper();
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.vm.options).toEqual([{
-            label: 'jsontest',
-            value: 'json.test',
-        }]);
+        expect(wrapper.vm.options).toEqual([
+            {
+                label: 'jsontest',
+                value: 'json.test',
+            },
+        ]);
     });
 
     it('should return gray arrow primary color without error', async () => {

@@ -4,19 +4,28 @@ import './sw-media-sidebar.scss';
 const { Filter, Context } = Shopware;
 
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
+
     inject: ['repositoryFactory'],
+
+    emits: ['media-sidebar-folder-renamed'],
+
+    mixins: [Shopware.Mixin.getByName('notification')],
+
     props: {
         items: {
             required: true,
             type: Array,
             validator(value) {
                 const invalidElements = value.filter((element) => {
-                    return !['media', 'media_folder'].includes(element.getEntityName());
+                    return ![
+                        'media',
+                        'media_folder',
+                    ].includes(element.getEntityName());
                 });
                 return invalidElements.length === 0;
             },
@@ -42,6 +51,10 @@ export default {
     },
 
     computed: {
+        mediaRepository() {
+            return this.repositoryFactory.create('media');
+        },
+
         mediaFolderRepository() {
             return this.repositoryFactory.create('media_folder');
         },
@@ -94,6 +107,23 @@ export default {
         assetFilter() {
             return Shopware.Filter.getByName('asset');
         },
+
+        filteredAttributes() {
+            const filteredAttributes = {};
+
+            Object.entries(this.$attrs).forEach(
+                ([
+                    key,
+                    value,
+                ]) => {
+                    if (key.startsWith('on') && typeof value === 'function') {
+                        filteredAttributes[key] = value;
+                    }
+                },
+            );
+
+            return filteredAttributes;
+        },
     },
 
     watch: {
@@ -122,6 +152,28 @@ export default {
 
         onMediaFolderRenamed() {
             this.$emit('media-sidebar-folder-renamed');
+        },
+
+        /**
+         * @experimental stableVersion:v6.8.0 feature:SPATIAL_BASES
+         */
+        async onFirstItemUpdated(newItem) {
+            const firstItem = this.items[0];
+
+            try {
+                firstItem.isLoading = true;
+                Object.assign(this.items[0], newItem);
+                await this.mediaRepository.save(firstItem, Context.api);
+                this.createNotificationSuccess({
+                    message: this.$tc('global.sw-media-media-item.notification.settingsSuccess.message'),
+                });
+            } catch {
+                this.createNotificationError({
+                    message: this.$tc('global.notification.unspecifiedSaveErrorMessage'),
+                });
+            } finally {
+                firstItem.isLoading = false;
+            }
         },
     },
 };

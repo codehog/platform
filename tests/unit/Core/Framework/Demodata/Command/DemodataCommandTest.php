@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Demodata\Command;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Customer\CustomerDefinition;
 use Shopware\Core\Checkout\Order\OrderDefinition;
@@ -30,9 +31,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Demodata\Command\DemodataCommand
  */
+#[CoversClass(DemodataCommand::class)]
 class DemodataCommandTest extends TestCase
 {
     private const DEFAULT_DEFINITIONS = [
@@ -65,7 +65,7 @@ class DemodataCommandTest extends TestCase
         $this->command = new DemodataCommand(
             $this->createMock(DemodataService::class),
             $this->dispatcher,
-            $this->getName() === 'testShowNoticeWhenNotProd' ? 'dev' : 'prod'
+            $this->name() === 'testShowNoticeWhenNotProd' ? 'dev' : 'prod'
         );
     }
 
@@ -91,8 +91,6 @@ class DemodataCommandTest extends TestCase
             $eventCalled = true;
 
             $items = $event->getRequest()->all();
-            static::assertIsArray($items);
-
             foreach (self::DEFAULT_DEFINITIONS as $definition) {
                 static::assertArrayHasKey($definition, $items);
             }
@@ -173,14 +171,9 @@ class DemodataCommandTest extends TestCase
             $eventCalled = true;
 
             $options = $event->getRequest()->getOptions(CustomFieldSetDefinition::class);
-
-            static::assertIsArray($options);
             static::assertArrayHasKey('relations', $options);
 
             $relations = $options['relations'];
-
-            static::assertIsArray($relations);
-
             static::assertArrayHasKey('product', $relations);
             static::assertArrayHasKey('product_manufacturer', $relations);
             static::assertArrayHasKey('order', $relations);

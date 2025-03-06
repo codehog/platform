@@ -1,12 +1,9 @@
 import template from './sw-media-upload-v2.html.twig';
 import './sw-media-upload-v2.scss';
-import fileValidationService from '../../../service/file-validation.service';
 
 const { Mixin, Context } = Shopware;
 const { fileReader } = Shopware.Utils;
 const { fileSize } = Shopware.Utils.format;
-const { Criteria } = Shopware.Data;
-const { checkByExtension, checkByType } = fileValidationService();
 const INPUT_TYPE_FILE_UPLOAD = 'file-upload';
 const INPUT_TYPE_URL_UPLOAD = 'url-upload';
 
@@ -14,7 +11,7 @@ const INPUT_TYPE_URL_UPLOAD = 'url-upload';
  * @status ready
  * @description The <u>sw-media-upload-v2</u> component is used wherever an upload is needed. It supports drag & drop-,
  * file- and url-upload and comes in various forms.
- * @package content
+ * @sw-package discovery
  * @example-type code-only
  * @component-example
  * <sw-media-upload-v2
@@ -33,6 +30,14 @@ export default {
         'mediaService',
         'configService',
         'feature',
+        'fileValidationService',
+    ],
+
+    emits: [
+        'media-drop',
+        'media-upload-sidebar-open',
+        'media-upload-remove-image',
+        'media-upload-add-file',
     ],
 
     mixins: [
@@ -41,7 +46,11 @@ export default {
 
     props: {
         source: {
-            type: [Object, String, File],
+            type: [
+                Object,
+                String,
+                File,
+            ],
             required: false,
             default: null,
         },
@@ -49,9 +58,17 @@ export default {
         variant: {
             type: String,
             required: false,
-            validValues: ['compact', 'regular', 'small'],
+            validValues: [
+                'compact',
+                'regular',
+                'small',
+            ],
             validator(value) {
-                return ['compact', 'regular', 'small'].includes(value);
+                return [
+                    'compact',
+                    'regular',
+                    'small',
+                ].includes(value);
             },
             default: 'regular',
         },
@@ -64,7 +81,6 @@ export default {
         allowMultiSelect: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -118,7 +134,7 @@ export default {
         fileAccept: {
             type: String,
             required: false,
-            default: 'image/*',
+            default: '*/*',
         },
 
         extensionAccept: {
@@ -156,6 +172,12 @@ export default {
             required: false,
             default: false,
         },
+
+        onMediaUploadSidebarOpen: {
+            type: Function,
+            required: false,
+            default: null,
+        },
     },
 
     data() {
@@ -186,11 +208,7 @@ export default {
         },
 
         hasOpenMediaButtonListener() {
-            if (this.feature.isActive('VUE3')) {
-                return Object.keys(this.$listeners).includes('mediaUploadSidebarOpen');
-            }
-
-            return Object.keys(this.$listeners).includes('media-upload-sidebar-open');
+            return !!this.onMediaUploadSidebarOpen;
         },
 
         isDragActiveClass() {
@@ -256,7 +274,7 @@ export default {
         this.mountedComponent();
     },
 
-    beforeDestroy() {
+    beforeUnmount() {
         this.beforeDestroyComponent();
     },
 
@@ -280,7 +298,10 @@ export default {
 
         mountedComponent() {
             if (this.$refs.dropzone) {
-                ['dragover', 'drop'].forEach((event) => {
+                [
+                    'dragover',
+                    'drop',
+                ].forEach((event) => {
                     window.addEventListener(event, this.stopEventPropagation, false);
                 });
                 this.$refs.dropzone.addEventListener('drop', this.onDrop);
@@ -294,7 +315,10 @@ export default {
             this.mediaService.removeByTag(this.uploadTag);
             this.mediaService.removeListener(this.uploadTag, this.handleMediaServiceUploadEvent);
 
-            ['dragover', 'drop'].forEach((event) => {
+            [
+                'dragover',
+                'drop',
+            ].forEach((event) => {
                 window.addEventListener(event, this.stopEventPropagation, false);
             });
 
@@ -449,7 +473,10 @@ export default {
                 }
 
                 if (this.addFilesOnMultiselect) {
-                    this.preview = [...this.preview, ...newMediaFiles];
+                    this.preview = [
+                        ...this.preview,
+                        ...newMediaFiles,
+                    ];
                 } else {
                     this.preview = newMediaFiles;
                 }
@@ -462,7 +489,13 @@ export default {
                 const targetEntity = this.getMediaEntityForUpload();
                 syncEntities.push(targetEntity);
 
-                return { src: fileHandle, targetId: targetEntity.id, fileName, extension, isPrivate: targetEntity.private };
+                return {
+                    src: fileHandle,
+                    targetId: targetEntity.id,
+                    fileName,
+                    extension,
+                    isPrivate: targetEntity.private,
+                };
             });
 
             await this.mediaRepository.saveAll(syncEntities, Context.api);
@@ -478,20 +511,7 @@ export default {
         },
 
         async getDefaultFolderId() {
-            const criteria = new Criteria(1, 1)
-                .addFilter(Criteria.equals('entity', this.defaultFolder));
-
-            const items = await this.defaultFolderRepository.search(criteria, Context.api);
-            if (items.length !== 1) {
-                return null;
-            }
-            const defaultFolder = items[0];
-
-            if (defaultFolder.folder?.id) {
-                return defaultFolder.folder.id;
-            }
-
-            return null;
+            return this.mediaService.getDefaultFolderId(this.defaultFolder);
         },
 
         handleMediaServiceUploadEvent({ action }) {
@@ -506,23 +526,35 @@ export default {
             }
 
             this.createNotificationError({
-                title: this.$tc('global.default.error'),
-                message: this.$tc('global.sw-media-upload-v2.notification.invalidFileSize.message', 0, {
-                    name: file.name || file.fileName,
-                    limit: fileSize(this.maxFileSize),
-                }),
+                message: this.$tc(
+                    'global.sw-media-upload-v2.notification.invalidFileSize.message',
+                    {
+                        name: file.name || file.fileName,
+                        limit: fileSize(this.maxFileSize),
+                    },
+                    0,
+                ),
             });
             return false;
         },
 
         checkFileType(file) {
+            // Set file type and file name if file is a media entity item
+            if (!file?.type && file.id) {
+                file.type = file.mimeType;
+            }
+
+            if (!file?.name && file.id) {
+                file.name = file.fileName;
+            }
+
             const isValidFile = () => {
                 if (this.extensionAccept) {
-                    return checkByExtension(file, this.extensionAccept);
+                    return this.fileValidationService.checkByExtension(file, this.extensionAccept);
                 }
 
                 if (this.fileAccept) {
-                    return checkByType(file, this.fileAccept);
+                    return this.fileValidationService.checkByType(file, this.fileAccept);
                 }
 
                 return false;
@@ -533,12 +565,16 @@ export default {
             }
 
             this.createNotificationError({
-                title: this.$tc('global.default.error'),
-                message: this.$tc('global.sw-media-upload-v2.notification.invalidFileType.message', 0, {
-                    name: file.name || file.fileName,
-                    supportedTypes: this.extensionAccept || this.fileAccept,
-                }),
+                message: this.$tc(
+                    'global.sw-media-upload-v2.notification.invalidFileType.message',
+                    {
+                        name: file.name,
+                        supportedTypes: this.extensionAccept || this.fileAccept,
+                    },
+                    0,
+                ),
             });
+
             return false;
         },
 
@@ -546,7 +582,6 @@ export default {
             const checkedFiles = files.filter((file) => {
                 return this.checkFileSize(file) && this.checkFileType(file);
             });
-
 
             if (this.useFileData) {
                 this.preview = !this.multiSelect ? checkedFiles[0] : null;

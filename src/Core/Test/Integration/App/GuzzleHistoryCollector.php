@@ -10,19 +10,20 @@ use GuzzleHttp\Middleware;
 class GuzzleHistoryCollector
 {
     /**
-     * @var array<int, mixed>
+     * @var list<array<string, mixed>>
      */
     private static array $historyContainer;
 
-    public function getHistoryMiddleWare(): callable /* @phpstan-ignore-line callable can not be typed as it is recursive */
+    public function getHistoryMiddleWare(): callable
     {
         self::$historyContainer = [];
 
+        /** @phpstan-ignore assign.propertyType (Guzzle has some improper parameter type annotation) */
         return Middleware::history(self::$historyContainer);
     }
 
     /**
-     * @return array<int, mixed>
+     * @return list<array<string, mixed>>
      */
     public function getHistory(): array
     {

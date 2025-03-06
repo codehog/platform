@@ -9,12 +9,11 @@ use Shopware\Core\Framework\Struct\Collection;
 /**
  * @extends Collection<Field>
  */
-#[Package('core')]
+#[Package('framework')]
 class FieldCollection extends Collection
 {
     public function compile(DefinitionInstanceRegistry $registry): CompiledFieldCollection
     {
-        /** @var Field $field */
         foreach ($this->elements as $field) {
             $field->compile($registry);
         }

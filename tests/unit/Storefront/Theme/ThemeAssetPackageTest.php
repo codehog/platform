@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Storefront\Theme;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\PlatformRequest;
 use Shopware\Core\SalesChannelRequest;
@@ -13,14 +15,11 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * @internal
- *
- * @covers \Shopware\Storefront\Theme\ThemeAssetPackage
  */
+#[CoversClass(ThemeAssetPackage::class)]
 class ThemeAssetPackageTest extends TestCase
 {
-    /**
-     * @dataProvider urlCases
-     */
+    #[DataProvider('urlCases')]
     public function testGetUrl(string $inputUrl, ?Request $request, string $expectedUrl): void
     {
         $requestStack = new RequestStack();
@@ -58,6 +57,15 @@ class ThemeAssetPackageTest extends TestCase
         yield 'url without current request' => [
             'path/to/file',
             null,
+            'http://localhost/path/to/file?v1',
+        ];
+
+        $request = Request::create('http://localhost');
+        $request->attributes->set(PlatformRequest::ATTRIBUTE_SALES_CHANNEL_ID, 'salesChannelId');
+
+        yield 'Storefront without theme id' => [
+            'path/to/file',
+            $request,
             'http://localhost/path/to/file?v1',
         ];
 

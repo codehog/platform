@@ -1,9 +1,15 @@
-import { shallowMount } from '@vue/test-utils';
+/**
+ * @sw-package framework
+ */
+import { mount } from '@vue/test-utils';
 
 async function createWrapper({ template = '' } = { template: '' }) {
-    return shallowMount(
+    return mount(
         {
-            template: template.length > 0 ? template : `
+            template:
+                template.length > 0
+                    ? template
+                    : `
             <div>
                 <div class="test-one">
                     <input class="test-one"/>
@@ -33,10 +39,6 @@ describe('src/app/directive/autofocus.directive.ts', () => {
     });
 
     afterEach(async () => {
-        if (wrapper) {
-            await wrapper.destroy();
-        }
-
         await flushPromises();
     });
 

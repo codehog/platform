@@ -1,61 +1,96 @@
 /**
- * @package content
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
-import swCategoryDetail from 'src/module/sw-category/page/sw-category-detail';
-import 'src/app/component/sidebar/sw-sidebar-collapse';
-import 'src/app/component/base/sw-collapse';
-
-Shopware.Component.register('sw-category-detail', swCategoryDetail);
-
-async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-category-detail'), {
-        stubs: {
-            'sw-page': {
-                template: `
-    <div>
-        <slot name="smart-bar-actions"></slot>
-        <slot name="side-content"></slot>
-    </div>`,
-            },
-            'sw-category-tree': true,
-            'sw-button': true,
-            'sw-button-process': true,
-            'sw-sidebar-collapse': await Shopware.Component.build('sw-sidebar-collapse'),
-            'sw-collapse': await Shopware.Component.build('sw-collapse'),
-            'sw-landing-page-tree': true,
-            'sw-icon': true,
-        },
-        provide: {
-            cmsService: {
-                getEntityMappingTypes: () => {},
-            },
-            repositoryFactory: {
-                create: () => ({
-                    search: () => Promise.resolve({
-                        get: () => ({ sections: [] }),
-                    }),
-                }),
-            },
-            seoUrlService: {},
-        },
-    });
-}
+import { mount } from '@vue/test-utils';
 
 describe('src/module/sw-category/page/sw-category-detail', () => {
+    const saveMock = jest.fn(() => Promise.resolve());
+    async function createWrapper() {
+        return mount(await wrapTestComponent('sw-category-detail', { sync: true }), {
+            global: {
+                stubs: {
+                    'sw-page': {
+                        template: `
+                    <div>
+                        <slot name="smart-bar-actions"></slot>
+                        <slot></slot>
+                        <slot name="side-content"></slot>
+                    </div>`,
+                    },
+                    'sw-category-tree': {
+                        template: '<div class="sw-category-tree"></div>',
+                        props: [
+                            'allowEdit',
+                            'allowCreate',
+                            'allowDelete',
+                        ],
+                    },
+                    'sw-button-process': {
+                        template: '<div class="sw-button-process"><slot></slot></div>',
+                        props: ['disabled'],
+                    },
+                    'sw-sidebar-collapse': {
+                        template: `
+                    <div class="sw-sidebar-collapse">
+                        <slot name="header"></slot>
+                        <slot name="actions"></slot>
+                        <slot name="content"></slot>
+                    </div>`,
+                    },
+                    'sw-collapse': await wrapTestComponent('sw-collapse'),
+                    'sw-landing-page-tree': true,
+                    'sw-search-bar': true,
+                    'sw-language-switch': true,
+                    'sw-skeleton': true,
+                    'sw-category-view': true,
+                    'sw-category-entry-point-overwrite-modal': true,
+                    'sw-landing-page-view': true,
+                    'sw-discard-changes-modal': true,
+                    'sw-empty-state': true,
+                },
+                provide: {
+                    cmsService: {
+                        getEntityMappingTypes: () => {},
+                    },
+                    repositoryFactory: {
+                        create: () => ({
+                            search: () =>
+                                Promise.resolve({
+                                    get: () => ({ sections: [] }),
+                                }),
+                            save: saveMock,
+                            get: () =>
+                                Promise.resolve({
+                                    slotConfig: '',
+                                    navigationSalesChannels: [],
+                                    footerSalesChannels: [],
+                                    serviceSalesChannels: [],
+                                }),
+                        }),
+                    },
+                    seoUrlService: {},
+                    systemConfigApiService: {
+                        getValues: () =>
+                            Promise.resolve({
+                                'core.cms.default_category_cms_page': 'foo',
+                            }),
+                    },
+                },
+            },
+        });
+    }
+
     beforeEach(() => {
         global.activeAclRoles = [];
 
-        if (Shopware.State.get('cmsPageState')) {
-            Shopware.State.unregisterModule('cmsPageState');
-        }
-
-        Shopware.State.registerModule('cmsPageState', {
-            namespaced: true,
+        Shopware.Store.unregister('cmsPage');
+        Shopware.Store.register({
+            id: 'cmsPage',
+            state: () => ({
+                currentPage: null,
+            }),
             actions: {
                 resetCmsPageState: () => {},
-            },
-            mutations: {
                 setCurrentMappingEntity: () => {},
                 setCurrentMappingTypes: () => {},
                 setCurrentDemoEntity: () => {},
@@ -64,58 +99,26 @@ describe('src/module/sw-category/page/sw-category-detail', () => {
         });
     });
 
-    it('should be a Vue.js component', async () => {
+    it('should not allow to modify', async () => {
         const wrapper = await createWrapper();
 
-        expect(wrapper.vm).toBeTruthy();
-    });
-
-    it('should disable the save button', async () => {
-        const wrapper = await createWrapper();
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', { category: {} });
-        await wrapper.setData({
-            isLoading: false,
-        });
-
-        const saveButton = wrapper.find('.sw-category-detail__save-action');
-
-        expect(saveButton.attributes().disabled).toBe('true');
-    });
-
-    it('should enable the save button', async () => {
-        global.activeAclRoles = ['category.editor'];
-
-        const wrapper = await createWrapper();
-
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', { category: {
+        Shopware.Store.get('swCategoryDetail').category = {
             slotConfig: '',
-        } });
+        };
 
         await wrapper.setData({
             isLoading: false,
         });
 
-        const saveButton = wrapper.find('.sw-category-detail__save-action');
+        const saveButton = wrapper.getComponent('.sw-category-detail__save-action');
 
-        expect(saveButton.attributes().disabled).toBeUndefined();
-    });
+        expect(saveButton.props('disabled')).toBe(true);
 
-    it('should not allow to edit', async () => {
-        const wrapper = await createWrapper();
+        const categoryTree = wrapper.getComponent('.sw-category-tree');
 
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', {
-            category: {
-                slotConfig: '',
-            },
-        });
-
-        await wrapper.setData({
-            isLoading: false,
-        });
-
-        const categoryTree = wrapper.find('sw-category-tree-stub');
-
-        expect(categoryTree.attributes()['allow-edit']).toBeUndefined();
+        expect(categoryTree.props('allowCreate')).toBe(false);
+        expect(categoryTree.props('allowEdit')).toBe(false);
+        expect(categoryTree.props('allowDelete')).toBe(false);
     });
 
     it('should allow to edit', async () => {
@@ -123,100 +126,109 @@ describe('src/module/sw-category/page/sw-category-detail', () => {
 
         const wrapper = await createWrapper();
 
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', {
-            category: {
-                slotConfig: '',
-            },
-        });
+        Shopware.Store.get('swCategoryDetail').category = {
+            slotConfig: '',
+        };
 
         await wrapper.setData({
             isLoading: false,
         });
 
-        const categoryTree = wrapper.find('sw-category-tree-stub');
+        const saveButton = wrapper.getComponent('.sw-category-detail__save-action');
 
-        expect(categoryTree.attributes()['allow-edit']).toBe('true');
-    });
+        expect(saveButton.props('disabled')).toBe(false);
 
-    it('should not allow to create', async () => {
-        const wrapper = await createWrapper();
+        const categoryTree = wrapper.getComponent('.sw-category-tree');
 
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', {
-            category: {
-                slotConfig: '',
-            },
-        });
-
-        await wrapper.setData({
-            isLoading: false,
-        });
-
-        const categoryTree = wrapper.find('sw-category-tree-stub');
-
-        expect(categoryTree.attributes()['allow-create']).toBeUndefined();
+        expect(categoryTree.props('allowCreate')).toBe(false);
+        expect(categoryTree.props('allowEdit')).toBe(true);
+        expect(categoryTree.props('allowDelete')).toBe(false);
     });
 
     it('should allow to create', async () => {
-        global.activeAclRoles = ['category.creator'];
+        global.activeAclRoles = [
+            'category.creator',
+            'category.editor',
+        ];
 
         const wrapper = await createWrapper();
 
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', {
-            category: {
-                slotConfig: '',
-            },
-        });
+        Shopware.Store.get('swCategoryDetail').category = {
+            slotConfig: '',
+        };
 
         await wrapper.setData({
             isLoading: false,
         });
 
-        const categoryTree = wrapper.find('sw-category-tree-stub');
+        const saveButton = wrapper.getComponent('.sw-category-detail__save-action');
 
-        expect(categoryTree.attributes()['allow-create']).toBe('true');
-    });
+        expect(saveButton.props('disabled')).toBe(false);
 
-    it('should not allow to delete', async () => {
-        const wrapper = await createWrapper();
+        const categoryTree = wrapper.getComponent('.sw-category-tree');
 
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', {
-            category: {
-                slotConfig: '',
-            },
-        });
-
-        await wrapper.setData({
-            isLoading: false,
-        });
-
-        const categoryTree = wrapper.find('sw-category-tree-stub');
-
-        expect(categoryTree.attributes()['allow-delete']).toBeUndefined();
+        expect(categoryTree.props('allowCreate')).toBe(true);
+        expect(categoryTree.props('allowEdit')).toBe(true);
+        expect(categoryTree.props('allowDelete')).toBe(false);
     });
 
     it('should allow to delete', async () => {
-        global.activeAclRoles = ['category.deleter'];
+        global.activeAclRoles = [
+            'category.creator',
+            'category.editor',
+            'category.deleter',
+        ];
 
         const wrapper = await createWrapper();
 
-        Shopware.State.commit('swCategoryDetail/setActiveCategory', {
-            category: {
-                slotConfig: '',
-            },
-        });
+        Shopware.Store.get('swCategoryDetail').category = {
+            slotConfig: '',
+        };
 
         await wrapper.setData({
             isLoading: false,
         });
 
-        const categoryTree = wrapper.find('sw-category-tree-stub');
+        const saveButton = wrapper.getComponent('.sw-category-detail__save-action');
 
-        expect(categoryTree.attributes()['allow-delete']).toBe('true');
+        expect(saveButton.props('disabled')).toBe(false);
+
+        const categoryTree = wrapper.getComponent('.sw-category-tree');
+
+        expect(categoryTree.props('allowCreate')).toBe(true);
+        expect(categoryTree.props('allowEdit')).toBe(true);
+        expect(categoryTree.props('allowDelete')).toBe(true);
     });
 
-    it('should return filters from filter registry', async () => {
+    it('should set default layout', async () => {
+        global.activeAclRoles = [
+            'category.creator',
+            'category.editor',
+            'category.deleter',
+        ];
+
         const wrapper = await createWrapper();
 
-        expect(wrapper.vm.assetFilter).toEqual(expect.any(Function));
+        Shopware.Store.get('swCategoryDetail').category = {
+            slotConfig: '',
+            cmsPageId: 'foo',
+            navigationSalesChannels: [],
+            footerSalesChannels: [],
+            serviceSalesChannels: [],
+        };
+
+        await wrapper.setData({
+            isLoading: false,
+            cmsPage: null,
+        });
+
+        await wrapper.setProps({
+            categoryId: 'foo',
+        });
+
+        await wrapper.vm.onSave();
+
+        const lastCallParameters = saveMock.mock.lastCall;
+        expect(lastCallParameters[0].cmsPageId).toBeUndefined();
     });
 });

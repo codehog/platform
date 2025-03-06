@@ -1,14 +1,10 @@
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-import swOrderState from 'src/module/sw-order/state/order.store';
-import swOrderLineItemsGridSalesChannel from 'src/module/sw-order/component/sw-order-line-items-grid-sales-channel';
+import { mount } from '@vue/test-utils';
 import 'src/app/component/data-grid/sw-data-grid';
 import 'src/app/component/base/sw-button';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
-
-Shopware.Component.register('sw-order-line-items-grid-sales-channel', swOrderLineItemsGridSalesChannel);
 
 const mockItems = [
     {
@@ -131,115 +127,108 @@ const mockMultipleTaxesItem = {
 };
 
 async function createWrapper() {
-    const localVue = createLocalVue();
+    return mount(
+        await wrapTestComponent('sw-order-line-items-grid-sales-channel', {
+            sync: true,
+        }),
+        {
+            props: {
+                cart: {
+                    token: '6d3960ff30c9413f8dde62ccda81eefd',
+                    lineItems: [],
+                    price: {
+                        taxStatus: 'net',
+                    },
+                },
+                currency: {
+                    isoCode: 'EUR',
+                    symbol: '€',
+                },
+                salesChannelId: '',
+            },
+            global: {
+                directives: {
+                    tooltip: {
+                        beforeMount(el, binding) {
+                            el.setAttribute('tooltip-message', binding.value.message);
+                        },
+                        mounted(el, binding) {
+                            el.setAttribute('tooltip-message', binding.value.message);
+                        },
+                        updated(el, binding) {
+                            el.setAttribute('tooltip-message', binding.value.message);
+                        },
+                    },
+                },
+                stubs: {
+                    'sw-container': await wrapTestComponent('sw-container'),
+                    'sw-button-group': {
+                        template: '<div class="sw-button-group"><slot></slot></div>',
+                    },
+                    'sw-context-button': {
+                        template: '<div class="sw-context-button"><slot></slot></div>',
+                    },
+                    'sw-context-menu-item': {
+                        emits: ['click'],
+                        template: '<div class="sw-context-menu-item" @click="$emit(\'click\')"><slot></slot></div>',
+                    },
+                    'sw-checkbox-field': await wrapTestComponent('sw-checkbox-field', { sync: true }),
+                    'sw-checkbox-field-deprecated': await wrapTestComponent('sw-checkbox-field-deprecated', { sync: true }),
+                    'mt-number-field': {
+                        // eslint-disable-next-line max-len
+                        template:
+                            '<input class="mt-number-field" type="number" :value="value" @input="$emit(\'change\', Number($event.target.value))" />',
+                        props: {
+                            value: 0,
+                            size: 'default',
+                        },
+                    },
+                    'sw-card-filter': true,
+                    'sw-data-grid': await wrapTestComponent('sw-data-grid', {
+                        sync: true,
+                    }),
+                    'sw-product-variant-info': await wrapTestComponent('sw-product-variant-info', { sync: true }),
+                    'sw-order-product-select': {
+                        template: '<input class="sw-order-product-select" :value="item.label" @input="updateLabel" />',
+                        props: {
+                            item: {},
+                        },
+                        methods: {
+                            updateLabel(event) {
+                                this.item.label = event.target.value;
+                            },
+                        },
+                    },
+                    'router-link': {
+                        template: '<a class="router-link" href="#"><slot></slot></a>',
+                        props: ['to'],
+                    },
+                    'sw-empty-state': true,
+                    'sw-loader': true,
+                    'sw-data-grid-settings': true,
+                    'sw-data-grid-inline-edit': true,
+                    'sw-field-error': true,
+                    'sw-base-field': true,
+                    'sw-data-grid-column-boolean': true,
+                    'sw-data-grid-skeleton': true,
+                    'sw-highlight-text': true,
+                    'sw-provide': { template: '<slot/>', inheritAttrs: false },
+                },
+                mocks: {
+                    $tc: (t, value) => {
+                        if (t === 'sw-order.createBase.taxDetail') {
+                            return `${value.taxRate}%: ${value.tax}`;
+                        }
 
-    localVue.directive('tooltip', {
-        bind(el, binding) {
-            el.setAttribute('tooltip-message', binding.value.message);
-        },
-        inserted(el, binding) {
-            el.setAttribute('tooltip-message', binding.value.message);
-        },
-        update(el, binding) {
-            el.setAttribute('tooltip-message', binding.value.message);
-        },
-    });
-
-    return shallowMount(await Shopware.Component.build('sw-order-line-items-grid-sales-channel'), {
-        localVue,
-        propsData: {
-            cart: {
-                token: '6d3960ff30c9413f8dde62ccda81eefd',
-                lineItems: [],
-                price: {
-                    taxStatus: 'net',
-                },
-            },
-            currency: {
-                shortName: 'EUR',
-                symbol: '€',
-            },
-            salesChannelId: '',
-        },
-        stubs: {
-            'sw-container': true,
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-button-group': {
-                template: '<div class="sw-button-group"><slot></slot></div>',
-            },
-            'sw-context-button': {
-                template: '<div class="sw-context-button"><slot></slot></div>',
-            },
-            'sw-context-menu-item': {
-                template: '<div class="sw-context-menu-item" @click="$emit(\'click\')"><slot></slot></div>',
-            },
-            'sw-checkbox-field': {
-                template: '<input class="sw-checkbox-field" type="checkbox" :checked="value" @change="$emit(\'change\', $event.target.value)" />',
-                props: ['value'],
-            },
-            'sw-number-field': {
-                template: '<input class="sw-number-field" type="number" :value="value" @input="$emit(\'change\', Number($event.target.value))" />',
-                props: {
-                    value: 0,
-                },
-            },
-            'sw-card-filter': true,
-            'sw-data-grid': await Shopware.Component.build('sw-data-grid'),
-            'sw-product-variant-info': true,
-            'sw-order-product-select': {
-                template: '<input class="sw-order-product-select" :value="item.label" @input="updateLabel" />',
-                props: {
-                    item: {},
-                },
-                methods: {
-                    updateLabel(event) {
-                        this.item.label = event.target.value;
+                        return t;
                     },
                 },
             },
-            'router-link': true,
-            'sw-empty-state': true,
-            'sw-icon': true,
         },
-        mocks: {
-            $tc: (t, count, value) => {
-                if (t === 'sw-order.createBase.taxDetail') {
-                    return `${value.taxRate}%: ${value.tax}`;
-                }
-
-                return t;
-            },
-        },
-    });
+    );
 }
 
 describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel', () => {
-    beforeAll(() => {
-        Shopware.State.registerModule('swOrder', swOrderState);
-        Shopware.Service().register('cartStoreService', () => {
-            return {
-                getLineItemTypes: () => {
-                    return Object.freeze({
-                        PRODUCT: 'product',
-                        CREDIT: 'credit',
-                        CUSTOM: 'custom',
-                        PROMOTION: 'promotion',
-                    });
-                },
-                getCart: () => {
-                    return Promise.resolve({ data: { lineItems: [] } });
-                },
-            };
-        });
-        Shopware.Service().register('contextStoreService', () => {
-            return {
-                getSalesChannelContext: () => {
-                    return Promise.resolve({ data: {} });
-                },
-            };
-        });
-    });
-
     it('should show empty state when there is not item', async () => {
         const wrapper = await createWrapper({});
 
@@ -260,22 +249,22 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
         const productLabel = productItem.find('.sw-data-grid__cell--label');
         const showProductButton1 = productItem.find('.sw-context-menu-item');
 
-        expect(productLabel.find('router-link-stub').exists()).toBeTruthy();
-        expect(productLabel.find('router-link-stub').attributes().target).toBe('_blank');
+        expect(productLabel.findComponent('.router-link').exists()).toBeTruthy();
+        expect(productLabel.findComponent('.router-link').attributes().target).toBe('_blank');
         expect(showProductButton1.attributes().disabled).toBeUndefined();
 
         const customItem = wrapper.find('.sw-data-grid__row--1');
         const customLabel = customItem.find('.sw-data-grid__cell--label');
         const showProductButton2 = customItem.find('.sw-context-menu-item');
 
-        expect(customLabel.find('router-link-stub').exists()).toBeFalsy();
+        expect(customLabel.findComponent('.router-link').exists()).toBeFalsy();
         expect(showProductButton2.attributes().disabled).toBeTruthy();
 
         const creditItem = wrapper.find('.sw-data-grid__row--2');
         const creditLabel = creditItem.find('.sw-data-grid__cell--label');
         const showProductButton3 = creditItem.find('.sw-context-menu-item');
 
-        expect(creditLabel.find('router-link-stub').exists()).toBeFalsy();
+        expect(creditLabel.findComponent('.router-link').exists()).toBeFalsy();
         expect(showProductButton3.attributes().disabled).toBeTruthy();
     });
 
@@ -320,8 +309,9 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
         const taxDetailTooltip = wrapper.find('.sw-order-line-items-grid-sales-channel__item-tax-tooltip');
 
-        expect(taxDetailTooltip.attributes()['tooltip-message'])
-            .toBe('sw-order.createBase.tax<br>10%: -€3.33<br>20%: -€13.33');
+        expect(taxDetailTooltip.attributes()['tooltip-message']).toBe(
+            'sw-order.createBase.tax<br>10%: -€3.33<br>20%: -€13.33',
+        );
     });
 
     it('should show items correctly when search by search term', async () => {
@@ -336,7 +326,6 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
         await wrapper.setData({
             searchTerm: 'item product',
         });
-
         const productItem = wrapper.find('.sw-data-grid__row--0');
         const productLabel = productItem.find('.sw-data-grid__cell--label');
 
@@ -428,7 +417,7 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
     it('should able to create new empty line item', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -455,7 +444,7 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
     it('should able to create new product line item', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -475,9 +464,9 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
         await labelField.setValue('Product 1');
         await labelField.trigger('input');
 
-        const quantityField = firstRow.find('.sw-data-grid__cell--quantity input');
-        await quantityField.setValue(3);
-        await quantityField.trigger('input');
+        const quantityField = firstRow.findComponent('.sw-data-grid__cell--quantity input');
+
+        await quantityField.vm.$emit('update:modelValue', 3);
 
         const buttonInlineSave = wrapper.find('.sw-data-grid__inline-edit-save');
         await buttonInlineSave.trigger('click');
@@ -492,7 +481,7 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
     it('should able to create new custom line item', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -522,7 +511,7 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
     it('should able to create new credit line item', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -552,7 +541,7 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
     it('should able to cancel inline editing item', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -580,7 +569,7 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
 
     it('should able to delete items', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -590,23 +579,23 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
         });
         const buttonAddCreditItem = wrapper.find('.sw-order-line-items-grid-sales-channel__add-credit-item');
         await buttonAddCreditItem.trigger('click');
-        expect(Shopware.State.get('swOrder').cart.lineItems).toHaveLength(1);
+        expect(Shopware.Store.get('swOrder').cart.lineItems).toHaveLength(1);
 
-
-        const selectAllCheckBox = wrapper.find('.sw-data-grid__select-all');
+        const selectAllCheckBox = wrapper.find('.sw-data-grid__select-all input');
         await selectAllCheckBox.setChecked(true);
+        await selectAllCheckBox.trigger('change');
 
         const deleteAllButton = wrapper.find('.sw-data-grid__bulk-selected .link-danger');
         await deleteAllButton.trigger('click');
 
         await wrapper.vm.$nextTick();
 
-        expect(Shopware.State.get('swOrder').cart.lineItems).toHaveLength(0);
+        expect(Shopware.Store.get('swOrder').cart.lineItems).toHaveLength(0);
     });
 
     it('should change credit value to negative', async () => {
         const wrapper = await createWrapper({});
-        Shopware.State.commit('swOrder/setCartToken', 'token');
+        Shopware.Store.get('swOrder').setCartToken('token');
         await wrapper.setProps({
             cart: {
                 token: 'token',
@@ -626,9 +615,8 @@ describe('src/module/sw-order/component/sw-order-line-items-grid-sales-channel',
         await labelField.setValue('Credit item');
         await labelField.trigger('input');
 
-        const unitPriceField = firstRow.find('.sw-data-grid__cell--unitPrice input');
-        await unitPriceField.setValue(100);
-        await unitPriceField.trigger('input');
+        const unitPriceField = firstRow.findComponent('.sw-data-grid__cell--unitPrice input');
+        await unitPriceField.vm.$emit('update:modelValue', 100);
 
         const buttonInlineSave = wrapper.find('.sw-data-grid__inline-edit-save');
         await buttonInlineSave.trigger('click');

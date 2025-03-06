@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\DataAbstractionLayer\Search\Aggregation\Metric;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Test\Product\ProductBuilder;
 use Shopware\Core\Framework\Context;
@@ -11,13 +13,12 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\AggregationResult\Metric
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseHelper\ReflectionHelper;
-use Shopware\Core\Framework\Test\TestDataCollection;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\Search\Aggregation\Metric\RangeAggregation
  */
+#[CoversClass(RangeAggregation::class)]
 class RangeAggregationTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -28,7 +29,7 @@ class RangeAggregationTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->repository = $this->getContainer()->get('product.repository');
+        $this->repository = static::getContainer()->get('product.repository');
         $this->context = Context::createDefaultContext();
     }
 
@@ -42,9 +43,7 @@ class RangeAggregationTest extends TestCase
         yield 'from and empty to' => [10, null, '10-*'];
     }
 
-    /**
-     * @dataProvider buildRangeKeyDataProvider
-     */
+    #[DataProvider('buildRangeKeyDataProvider')]
     public function testBuildRangeKey(?float $from, ?float $to, string $expectedKey): void
     {
         $method = ReflectionHelper::getMethod(RangeAggregation::class, 'buildRangeKey');
@@ -82,14 +81,13 @@ class RangeAggregationTest extends TestCase
     }
 
     /**
-     * @dataProvider rangeAggregationDataProvider
-     *
      * @param array<int, array<string, string|float>> $rangesDefinition
      * @param array<string, int> $rangesExpectedResult
      */
+    #[DataProvider('rangeAggregationDataProvider')]
     public function testRangeAggregation(array $rangesDefinition, array $rangesExpectedResult): void
     {
-        $ids = new TestDataCollection();
+        $ids = new IdsCollection();
 
         $data = [
             (new ProductBuilder($ids, 'a'))->price(5, 5)->build(),
@@ -104,7 +102,16 @@ class RangeAggregationTest extends TestCase
 
         $this->repository->create($data, $this->context);
 
-        $criteria = new Criteria();
+        $criteria = new Criteria([
+            $ids->get('a'),
+            $ids->get('b'),
+            $ids->get('c'),
+            $ids->get('d'),
+            $ids->get('e'),
+            $ids->get('f'),
+            $ids->get('g'),
+            $ids->get('h'),
+        ]);
         $criteria->addAggregation(
             new RangeAggregation(
                 'test-range-aggregation',

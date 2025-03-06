@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\Delivery\Struct\Delivery;
@@ -31,10 +33,9 @@ use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTra
 
 /**
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[Group('rules')]
 class CartVolumeRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -47,9 +48,7 @@ class CartVolumeRuleTest extends TestCase
         $this->rule = new CartVolumeRule();
     }
 
-    /**
-     * @dataProvider getMatchingRuleTestData
-     */
+    #[DataProvider('getMatchingRuleTestData')]
     public function testIfMatchesCorrect(
         string $operator,
         float $volume,
@@ -65,9 +64,7 @@ class CartVolumeRuleTest extends TestCase
         static::assertSame($expected, $match);
     }
 
-    /**
-     * @dataProvider getMatchingRuleTestData
-     */
+    #[DataProvider('getMatchingRuleTestData')]
     public function testIfMatchesCorrectOnNested(
         string $operator,
         float $volume,
@@ -124,9 +121,9 @@ class CartVolumeRuleTest extends TestCase
     {
         $ruleId = Uuid::randomHex();
         $context = Context::createDefaultContext();
-        $ruleRepository = $this->getContainer()->get('rule.repository');
+        $ruleRepository = static::getContainer()->get('rule.repository');
         /** @var EntityRepository<RuleConditionCollection> $conditionRepository */
-        $conditionRepository = $this->getContainer()->get('rule_condition.repository');
+        $conditionRepository = static::getContainer()->get('rule_condition.repository');
 
         $ruleRepository->create(
             [['id' => $ruleId, 'name' => 'Demo rule', 'priority' => 1]],
@@ -156,8 +153,8 @@ class CartVolumeRuleTest extends TestCase
     private function createCartDummy(): Cart
     {
         $lineItemCollection = new LineItemCollection([
-            $this->createLineItemWithDeliveryInfo(false, 3, 10, 40, 3, 0.5),
-            $this->createLineItemWithDeliveryInfo(true, 3, 10, 40, 3, 0.5),
+            $this->createLineItemWithDeliveryInfo(false, 3, 10, 40, 3 * Rule::VOLUME_FACTOR, 0.5),
+            $this->createLineItemWithDeliveryInfo(true, 3, 10, 40, 3 * Rule::VOLUME_FACTOR, 0.5),
         ]);
 
         $cart = $this->createCart($lineItemCollection);

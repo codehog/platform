@@ -4,7 +4,7 @@ import './sw-product-variant-info.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  * @description Component which renders the variations of variant products.
@@ -15,6 +15,8 @@ const { Component } = Shopware;
  */
 Component.register('sw-product-variant-info', {
     template,
+
+    inject: ['feature'],
 
     props: {
         variations: {
@@ -44,7 +46,6 @@ Component.register('sw-product-variant-info', {
         showTooltip: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -71,7 +72,7 @@ Component.register('sw-product-variant-info', {
 
     computed: {
         productName() {
-            return this.$slots.default[0].text;
+            return this.$slots?.default?.()?.[0]?.children || '';
         },
     },
 
@@ -91,11 +92,11 @@ Component.register('sw-product-variant-info', {
         },
 
         getFirstSlot() {
-            return this.$slots?.default?.[0]?.text || '';
+            return this.$slots?.default?.()?.[0]?.children || '';
         },
 
         setHelpText() {
-            this.helpText = this.titleTerm ? this.titleTerm : this.getFirstSlot();
+            this.helpText = this.titleTerm || this.getFirstSlot();
 
             if (this.helpText && this.variations && this.variations.length > 0) {
                 this.tooltipWidth = 500;

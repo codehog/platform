@@ -2,21 +2,18 @@
 
 namespace Shopware\Tests\Unit\Elasticsearch\Admin;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Elasticsearch\Admin\AdminElasticsearchHelper;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Admin\AdminElasticsearchHelper
  */
+#[CoversClass(AdminElasticsearchHelper::class)]
 class AdminElasticsearchHelperTest extends TestCase
 {
-    /**
-     * @dataProvider searchHelperProvider
-     */
+    #[DataProvider('searchHelperProvider')]
     public function testSearchHelper(bool $adminEsEnabled, bool $refreshIndices, string $adminIndexPrefix): void
     {
         $searchHelper = new AdminElasticsearchHelper($adminEsEnabled, $refreshIndices, $adminIndexPrefix);

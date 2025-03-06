@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Elasticsearch\Admin\Indexer;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\ProductStream\ProductStreamDefinition;
 use Shopware\Core\Content\ProductStream\ProductStreamEntity;
@@ -17,12 +18,9 @@ use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Elasticsearch\Admin\Indexer\ProductStreamAdminSearchIndexer;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Admin\Indexer\ProductStreamAdminSearchIndexer
  */
+#[CoversClass(ProductStreamAdminSearchIndexer::class)]
 class ProductStreamAdminSearchIndexerTest extends TestCase
 {
     private ProductStreamAdminSearchIndexer $searchIndexer;

@@ -1,3 +1,6 @@
+/**
+ * @sw-package framework
+ */
 import initializeRouter from 'src/app/init/router.init';
 
 describe('src/app/init/router.init.ts', () => {

@@ -65,7 +65,7 @@ $sw-label-pill-border-radius: 50px;
         cursor: pointer;
         outline: none;
 
-        .sw-icon {
+        .mt-icon {
             width: 16px;
             height: 16px;
             padding: 4px;
@@ -132,6 +132,7 @@ $sw-label-pill-border-radius: 50px;
     }
 
     &.sw-label--info:not(&--appearance-badged) {
+        /* stylelint-disable-next-line max-line-length */
         @include sw-label-variant($color-shopware-brand-50, $color-shopware-brand-500, $color-shopware-brand-500, $color-shopware-brand-100);
     }
 
@@ -144,6 +145,7 @@ $sw-label-pill-border-radius: 50px;
     }
 
     &.sw-label--warning:not(&--appearance-badged) {
+        /* stylelint-disable-next-line max-line-length */
         @include sw-label-variant($color-pumpkin-spice-50, $color-pumpkin-spice-500, $color-pumpkin-spice-500, $color-pumpkin-spice-100);
     }
 
@@ -151,7 +153,12 @@ $sw-label-pill-border-radius: 50px;
         @include sw-label-variant($color-gray-50, $color-darkgray-200, $color-gray-300, $color-gray-100);
     }
 
+    &.sw-label--neutral-reversed:not(&--appearance-badged) {
+        @include sw-label-variant($color-darkgray-100, $color-gray-50,  $color-gray-100, $color-darkgray-100);
+    }
+
     &.sw-label--primary:not(&--appearance-badged) {
-        @include sw-label-variant($color-shopware-brand-500, $color-shopware-brand-50, $color-shopware-brand-500, $color-shopware-brand-100);
+        /* stylelint-disable-next-line max-line-length */
+        @include sw-label-variant($color-shopware-brand-500, $color-shopware-brand-50, $color-shopware-brand-700, $color-shopware-brand-500);
     }
 }

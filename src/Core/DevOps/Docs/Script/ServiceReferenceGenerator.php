@@ -2,19 +2,20 @@
 
 namespace Shopware\Core\DevOps\Docs\Script;
 
-use League\ConstructFinder\ConstructFinder;
 use phpDocumentor\Reflection\DocBlock;
+use phpDocumentor\Reflection\DocBlock\Description;
 use phpDocumentor\Reflection\DocBlock\Tags\Deprecated;
 use phpDocumentor\Reflection\DocBlock\Tags\Example;
 use phpDocumentor\Reflection\DocBlock\Tags\Generic;
+use phpDocumentor\Reflection\DocBlock\Tags\InvalidTag;
 use phpDocumentor\Reflection\DocBlock\Tags\Method;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
 use phpDocumentor\Reflection\DocBlock\Tags\TagWithType;
 use phpDocumentor\Reflection\DocBlockFactory;
+use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Script\ServiceStubs;
-use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
@@ -22,7 +23,7 @@ use Twig\Loader\ArrayLoader;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class ServiceReferenceGenerator implements ScriptReferenceGenerator
 {
     final public const GROUP_DATA_LOADING = 'data_loading';
@@ -44,7 +45,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
     private const TEMPLATE_FILE = __DIR__ . '/../../Resources/templates/service-reference.md.twig';
     private const GENERATED_DOC_FILE = __DIR__ . '/../../Resources/generated/';
 
-    private readonly DocBlockFactory $docFactory;
+    private readonly DocBlockFactoryInterface $docFactory;
 
     /**
      * @var array<string, string>
@@ -109,7 +110,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
         $description = $tags[0]->getDescription();
 
         if (!$description || !\in_array($description->render(), array_keys(self::GROUPS), true)) {
-            throw new \RuntimeException(sprintf(
+            throw new \RuntimeException(\sprintf(
                 'Script Services "%s" is not correctly tagged to the group. Available groups are: "%s".',
                 $reflection->getName(),
                 implode('", "', array_keys(self::GROUPS)),
@@ -149,11 +150,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
     {
         $scriptServices = [];
 
-        $shopwareClasses = ConstructFinder::locatedIn(__DIR__ . '/../../../..')
-            ->exclude('*/Test/*', '*/vendor/*', '*/DevOps/StaticAnalyze*')
-            ->findClassNames();
-
-        foreach ($shopwareClasses as $class) {
+        foreach (ScriptReferenceDataCollector::getShopwareClasses() as $class) {
             if (!class_exists($class)) {
                 // skip not autoloadable test classes
                 continue;
@@ -168,6 +165,10 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
             $doc = $this->docFactory->create($reflection);
 
             if (!$doc->hasTag('script-service')) {
+                continue;
+            }
+
+            if ($doc->hasTag('internal')) {
                 continue;
             }
 
@@ -244,7 +245,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
                 'marker' => '{#' . strtolower($reflection->getShortName()) . '}',
                 'deprecated' => $deprecated ? (string) $deprecated : null,
                 'summary' => $docBlock->getSummary(),
-                'description' => $docBlock->getDescription()->render(),
+                'description' => $this->unescapeDescription($docBlock->getDescription()),
                 'methods' => $this->getMethods($reflection, $scriptServices),
             ];
         }
@@ -278,7 +279,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
             }
 
             if (!$method->getDocComment()) {
-                throw new \RuntimeException(sprintf(
+                throw new \RuntimeException(\sprintf(
                     'DocBlock is missing for method "%s() in class "%s".',
                     $method->getName(),
                     $reflection->getName()
@@ -297,7 +298,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
             $methods[] = [
                 'title' => $method->getName() . '()',
                 'summary' => $docBlock->getSummary(),
-                'description' => $docBlock->getDescription()->render(),
+                'description' => $this->unescapeDescription($docBlock->getDescription()),
                 'deprecated' => $deprecated ? (string) $deprecated : null,
                 'arguments' => $this->parseArguments($method, $docBlock, $scriptServices),
                 'return' => $this->parseReturn($method, $docBlock, $scriptServices),
@@ -365,7 +366,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
             }
         }
 
-        throw new \RuntimeException(sprintf(
+        throw new \RuntimeException(\sprintf(
             'Missing doc block for param "$%s" on method "%s()" in class "%s",',
             $name,
             $method->getName(),
@@ -380,7 +381,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
     {
         $tag = $docBlock->getTagsByName('param')[0] ?? null;
 
-        if (!$tag instanceof DocBlock\Tags\InvalidTag) {
+        if (!$tag instanceof InvalidTag) {
             return null;
         }
 
@@ -408,7 +409,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
         /** @var Return_[] $tags */
         $tags = $docBlock->getTagsWithTypeByName('return');
         if (\count($tags) < 1) {
-            throw new \RuntimeException(sprintf(
+            throw new \RuntimeException(\sprintf(
                 'Missing @return annotation on method "%s()" in class "%s",',
                 $method->getName(),
                 $method->getDeclaringClass()->getName()
@@ -447,8 +448,18 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
 
         return [
             'type' => $typeName,
-            'description' => $tag->getDescription() ? $tag->getDescription()->render() : '',
+            'description' => $tag->getDescription() ? $this->unescapeDescription($tag->getDescription()) : '',
         ];
+    }
+
+    /**
+     * Newer versions of phpdocumentor/reflection-docblock perform an optimization and don't always call vsprintf
+     * and thus the escaped % chars during lexing are not unescaped.
+     * Can be removed when/if https://github.com/phpDocumentor/ReflectionDocBlock/pull/357 is merged
+     */
+    private function unescapeDescription(Description $description): string
+    {
+        return str_replace('%%', '%', $description->render());
     }
 
     /**
@@ -460,23 +471,16 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
 
         /** @var Example $example */
         foreach ($docBlock->getTagsByName('example') as $example) {
-            $finder = new Finder();
-            $finder->files()
-                ->in([__DIR__ . '/../../../../', __DIR__ . '/../../../../../tests'])
-                // exclude js files including node_modules for performance reasons, filtering with `notPath`, etc. has no performance impact
-                // note that excluded paths need to be relative to platform/src and that no wildcards are supported
-                ->exclude([
-                    'Administration/Resources',
-                    'Storefront/Resources',
-                    'Recovery',
-                ])
-                ->path($example->getFilePath())
-                ->ignoreUnreadableDirs();
+            $files = [];
 
-            $files = iterator_to_array($finder);
+            foreach (ScriptReferenceDataCollector::getFiles() as $file) {
+                if (str_ends_with($file->getPathname(), $example->getFilePath())) {
+                    $files[$file->getPathname()] = $file;
+                }
+            }
 
             if (\count($files) === 0) {
-                throw new \RuntimeException(sprintf(
+                throw new \RuntimeException(\sprintf(
                     'Cannot find configured example file in `@example` annotation for method "%s()" in class "%s". File with pattern "%s" can not be found.',
                     $method->getName(),
                     $method->getDeclaringClass()->getName(),
@@ -485,7 +489,7 @@ class ServiceReferenceGenerator implements ScriptReferenceGenerator
             }
 
             if (\count($files) > 1) {
-                throw new \RuntimeException(sprintf(
+                throw new \RuntimeException(\sprintf(
                     'Configured file pattern in `@example` annotation for method "%s()" in class "%s" is not unique. File pattern "%s" matched "%s".',
                     $method->getName(),
                     $method->getDeclaringClass()->getName(),

@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
     <xs:element name="manifest">
+        <!-- @deprecated tag:v6.8.0 - XSD file will be removed. Use `manifest-3.0.xsd` instead -->
+        <xs:annotation>
+            <xs:documentation xml:lang="en">
+                The whole XSD file is deprecated and will be removed with Shopware 6.8. Use `manifest-3.0.xsd` instead.
+            </xs:documentation>
+        </xs:annotation>
         <xs:complexType>
             <xs:all>
                 <xs:element name="meta" type="meta">
@@ -100,6 +107,17 @@
                         <xs:field xpath="@identifier"/>
                     </xs:unique>
                 </xs:element>
+                <xs:element name="shipping-methods" type="shipping-methods" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="en">
+                            Register shipping methods your app provides.
+                        </xs:documentation>
+                    </xs:annotation>
+                    <xs:unique name="uniqueShippingMethodName">
+                        <xs:selector xpath="shipping-method"/>
+                        <xs:field xpath="@identifier"/>
+                    </xs:unique>
+                </xs:element>
                 <xs:element name="rule-conditions" type="rule-conditions" minOccurs="0">
                     <xs:annotation>
                         <xs:documentation xml:lang="en">
@@ -122,6 +140,7 @@
                         <xs:field xpath="@identifier"/>
                     </xs:unique>
                 </xs:element>
+                <xs:element name="gateways" type="gateways" minOccurs="0"/>
             </xs:all>
         </xs:complexType>
     </xs:element>
@@ -234,6 +253,7 @@
         <xs:attribute type="xs:string" name="name" use="required"/>
         <xs:attribute type="xs:anyURI" name="url" use="required"/>
         <xs:attribute type="xs:NMTOKEN" name="event" use="required"/>
+        <xs:attribute type="xs:boolean" name="onlyLiveVersion" default="false"/>
     </xs:complexType>
     <xs:complexType name="custom-field-set">
         <xs:choice maxOccurs="unbounded">
@@ -473,6 +493,12 @@
             <xs:element name="payment-method" type="payment-method" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
     </xs:complexType>
+    <xs:complexType name="gateways">
+        <xs:sequence>
+            <xs:element name="checkout" type="xs:anyURI" minOccurs="0"/>
+            <xs:element name="inAppPurchases" type="xs:anyURI" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
     <xs:complexType name="payment-method">
         <xs:choice maxOccurs="unbounded">
             <xs:element type="xs:string" name="identifier"/>
@@ -481,7 +507,14 @@
             <xs:element type="xs:anyURI" name="pay-url" minOccurs="0"/>
             <xs:element type="xs:anyURI" name="finalize-url" minOccurs="0"/>
             <xs:element type="xs:anyURI" name="validate-url" minOccurs="0"/>
-            <xs:element type="xs:anyURI" name="capture-url" minOccurs="0"/>
+            <!-- @deprecated manifest:v3.0 - will be removed, as captures are not supported anymore, use pay-url instead -->
+            <xs:element type="xs:anyURI" name="capture-url" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Deprecated with manifest v3.0 / Shopware 6.7: Captures are not supported anymore, do your logic in the pay-url instead.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
             <xs:element type="xs:anyURI" name="refund-url" minOccurs="0"/>
             <xs:element type="xs:anyURI" name="recurring-url" minOccurs="0"/>
             <xs:element type="xs:string" name="icon" minOccurs="0">
@@ -491,6 +524,55 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:element>
+        </xs:choice>
+    </xs:complexType>
+    <xs:simpleType name="delivery-time-unit">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="hour|day|week|month|year"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="delivery-time">
+        <xs:sequence maxOccurs="unbounded">
+            <xs:element type="xs:string" name="id" minOccurs="1" maxOccurs="1">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        UUID for the delivery time
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element type="translatableString" name="name" maxOccurs="unbounded"/>
+            <xs:element type="xs:int" name="min" minOccurs="1" maxOccurs="1"/>
+            <xs:element type="xs:int" name="max" minOccurs="1" maxOccurs="1"/>
+            <xs:element type="delivery-time-unit" name="unit" minOccurs="1" maxOccurs="1">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Possible values are "hour", "day", "week", "month" or "year"
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="shipping-methods">
+        <xs:sequence>
+            <xs:element name="shipping-method" type="shipping-method" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="shipping-method">
+        <xs:choice maxOccurs="unbounded">
+            <xs:element type="xs:string" name="identifier"/>
+            <xs:element type="translatableString" name="name" maxOccurs="unbounded"/>
+            <xs:element type="translatableString" name="description" maxOccurs="unbounded" minOccurs="0"/>
+            <xs:element type="xs:boolean" name="active" minOccurs="0" default="false"/>
+            <xs:element type="delivery-time" name="delivery-time" minOccurs="1" maxOccurs="1"/>
+            <xs:element type="xs:string" name="icon" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="en">
+                        Path to local image file.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element type="xs:int" name="position" minOccurs="0"/>
+            <xs:element type="translatableString" name="tracking-url" minOccurs="0" maxOccurs="unbounded"/>
         </xs:choice>
     </xs:complexType>
     <xs:complexType name="rule-conditions">

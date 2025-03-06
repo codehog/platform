@@ -1,4 +1,3 @@
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_media_base_item %}
 <div
     class="sw-media-base-item"
@@ -6,47 +5,57 @@
     role="button"
     tabindex="0"
     @click="handleItemClick"
-    @keydown.enter="handleItemClick"
+    @keydown.enter.self="handleItemClick"
 >
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_selected_indicator %}
-    <div
+    <mt-checkbox
         v-if="!isList && allowEdit"
+        v-model:checked="listSelected"
         class="sw-media-base-item__selected-indicator"
         :class="selectionIndicatorClasses"
-        role="button"
-        tabindex="0"
-        @click="onClickedItem"
-        @keydown.enter="onClickedItem"
-    >
-
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
-        {% block sw_media_base_item_selection_indicator_icon %}
-        <sw-icon
-            v-if="listSelected"
-            small
-            size="10px"
-            name="regular-checkmark-xxs"
-        />
-        {% endblock %}
-    </div>
+        @update:checked="onClickedItem"
+    />
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_preview %}
     <div class="sw-media-base-item__preview-container">
         <slot
             name="preview"
             v-bind="{ item }"
         >
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_media_base_item_slot_media_preview %}{% endblock %}
         </slot>
+
+        {# @experimental stableVersion:v6.8.0 feature:SPATIAL_BASES #}
+        {% block sw_media_base_spatial_label_indicator %}
+        <div
+            v-if="isSpatial"
+            class="sw-media-base-item__labels"
+        >
+            <sw-label
+                variant="neutral-reversed"
+                appearance="pill"
+                size="medium"
+            >
+                <mt-icon
+                    v-if="item.config?.spatial?.arReady ?? defaultArReady"
+                    name="regular-AR"
+                    size="16px"
+                />
+                <mt-icon
+                    v-else
+                    name="regular-3d"
+                    size="16px"
+                />
+
+                <span class="sw-media-base-item__labels-text">{{ (item.config?.spatial?.arReady ?? defaultArReady) ? $tc('sw-product.mediaForm.arSubline') : $tc('sw-product.mediaForm.spatialSubline') }}</span>
+            </sw-label>
+        </div>
+        {% endblock %}
     </div>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_name_container %}
     <div
         class="sw-media-base-item__name-container"
@@ -59,71 +68,50 @@
     </div>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_metadata_container %}
     <div
         v-if="isList && showContextMenuButton"
         class="sw-media-base-item__metadata-container"
     >
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_media_base_item_metadata %}
         <slot
             name="metadata"
             v-bind="{ item }"
         >
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_media_base_item_slot_media_item_metadata %}{% endblock %}
         </slot>
         {% endblock %}
     </div>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_context_menu %}
     <sw-context-button
         v-if="showContextMenuButton && !isLoading"
         ref="swContextButton"
     >
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_media_base_item_context_items %}
         <slot
             name="context-menu"
             v-bind="{ item, startInlineEdit, allowEdit, allowDelete }"
         >
-            <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
             {% block sw_media_base_item_slot_media_item_context_menu %}{% endblock %}
         </slot>
     {% endblock %}
     </sw-context-button>
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_list_selected_indicator %}
-    <div
+    <mt-checkbox
         v-if="isList && showSelectionIndicator && allowMultiSelect"
+        v-model:checked="listSelected"
         class="sw-media-base-item__selected-indicator"
         :class="selectionIndicatorClasses"
-        role="button"
-        tabindex="0"
-        @click="onClickedItem"
-        @keydown.enter="onClickedItem"
-    >
-
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
-        {% block sw_media_base_item_list_selection_indicator_icon %}
-        <sw-icon
-            v-if="listSelected"
-            small
-            name="regular-checkmark-xxs"
-            size="10px"
-        />
-        {% endblock %}
-    </div>
+        @update:checked="onClickedItem"
+    />
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_base_item_loading_indicator %}
-    <sw-icon
+    <mt-icon
         v-if="isLoading"
         class="sw-media-base-item__loader"
         name="regular-spinner-star"

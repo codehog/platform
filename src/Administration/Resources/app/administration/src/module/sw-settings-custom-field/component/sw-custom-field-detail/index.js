@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
 import template from './sw-custom-field-detail.html.twig';
 import './sw-custom-field-detail.scss';
@@ -11,7 +11,17 @@ const { Criteria } = Shopware.Data;
 export default {
     template,
 
-    inject: ['repositoryFactory', 'customFieldDataProviderService', 'SwCustomFieldListIsCustomFieldNameUnique', 'acl'],
+    inject: [
+        'repositoryFactory',
+        'customFieldDataProviderService',
+        'SwCustomFieldListIsCustomFieldNameUnique',
+        'acl',
+    ],
+
+    emits: [
+        'custom-field-edit-cancel',
+        'custom-field-edit-save',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -32,7 +42,6 @@ export default {
     data() {
         return {
             fieldTypes: {},
-            required: false,
             disableCartExpose: true,
         };
     },
@@ -45,12 +54,15 @@ export default {
 
             return [this.$root.$i18n.fallbackLocale];
         },
+
         canSave() {
             return this.currentCustomField.config.customFieldType;
         },
+
         renderComponentName() {
-            return this.fieldTypes[this.currentCustomField.config.customFieldType].configRenderComponent;
+            return this.fieldTypes[this.currentCustomField.config.customFieldType]?.configRenderComponent;
         },
+
         modalTitle() {
             if (this.currentCustomField._isNew) {
                 return this.$tc('sw-settings-custom-field.customField.detail.titleNewCustomField');
@@ -58,36 +70,35 @@ export default {
 
             return this.$tc('sw-settings-custom-field.customField.detail.titleEditCustomField');
         },
+
         labelSaveButton() {
             if (this.currentCustomField._isNew) {
-                return this.$tc('sw-settings-custom-field.customField.detail.buttonSaveApply');
+                return this.$tc('global.default.add');
             }
 
             return this.$tc('sw-settings-custom-field.customField.detail.buttonEditApply');
         },
+
         isProductCustomField() {
             if (!this.set.relations) {
                 return false;
             }
 
-            return this.set.relations.filter(relation => relation.entityName === 'product').length !== 0;
+            return this.set.relations.filter((relation) => relation.entityName === 'product').length !== 0;
         },
+
         ruleConditionRepository() {
             return this.repositoryFactory.create('rule_condition');
         },
-    },
 
-    watch: {
-        required(value) {
-            if (value) {
-                this.currentCustomField.config.validation = 'required';
-
-                return;
-            }
-
-            if (this.currentCustomField.config.hasOwnProperty('validation')) {
-                this.$delete(this.currentCustomField.config, 'validation');
-            }
+        customFieldTypeOptions() {
+            return Object.keys(this.fieldTypes).map((key) => {
+                return {
+                    id: key,
+                    value: key,
+                    label: this.$tc(`sw-settings-custom-field.types.${key}`),
+                };
+            });
         },
     },
 
@@ -100,23 +111,19 @@ export default {
             this.fieldTypes = this.customFieldDataProviderService.getTypes();
 
             if (!this.currentCustomField.config) {
-                this.$set(this.currentCustomField, 'config', {});
+                this.currentCustomField.config = {};
             }
 
             if (!this.currentCustomField.config.hasOwnProperty('customFieldType')) {
-                this.$set(this.currentCustomField.config, 'customFieldType', '');
+                this.currentCustomField.config.customFieldType = '';
             }
 
             if (!this.currentCustomField.name) {
                 this.currentCustomField.name = `${this.set.name.toLowerCase()}_`;
             }
 
-            if (this.currentCustomField.config.hasOwnProperty('validation')) {
-                this.required = (this.currentCustomField.config.validation === 'required');
-            }
-
             if (!this.currentCustomField.config.hasOwnProperty('customFieldPosition')) {
-                this.$set(this.currentCustomField.config, 'customFieldPosition', 1);
+                this.currentCustomField.config.customFieldPosition = 1;
             }
 
             if (!this.currentCustomField.allowCartExpose) {
@@ -126,13 +133,12 @@ export default {
             }
 
             const criteria = new Criteria(1, 1);
-            criteria.addFilter(Criteria.multi(
-                'AND',
-                [
+            criteria.addFilter(
+                Criteria.multi('AND', [
                     Criteria.equals('type', 'cartLineItemCustomField'),
                     Criteria.equals('value.renderedField.name', this.currentCustomField.name),
-                ],
-            ));
+                ]),
+            );
 
             this.ruleConditionRepository.search(criteria, Context.api).then((searchResult) => {
                 this.disableCartExpose = searchResult.length > 0;
@@ -160,7 +166,7 @@ export default {
                 }
             }
 
-            this.SwCustomFieldListIsCustomFieldNameUnique(this.currentCustomField).then(isUnique => {
+            this.SwCustomFieldListIsCustomFieldNameUnique(this.currentCustomField).then((isUnique) => {
                 if (isUnique) {
                     this.$emit('custom-field-edit-save', this.currentCustomField);
 
@@ -199,8 +205,8 @@ export default {
             }
 
             this.currentCustomField.config = {
-                ...this.currentCustomField.config,
                 ...this.fieldTypes[customFieldType].config,
+                ...this.currentCustomField.config,
             };
         },
 

@@ -6,18 +6,15 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Event\NestedEvent;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('content')]
+#[Package('discovery')]
 class CategoryIndexerEvent extends NestedEvent
 {
     /**
      * @var list<string>
      */
-    protected $ids;
+    protected array $ids;
 
-    /**
-     * @var Context
-     */
-    protected $context;
+    protected Context $context;
 
     /**
      * @param list<string> $ids
@@ -26,7 +23,8 @@ class CategoryIndexerEvent extends NestedEvent
     public function __construct(
         array $ids,
         Context $context,
-        private readonly array $skip = []
+        private readonly array $skip = [],
+        public bool $isFullIndexing = false
     ) {
         $this->ids = $ids;
         $this->context = $context;

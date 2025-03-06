@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import axios from 'axios';
@@ -13,8 +13,13 @@ describe('core/factory/http.factory.js', () => {
     let mock;
 
     beforeEach(async () => {
+        /**
+         * axios-client-mock does not work with request interceptors. So we enable our interceptor here
+         */
+        process.env.NODE_ENV = 'prod';
         httpClient = createHTTPClient();
         mock = new MockAdapter(httpClient);
+        process.env.NODE_ENV = 'test';
     });
 
     it('should create a HTTP client with response interceptors', async () => {
@@ -35,11 +40,16 @@ describe('core/factory/http.factory.js', () => {
         ['FRAMEWORK__STORE_SESSION_EXPIRED'],
         ['FRAMEWORK__STORE_SHOP_SECRET_INVALID'],
     ])('should intercept and retry if error code matches', async (errorCode) => {
-        mock.onGet('/store-route-requiring-auth').replyOnce(403, {
-            errors: [{
-                code: errorCode,
-            }],
-        }).onGet('/store-route-requiring-auth').replyOnce(200, {});
+        mock.onGet('/store-route-requiring-auth')
+            .replyOnce(403, {
+                errors: [
+                    {
+                        code: errorCode,
+                    },
+                ],
+            })
+            .onGet('/store-route-requiring-auth')
+            .replyOnce(200, {});
 
         expect(mock.history.get).toHaveLength(0);
 
@@ -53,9 +63,11 @@ describe('core/factory/http.factory.js', () => {
         ['FRAMEWORK__STORE_SHOP_SECRET_INVALID'],
     ])('should reject the request and reset the counter once the retry limit is hit', async (errorCode) => {
         mock.onGet('/store-route-requiring-auth').reply(403, {
-            errors: [{
-                code: errorCode,
-            }],
+            errors: [
+                {
+                    code: errorCode,
+                },
+            ],
         });
 
         const getError = async () => {
@@ -71,9 +83,11 @@ describe('core/factory/http.factory.js', () => {
         const error = await getError();
         expect(error.response.status).toBe(403);
         expect(error.response.data).toEqual({
-            errors: [{
-                code: errorCode,
-            }],
+            errors: [
+                {
+                    code: errorCode,
+                },
+            ],
         });
 
         expect(mock.history.get).toHaveLength(2);
@@ -84,9 +98,11 @@ describe('core/factory/http.factory.js', () => {
         ['FRAMEWORK__STORE_SHOP_SECRET_INVALID'],
     ])('should treat each request separately', async (errorCode) => {
         mock.onGet('/store-route-requiring-auth').reply(403, {
-            errors: [{
-                code: errorCode,
-            }],
+            errors: [
+                {
+                    code: errorCode,
+                },
+            ],
         });
 
         const getError = async () => {
@@ -105,12 +121,36 @@ describe('core/factory/http.factory.js', () => {
         const error = await getError();
         expect(error.response.status).toBe(403);
         expect(error.response.data).toEqual({
-            errors: [{
-                code: errorCode,
-            }],
+            errors: [
+                {
+                    code: errorCode,
+                },
+            ],
         });
 
-
         expect(mock.history.get).toHaveLength(4);
+    });
+
+    it('should add current vue route, as http header to trace', async () => {
+        Shopware.Application.view = {
+            router: {
+                history: {
+                    current: {
+                        name: 'sw-dashboard-index',
+                    },
+                },
+            },
+        };
+
+        mock.onGet('/test').reply((request) => {
+            expect(request.headers['shopware-admin-active-route']).toBe('sw-dashboard-index');
+
+            return [
+                200,
+                {},
+            ];
+        });
+
+        await httpClient.get('/test');
     });
 });

@@ -2,9 +2,10 @@ import template from './sw-product-deliverability-downloadable-form.html.twig';
 import './sw-product-deliverability-downloadable-form.scss';
 
 const { Mixin } = Shopware;
-const { mapState, mapPropertyErrors, mapGetters } = Shopware.Component.getComponentHelper();
+const { mapPropertyErrors } = Shopware.Component.getComponentHelper();
 
-/**
+/*
+ * @sw-package inventory
  * @private
  */
 export default {
@@ -29,15 +30,17 @@ export default {
     },
 
     computed: {
-        ...mapState('swProductDetail', [
-            'product',
-            'parentProduct',
-            'loading',
-        ]),
+        product() {
+            return Shopware.Store.get('swProductDetail').product;
+        },
 
-        ...mapGetters('swProductDetail', [
-            'showModeSetting',
-        ]),
+        parentProduct() {
+            return Shopware.Store.get('swProductDetail').parentProduct;
+        },
+
+        showModeSetting() {
+            return Shopware.Store.get('swProductDetail').showModeSetting;
+        },
 
         ...mapPropertyErrors('product', [
             'stock',
@@ -59,7 +62,6 @@ export default {
 
             this.persistedStock = this.product.stock;
         },
-
 
         onSwitchInput(event) {
             if (event === false) {

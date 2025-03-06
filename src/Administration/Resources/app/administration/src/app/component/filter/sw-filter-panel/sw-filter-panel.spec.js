@@ -1,11 +1,15 @@
+/**
+ * @sw-package framework
+ */
+
 import 'src/app/component/filter/sw-filter-panel';
 import 'src/app/component/filter/sw-boolean-filter';
 import 'src/app/component/filter/sw-existence-filter';
-import 'src/app/component/form/sw-select-field';
 import 'src/app/component/form/field-base/sw-block-field';
 import 'src/app/component/form/field-base/sw-base-field';
 import 'src/app/component/filter/sw-base-filter';
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
+import selectMtSelectOptionByText from '../../../../../test/_helper_/select-mt-select-by-text';
 
 const filters = [
     {
@@ -65,40 +69,59 @@ const filters = [
 let savedFilterData = {};
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-filter-panel'), {
-        propsData: {
+    return mount(await wrapTestComponent('sw-filter-panel', { sync: true }), {
+        props: {
             title: 'Filter',
             entity: 'product',
             filters,
             storeKey: 'config',
-            defaults: ['filter1', 'filter2', 'filter3', 'filter4', 'filter5', 'filter6', 'filter7'],
+            defaults: [
+                'filter1',
+                'filter2',
+                'filter3',
+                'filter4',
+                'filter5',
+                'filter6',
+                'filter7',
+            ],
         },
-        stubs: {
-            'sw-boolean-filter': await Shopware.Component.build('sw-boolean-filter'),
-            'sw-select-field': await Shopware.Component.build('sw-select-field'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-base-filter': await Shopware.Component.build('sw-base-filter'),
-            'sw-field-error': {
-                template: '<div></div>',
-            },
-            'sw-icon': true,
-            'sw-existence-filter': await Shopware.Component.build('sw-existence-filter'),
-            'sw-multi-select-filter': true,
-            'sw-string-filter': true,
-            'sw-number-filter': true,
-            'sw-date-filter': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    create: () => Promise.resolve({
-                        key: 'config',
-                        userId: '1',
-                    }),
-                    search: () => Promise.resolve(savedFilterData),
-                    save: () => Promise.resolve([]),
+        global: {
+            stubs: {
+                'sw-boolean-filter': await Shopware.Component.build('sw-boolean-filter'),
+                'sw-select-field': await wrapTestComponent('sw-select-field', {
+                    sync: true,
                 }),
+                'sw-select-field-deprecated': await wrapTestComponent('sw-select-field-deprecated', { sync: true }),
+                'sw-block-field': await Shopware.Component.build('sw-block-field'),
+                'sw-base-field': await Shopware.Component.build('sw-base-field'),
+                'sw-base-filter': await Shopware.Component.build('sw-base-filter'),
+                'sw-field-error': {
+                    template: '<div></div>',
+                },
+                'sw-existence-filter': await Shopware.Component.build('sw-existence-filter'),
+                'sw-multi-select-filter': true,
+                'sw-string-filter': true,
+                'sw-number-filter': true,
+                'sw-date-filter': true,
+                'sw-help-text': true,
+                'sw-select-result': true,
+                'sw-highlight-text': true,
+                'sw-ai-copilot-badge': true,
+                'sw-inheritance-switch': true,
+                'sw-loader': true,
+            },
+            provide: {
+                repositoryFactory: {
+                    create: () => ({
+                        create: () =>
+                            Promise.resolve({
+                                key: 'config',
+                                userId: '1',
+                            }),
+                        search: () => Promise.resolve(savedFilterData),
+                        save: () => Promise.resolve([]),
+                    }),
+                },
             },
         },
     });
@@ -123,15 +146,13 @@ describe('components/sw-filter-panel', () => {
         expect(wrapper.find('sw-date-filter-stub').exists()).toBeTruthy();
     });
 
-
     it('should update filter with updated values', async () => {
         const wrapper = await createWrapper();
 
         await wrapper.vm.$nextTick();
 
-        const options = wrapper.find('.sw-boolean-filter').findAll('option');
-
-        await options.at(1).setSelected();
+        const booleanFilter = wrapper.find('.sw-boolean-filter');
+        await selectMtSelectOptionByText(booleanFilter, 'sw-boolean-filter.active');
 
         await wrapper.vm.$nextTick();
 
@@ -144,14 +165,10 @@ describe('components/sw-filter-panel', () => {
         };
 
         const wrapper = await createWrapper();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
-        const options = wrapper.find('.sw-boolean-filter').findAll('option');
-
-        await options.at(0).setSelected();
-
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        const booleanFilter = wrapper.find('.sw-boolean-filter');
+        await selectMtSelectOptionByText(booleanFilter, 'sw-boolean-filter.active');
 
         await wrapper.find('.sw-base-filter__reset').trigger('click');
 
@@ -162,7 +179,10 @@ describe('components/sw-filter-panel', () => {
         const wrapper = await createWrapper();
 
         await wrapper.setProps({
-            defaults: ['filter1', 'filter2'],
+            defaults: [
+                'filter1',
+                'filter2',
+            ],
         });
 
         expect(wrapper.find('.sw-boolean-filter').exists()).toBeTruthy();
@@ -175,12 +195,10 @@ describe('components/sw-filter-panel', () => {
 
     it('should reset all filters when `Reset All` button is clicked', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
-
-        await wrapper.find('.sw-boolean-filter').findAll('option').at(1).setSelected();
-
-        await wrapper.vm.$nextTick();
+        const booleanFilter = wrapper.find('.sw-boolean-filter');
+        await selectMtSelectOptionByText(booleanFilter, 'sw-boolean-filter.inactive');
 
         expect(Object.keys(wrapper.vm.activeFilters)).not.toHaveLength(0);
 
@@ -197,11 +215,13 @@ describe('components/sw-filter-panel', () => {
                         id: '5e59f3ea47a342dd8ff1a0af2cda475',
                     },
                 ],
-                criteria: [{
-                    type: 'equalsAny',
-                    field: 'salutation.id',
-                    value: '5e59f3ea47a342dd8ff1a0af2cda475',
-                }],
+                criteria: [
+                    {
+                        type: 'equalsAny',
+                        field: 'salutation.id',
+                        value: '5e59f3ea47a342dd8ff1a0af2cda475',
+                    },
+                ],
             },
         };
 

@@ -4,7 +4,6 @@ namespace Shopware\Core\System\StateMachine\Aggregation\StateMachineHistory;
 
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\StateMachine\Aggregation\StateMachineState\StateMachineStateEntity;
 use Shopware\Core\System\StateMachine\StateMachineEntity;
@@ -15,72 +14,29 @@ class StateMachineHistoryEntity extends Entity
 {
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $stateMachineId;
+    protected string $stateMachineId;
 
-    /**
-     * @var StateMachineEntity|null
-     */
-    protected $stateMachine;
+    protected ?StateMachineEntity $stateMachine = null;
 
-    /**
-     * @var string
-     */
-    protected $entityName;
+    protected string $entityName;
 
-    /**
-     * @decrecated tag:v6.6.0 - Will be removed. Use the dedicated properties 'referencedId' and 'referencedVersionId'
-     *
-     * @var array{id: string, version_id: string}
-     */
-    protected $entityId;
+    protected string $referencedId;
 
-    /**
-     * @var string
-     */
-    protected $referencedId;
+    protected string $referencedVersionId;
 
-    /**
-     * @var string
-     */
-    protected $referencedVersionId;
+    protected string $fromStateId;
 
-    /**
-     * @var string
-     */
-    protected $fromStateId;
+    protected ?StateMachineStateEntity $fromStateMachineState = null;
 
-    /**
-     * @var StateMachineStateEntity|null
-     */
-    protected $fromStateMachineState;
+    protected string $toStateId;
 
-    /**
-     * @var string
-     */
-    protected $toStateId;
+    protected ?StateMachineStateEntity $toStateMachineState = null;
 
-    /**
-     * @var StateMachineStateEntity|null
-     */
-    protected $toStateMachineState;
+    protected string $userId;
 
-    /**
-     * @var string
-     */
-    protected $userId;
+    protected ?UserEntity $user = null;
 
-    /**
-     * @var UserEntity|null
-     */
-    protected $user;
-
-    /**
-     * @var string
-     */
-    protected $transitionActionName;
+    protected string $transitionActionName;
 
     public function getTransitionActionName(): string
     {
@@ -120,36 +76,6 @@ class StateMachineHistoryEntity extends Entity
     public function setEntityName(string $entityName): void
     {
         $this->entityName = $entityName;
-    }
-
-    /**
-     * @decrecated tag:v6.6.0 - Will be removed. Use the dedicated properties 'referencedId' and 'referencedVersionId'
-     *
-     * @return array{id: string, version_id: string}
-     */
-    public function getEntityId(): array
-    {
-        Feature::triggerDeprecationOrThrow(
-            'v6.6.0.0',
-            'Will be removed. Use the dedicated properties \'referencedId\' and \'referencedVersionId\'',
-        );
-
-        return $this->entityId;
-    }
-
-    /**
-     * @decrecated tag:v6.6.0 - Will be removed. Use the dedicated properties 'referencedId' and 'referencedVersionId'
-     *
-     * @param array{id: string, version_id: string} $entityId
-     */
-    public function setEntityId(array $entityId): void
-    {
-        Feature::triggerDeprecationOrThrow(
-            'v6.6.0.0',
-            'Will be removed. Use the dedicated properties \'referencedId\' and \'referencedVersionId\'',
-        );
-
-        $this->entityId = $entityId;
     }
 
     public function getReferencedId(): string

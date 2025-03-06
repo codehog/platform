@@ -1,113 +1,120 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/meteor/sw-meteor-page';
-import swExtensionConfigPage from 'src/module/sw-extension/page/sw-extension-config';
-import swExtensionIcon from 'src/app/asyncComponent/extension/sw-extension-icon';
-
-Shopware.Component.register('sw-extension-config', swExtensionConfigPage);
-Shopware.Component.register('sw-extension-icon', swExtensionIcon);
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  */
-describe('src/module/sw-extension/page/sw-extension-config-spec', () => {
-    let wrapper;
+describe('src/module/sw-extension/page/sw-extension-config.spec', () => {
     let SwExtensionConfig;
     let SwMeteorPage;
 
     async function createWrapper() {
-        const localVue = createLocalVue();
+        return mount(SwExtensionConfig, {
+            global: {
+                mocks: {
+                    $route: {
+                        meta: {
+                            $module: null,
+                        },
+                    },
+                },
+                stubs: {
+                    'sw-meteor-page': await wrapTestComponent('sw-meteor-page', { sync: true }),
+                    'sw-system-config': await wrapTestComponent('sw-system-config', { sync: true }),
+                    'sw-extension-icon': await wrapTestComponent('sw-extension-icon', { sync: true }),
+                    'sw-external-link': {
+                        template: '<a><slot></slot></a>',
+                    },
+                    'sw-search-bar': true,
+                    'sw-notification-center': true,
+                    'sw-help-center-v2': true,
+                    'sw-meteor-navigation': true,
+                    'sw-tabs': true,
+                    'sw-sales-channel-switch': true,
 
-        return shallowMount(SwExtensionConfig, {
-            localVue,
-            propsData: {
+                    'sw-form-field-renderer': true,
+                    'sw-inherit-wrapper': true,
+                    'sw-app-topbar-button': true,
+                    'sw-ai-copilot-badge': true,
+                },
+                provide: {
+                    shopwareExtensionService: {
+                        updateExtensionData: jest.fn(),
+                    },
+                    systemConfigApiService: {
+                        getValues: () => {
+                            return Promise.resolve({
+                                'core.store.apiUri': 'https://api.shopware.com',
+                                'core.store.licenseHost': 'sw6.test.shopware.in',
+                                'core.store.shopSecret': 'very.s3cret',
+                                'core.store.shopwareId': 'max@muster.com',
+                            });
+                        },
+                    },
+                },
+            },
+            props: {
                 namespace: 'MyExtension',
             },
             data() {
                 return { extension: null };
             },
-            mocks: {
-                $route: {
-                    meta: {
-                        $module: null,
-                    },
-                },
-            },
-            stubs: {
-                'sw-meteor-page': await Shopware.Component.build('sw-meteor-page'),
-                'sw-search-bar': true,
-                'sw-notification-center': true,
-                'sw-help-center': true,
-                'sw-meteor-navigation': true,
-                'sw-external-link': true,
-                'sw-system-config': true,
-                'sw-button': await Shopware.Component.build('sw-button'),
-                'sw-extension-icon': await Shopware.Component.build('sw-extension-icon'),
-            },
-            provide: {
-                shopwareExtensionService: {
-                    updateExtensionData: jest.fn(),
-                },
-                systemConfigApiService: {
-                    getValues: () => {
-                        return Promise.resolve({
-                            'core.store.apiUri': 'https://api.shopware.com',
-                            'core.store.licenseHost': 'sw6.test.shopware.in',
-                            'core.store.shopSecret': 'very.s3cret',
-                            'core.store.shopwareId': 'max@muster.com',
-                        });
-                    },
-                },
-            },
         });
     }
 
     beforeAll(async () => {
-        SwExtensionConfig = await Shopware.Component.build('sw-extension-config');
-        SwMeteorPage = await Shopware.Component.build('sw-meteor-page');
+        SwExtensionConfig = await wrapTestComponent('sw-extension-config', {
+            sync: true,
+        });
+        SwMeteorPage = await wrapTestComponent('sw-meteor-page', {
+            sync: true,
+        });
     });
 
     beforeEach(async () => {
-        if (typeof Shopware.State.get('shopwareExtensions') !== 'undefined') {
-            Shopware.State.unregisterModule('shopwareExtensions');
-        }
-
-        Shopware.State.registerModule('shopwareExtensions', {
-            state: {
-                myExtensions: { data: { length: 0, find: () => null } },
-            },
-        });
-        wrapper = await createWrapper();
-    });
-
-    afterEach(async () => {
-        if (wrapper) await wrapper.destroy();
-    });
-
-    it('should be a Vue.JS component', async () => {
-        expect(wrapper.vm).toBeTruthy();
+        setActivePinia(createPinia());
     });
 
     it('domain should suffix config', async () => {
+        const wrapper = await createWrapper();
+
         expect(wrapper.vm.domain).toBe('MyExtension.config');
     });
 
+    it('should reload extensions on createdComponent', async () => {
+        const wrapper = await createWrapper();
+
+        expect(wrapper.vm.shopwareExtensionService.updateExtensionData).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not reload extensions on createdComponent if extensions are loaded', async () => {
+        Shopware.Store.get('shopwareExtensions').setMyExtensions([{ name: 'test-extension' }]);
+        const wrapper = await createWrapper();
+
+        expect(wrapper.vm.shopwareExtensionService.updateExtensionData).toHaveBeenCalledTimes(0);
+    });
+
     it('Save click success', async () => {
-        wrapper.vm.createNotificationSuccess = jest.fn();
-        wrapper.vm.$refs.systemConfig = {
-            saveAll: () => Promise.resolve(),
-        };
+        const wrapper = await createWrapper();
 
-        await wrapper.find('.sw-extension-config__save-action').trigger('click');
+        const saveAllMock = jest.fn(() => Promise.resolve());
+        const notificationMock = jest.fn();
 
+        wrapper.vm.createNotificationSuccess = notificationMock;
+        wrapper.vm.$refs.systemConfig.saveAll = saveAllMock;
+
+        await wrapper.get('.sw-extension-config__save-action').trigger('click');
+
+        expect(saveAllMock).toHaveBeenCalled();
         expect(wrapper.vm.createNotificationSuccess).toHaveBeenCalledTimes(1);
     });
 
     it('Save click error', async () => {
+        const wrapper = await createWrapper();
+
         wrapper.vm.createNotificationError = jest.fn();
-        wrapper.vm.$refs.systemConfig = {
-            saveAll: () => Promise.reject(),
-        };
+
+        wrapper.vm.$refs.systemConfig.saveAll = jest.fn(() => Promise.reject());
 
         await wrapper.find('.sw-extension-config__save-action').trigger('click');
 
@@ -115,6 +122,8 @@ describe('src/module/sw-extension/page/sw-extension-config-spec', () => {
     });
 
     it('shows default header', async () => {
+        const wrapper = await createWrapper();
+
         const iconComponent = wrapper.get('.sw-extension-config__extension-icon img');
         expect(iconComponent.attributes().src).toBe('administration/static/img/theme/default_theme_preview.jpg');
         expect(iconComponent.attributes().alt).toBe('sw-extension-store.component.sw-extension-config.imageDescription');
@@ -127,6 +136,8 @@ describe('src/module/sw-extension/page/sw-extension-config-spec', () => {
     });
 
     it('shows header for extension details', async () => {
+        const wrapper = await createWrapper();
+
         wrapper.vm.extension = {
             icon: 'icon.png',
             label: 'My extension label',
@@ -146,6 +157,8 @@ describe('src/module/sw-extension/page/sw-extension-config-spec', () => {
     });
 
     it('shows header for extension details with producer website', async () => {
+        const wrapper = await createWrapper();
+
         wrapper.vm.extension = {
             producerName: 'shopware AG',
             producerWebsite: 'https://www.shopware.com/',
@@ -161,20 +174,17 @@ describe('src/module/sw-extension/page/sw-extension-config-spec', () => {
     });
 
     it('saves from route when router navigates to sw-extension-config page', async () => {
+        const wrapper = await createWrapper();
+
         const fromRoute = {
             name: 'from.route.name',
         };
 
-        SwExtensionConfig.beforeRouteEnter.call(
-            wrapper.vm,
-            undefined,
-            fromRoute,
-            (c) => c(wrapper.vm),
-        );
+        SwExtensionConfig.beforeRouteEnter.call(wrapper.vm, undefined, fromRoute, (c) => c(wrapper.vm));
         await wrapper.vm.$nextTick();
 
         const page = wrapper.findComponent(SwMeteorPage);
 
-        expect(page.props('fromLink')).toBe(fromRoute);
+        expect(page.props('fromLink')).toEqual(fromRoute);
     });
 });

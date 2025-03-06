@@ -2,18 +2,16 @@ import Plugin from 'src/plugin-system/plugin.class';
 import OffCanvas from 'src/plugin/offcanvas/offcanvas.plugin';
 import LoadingIndicator from 'src/utility/loading-indicator/loading-indicator.util';
 import HttpClient from 'src/service/http-client.service';
-import DomAccess from 'src/helper/dom-access.helper';
-import Iterator from 'src/helper/iterator.helper';
 
 /**
- * @package storefront
+ * @sw-package framework
  */
 export default class OffcanvasMenuPlugin extends Plugin {
 
     static options = {
         navigationUrl: window.router['frontend.menu.offcanvas'],
         position: 'left',
-        tiggerEvent: 'click',
+        triggerEvent: 'click',
 
         additionalOffcanvasClass: 'navigation-offcanvas',
         linkSelector: '.js-navigation-offcanvas-link',
@@ -47,15 +45,15 @@ export default class OffcanvasMenuPlugin extends Plugin {
      * @private
      */
     _registerEvents() {
-        this.el.removeEventListener(this.options.tiggerEvent, this._getLinkEventHandler.bind(this));
-        this.el.addEventListener(this.options.tiggerEvent, this._getLinkEventHandler.bind(this));
+        this.el.removeEventListener(this.options.triggerEvent, this._getLinkEventHandler.bind(this));
+        this.el.addEventListener(this.options.triggerEvent, this._getLinkEventHandler.bind(this));
 
         if (OffCanvas.exists()) {
             const offCanvasElements = OffCanvas.getOffCanvas();
 
-            Iterator.iterate(offCanvasElements, offcanvas => {
+            offCanvasElements.forEach(offcanvas => {
                 const links = offcanvas.querySelectorAll(this.options.linkSelector);
-                Iterator.iterate(links, link => {
+                links.forEach(link => {
                     OffcanvasMenuPlugin._resetLoader(link);
                     link.addEventListener('click', (event) => {
                         this._getLinkEventHandler(event, link);
@@ -88,17 +86,19 @@ export default class OffcanvasMenuPlugin extends Plugin {
      */
     _getLinkEventHandler(event, link) {
         if (!link) {
-            const initialContentElement = DomAccess.querySelector(document, this.options.initialContentSelector);
+            const initialContentElement = document.querySelector(this.options.initialContentSelector);
             this._content = initialContentElement.innerHTML;
 
-            if (initialContentElement.classList.contains('is-root')) {
-                this._cache[this.options.navigationUrl] = this._content;
-            } else {
-                // fetch home menu to warm the cache
-                this._fetchMenu(this.options.navigationUrl);
-            }
+            const url = `${this.options.navigationUrl}?navigationId=${window.activeNavigationId}`;
 
-            return this._openMenu(event);
+            return this._fetchMenu(url, (htmlResponse) => {
+                const navigationContainer = initialContentElement.querySelector(this.options.menuSelector);
+                navigationContainer.innerHTML = htmlResponse;
+
+                this._content = initialContentElement.innerHTML;
+
+                return this._openMenu(event);
+            });
         }
 
         OffcanvasMenuPlugin._stopEvent(event);
@@ -108,7 +108,7 @@ export default class OffcanvasMenuPlugin extends Plugin {
 
         OffcanvasMenuPlugin._setLoader(link);
 
-        const url = DomAccess.getAttribute(link, 'data-href', false) || DomAccess.getAttribute(link, 'href', false);
+        const url = link.getAttribute('data-href') || link.getAttribute('href');
 
         if (!url) {
             return;
@@ -371,7 +371,6 @@ export default class OffcanvasMenuPlugin extends Plugin {
      * @private
      */
     _fetchMenu(link, cb) {
-
         if (!link) {
             return false;
         }

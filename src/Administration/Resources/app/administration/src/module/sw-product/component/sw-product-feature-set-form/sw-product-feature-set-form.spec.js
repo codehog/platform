@@ -1,20 +1,10 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
-import { shallowMount, createLocalVue, config } from '@vue/test-utils';
-import VueRouter from 'vue-router';
-import swProductFeatureSetForm from 'src/module/sw-product/component/sw-product-feature-set-form';
-import 'src/app/component/base/sw-container';
-import 'src/app/component/utils/sw-inherit-wrapper';
-import 'src/app/component/form/select/entity/sw-entity-single-select';
-import 'src/app/component/form/select/base/sw-select-base';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/base/sw-inheritance-switch';
-import Vue from 'vue';
-
-Shopware.Component.register('sw-product-feature-set-form', swProductFeatureSetForm);
+import { mount, config } from '@vue/test-utils';
+import { createRouter, createWebHashHistory } from 'vue-router';
+import { reactive } from 'vue';
 
 describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
     let wrapper;
@@ -59,7 +49,7 @@ describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
     };
 
     const productMock = (additionalProperties) => {
-        return Vue.observable({
+        return reactive({
             featureSet: featureSetMock,
             ...additionalProperties,
         });
@@ -67,63 +57,81 @@ describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
 
     async function createWrapper() {
         // delete global $router and $routes mocks
-        delete config.mocks.$router;
-        delete config.mocks.$route;
+        delete config.global.mocks.$router;
+        delete config.global.mocks.$route;
 
-        const localVue = createLocalVue();
-
-        localVue.use(VueRouter);
-
-        return shallowMount(await Shopware.Component.build('sw-product-feature-set-form'), {
-            localVue,
-            stubs: {
-                'sw-container': await Shopware.Component.build('sw-container'),
-                'sw-inherit-wrapper': await Shopware.Component.build('sw-inherit-wrapper'),
-                'sw-inheritance-switch': await Shopware.Component.build('sw-inheritance-switch'),
-                'sw-icon': {
-                    template: '<div class="sw-icon" @click="$emit(\'click\')"></div>',
+        const router = createRouter({
+            routes: [
+                {
+                    name: 'sw.settings.product.feature.sets.index',
+                    params: {},
+                    component: {},
                 },
-                'sw-icons-custom-inherited': true,
-                'sw-entity-single-select': await Shopware.Component.build('sw-entity-single-select'),
-                'sw-loader': true,
-                'sw-select-base': await Shopware.Component.build('sw-select-base'),
-                'sw-block-field': await Shopware.Component.build('sw-block-field'),
-                'sw-base-field': await Shopware.Component.build('sw-base-field'),
-                'sw-field-error': true,
-                'sw-label': true,
-                i18n: true,
-            },
-            provide: {
-                repositoryFactory: {
-                    create() {
-                        return {
-                            get() {
-                                return new Promise((resolve) => {
-                                    resolve(featureSetMock);
-                                });
-                            },
-                        };
-                    },
-                    search() {
-                        return {};
-                    },
-                },
-            },
-            computed: {
-                product: () => productMock({ featureSetId: featureSetMock.id }),
-                parentProduct: () => productMock({ featureSetId: featureSetMock.id, id: 'a12b3c' }),
-                loading: () => {
-                },
-            },
+            ],
+            history: createWebHashHistory(),
         });
+
+        return mount(
+            await wrapTestComponent('sw-product-feature-set-form', {
+                sync: true,
+            }),
+            {
+                global: {
+                    plugins: [router],
+                    stubs: {
+                        'sw-container': await wrapTestComponent('sw-container'),
+                        'sw-inherit-wrapper': await wrapTestComponent('sw-inherit-wrapper'),
+                        'sw-inheritance-switch': await wrapTestComponent('sw-inheritance-switch'),
+                        'sw-entity-single-select': await wrapTestComponent('sw-entity-single-select'),
+                        'sw-loader': true,
+                        'sw-select-base': await wrapTestComponent('sw-select-base'),
+                        'sw-block-field': await wrapTestComponent('sw-block-field'),
+                        'sw-base-field': await wrapTestComponent('sw-base-field'),
+                        'sw-field-error': true,
+                        'sw-label': true,
+                        'i18n-t': {
+                            template: '<div class="i18n-stub"><slot></slot></div>',
+                        },
+                        'sw-help-text': true,
+                        'sw-product-variant-info': true,
+                        'sw-highlight-text': true,
+                        'sw-select-result': true,
+                        'sw-select-result-list': true,
+                        'sw-ai-copilot-badge': true,
+                    },
+                    provide: {
+                        repositoryFactory: {
+                            create() {
+                                return {
+                                    get() {
+                                        return new Promise((resolve) => {
+                                            resolve(featureSetMock);
+                                        });
+                                    },
+                                };
+                            },
+                            search() {
+                                return {};
+                            },
+                        },
+                    },
+                },
+                computed: {
+                    product: () => productMock({ featureSetId: featureSetMock.id }),
+                    parentProduct: () =>
+                        productMock({
+                            featureSetId: featureSetMock.id,
+                            id: 'a12b3c',
+                        }),
+                    loading: () => {},
+                },
+            },
+        );
     }
 
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
+        await flushPromises();
     });
 
     it('should be able to instantiate', async () => {
@@ -147,15 +155,13 @@ describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
         const description = descriptionContainer.get(`.${classes.descriptionBody}`);
         const configInformation = descriptionContainer.get(`.${classes.descriptionConfigInformation}`);
 
-
         expect(description.text()).toEqual(text.descriptionBody);
 
-        expect(configInformation.attributes().path).toEqual(text.descriptionConfigInformation);
+        expect(configInformation.attributes().keypath).toEqual(text.descriptionConfigInformation);
     });
 
     it('has a link to the feature set config module', async () => {
-        const linkContainer = wrapper.get(`.${classes.descriptionLink}`);
-        const link = linkContainer.get(`.${classes.quickLink}`);
+        const link = wrapper.getComponent({ name: 'router-link' });
 
         expect(link.exists()).toBe(true);
         expect(link.text()).toEqual(text.descriptionLink);
@@ -169,14 +175,18 @@ describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
     it('has a sw-entity-single-select for selecting templates and supports inheritance', async () => {
         const form = wrapper.get(`.${classes.formContainer}`);
 
-        const inheritWrapper = form.get(`.${classes.formInheritWrapper}`);
-        const singleSelect = inheritWrapper.get(`.${classes.templateSingleSelect}`);
+        const inheritWrapper = form.getComponent({
+            name: 'sw-inherit-wrapper__wrapped',
+        });
+        const singleSelect = inheritWrapper.getComponent({
+            name: 'sw-entity-single-select__wrapped',
+        });
 
         expect(inheritWrapper.props().label).toEqual(text.templateSelectLabel);
         expect(singleSelect.props().placeholder).toEqual(text.templateSelectPlaceholder);
     });
 
-    it('shows the current product\'s featureSet', async () => {
+    it("shows the current product's featureSet", async () => {
         const singleSelect = wrapper.get(`.${classes.templateSingleSelect}`);
         const selection = singleSelect.get(`.${classes.singleSelectSelection}`);
 
@@ -192,7 +202,7 @@ describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
     it('show switch to inherit value', async () => {
         const inheritanceSwitch = wrapper.get(`.${classes.inheritanceSwitch}`);
 
-        await inheritanceSwitch.find('.sw-icon').trigger('click');
+        await inheritanceSwitch.find('.mt-icon').trigger('click');
 
         expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
     });
@@ -200,11 +210,11 @@ describe('src/module/sw-product/component/sw-product-feature-set-form', () => {
     it('show remove inheritance', async () => {
         const inheritanceSwitch = wrapper.get(`.${classes.inheritanceSwitch}`);
 
-        await inheritanceSwitch.find('.sw-icon').trigger('click');
+        await inheritanceSwitch.find('.mt-icon').trigger('click');
 
         expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-inherited');
 
-        await inheritanceSwitch.find('.sw-icon').trigger('click');
+        await inheritanceSwitch.find('.mt-icon').trigger('click');
 
         expect(inheritanceSwitch.classes()).toContain('sw-inheritance-switch--is-not-inherited');
     });

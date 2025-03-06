@@ -5,6 +5,7 @@ namespace Shopware\Tests\Integration\Core\Framework\App;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\App\ActiveAppsLoader;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
+use Shopware\Core\Test\AppSystemTestBehaviour;
 
 /**
  * @internal
@@ -14,14 +15,11 @@ class ActiveAppsLoaderTest extends TestCase
     use AppSystemTestBehaviour;
     use IntegrationTestBehaviour;
 
-    /**
-     * @var ActiveAppsLoader
-     */
-    private $activeAppsLoader;
+    private ActiveAppsLoader $activeAppsLoader;
 
     protected function setUp(): void
     {
-        $this->activeAppsLoader = $this->getContainer()->get(ActiveAppsLoader::class);
+        $this->activeAppsLoader = static::getContainer()->get(ActiveAppsLoader::class);
     }
 
     public function testGetActiveAppsWithActiveApp(): void
@@ -30,7 +28,7 @@ class ActiveAppsLoaderTest extends TestCase
 
         $activeApps = $this->activeAppsLoader->getActiveApps();
         static::assertCount(1, $activeApps);
-        static::assertEquals('test', $activeApps[0]['name']);
+        static::assertSame('test', $activeApps[0]['name']);
     }
 
     public function testGetActiveAppsWithInactiveApp(): void

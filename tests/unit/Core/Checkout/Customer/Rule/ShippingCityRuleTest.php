@@ -2,11 +2,18 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Delivery\Struct\ShippingLocation;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Checkout\Customer\Rule\ShippingCityRule;
+use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\System\Country\CountryEntity;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
@@ -15,14 +22,11 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @group rules
- *
- * @covers \Shopware\Core\Checkout\Customer\Rule\ShippingCityRule
  */
+#[Package('fundamentals@after-sales')]
+#[CoversClass(ShippingCityRule::class)]
+#[Group('rules')]
 class ShippingCityRuleTest extends TestCase
 {
     private ShippingCityRule $rule;
@@ -54,9 +58,7 @@ class ShippingCityRuleTest extends TestCase
         static::assertEquals(new Type('string'), $cityName[1]);
     }
 
-    /**
-     * @dataProvider getMatchValues
-     */
+    #[DataProvider('getMatchValues')]
     public function testRuleMatching(string $operator, bool $isMatching, string $billingCity): void
     {
         $cityName = 'kyln123';
@@ -75,6 +77,24 @@ class ShippingCityRuleTest extends TestCase
         } else {
             static::assertFalse($match);
         }
+    }
+
+    public function testMatchThrowsException(): void
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
+
+        $salesChannelContext = $this->createMock(SalesChannelContext::class);
+
+        $shippingLocation = new ShippingLocation(new CountryEntity(), null, new CustomerAddressEntity());
+        $salesChannelContext->method('getShippingLocation')->willReturn($shippingLocation);
+
+        (new ShippingCityRule())->match(
+            new CheckoutRuleScope($salesChannelContext)
+        );
     }
 
     /**

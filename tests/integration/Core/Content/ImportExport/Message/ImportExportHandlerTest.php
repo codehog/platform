@@ -3,33 +3,45 @@
 namespace Shopware\Tests\Integration\Core\Content\ImportExport\Message;
 
 use Shopware\Core\Content\ImportExport\Aggregate\ImportExportLog\ImportExportLogEntity;
+use Shopware\Core\Content\ImportExport\Event\ImportExportExceptionImportExportHandlerEvent;
 use Shopware\Core\Content\ImportExport\ImportExportFactory;
 use Shopware\Core\Content\ImportExport\Message\ImportExportHandler;
 use Shopware\Core\Content\ImportExport\Message\ImportExportMessage;
 use Shopware\Core\Content\ImportExport\Service\ImportExportService;
 use Shopware\Core\Content\Property\Aggregate\PropertyGroupOption\PropertyGroupOptionDefinition;
-use Shopware\Core\Content\Test\ImportExport\AbstractImportExportTestCase;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Uuid\Exception\InvalidUuidException;
+use Shopware\Tests\Integration\Core\Content\ImportExport\AbstractImportExportTestCase;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Messenger\TraceableMessageBus;
 
 /**
  * @internal
  */
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
 class ImportExportHandlerTest extends AbstractImportExportTestCase
 {
     public function testImportExportHandlerDispatchesMessage(): void
     {
-        /** @var TraceableMessageBus $messageBus */
-        $messageBus = $this->getContainer()->get('messenger.bus.shopware');
-        $factory = $this->getContainer()->get(ImportExportFactory::class);
+        $messageBus = static::getContainer()->get('messenger.default_bus');
+        static::assertInstanceOf(TraceableMessageBus::class, $messageBus);
+
+        $importExportMessageCount = \count(
+            \array_filter($messageBus->getDispatchedMessages(), function ($message): bool {
+                return $message['message'] instanceof ImportExportMessage;
+            })
+        );
+
+        $factory = static::getContainer()->get(ImportExportFactory::class);
+
+        $eventDispatcher = static::getContainer()->get('event_dispatcher');
+
         $context = Context::createDefaultContext();
 
-        $importExportHandler = new ImportExportHandler($messageBus, $factory);
+        $importExportHandler = new ImportExportHandler($messageBus, $factory, $eventDispatcher);
 
-        $importExportService = $this->getContainer()->get(ImportExportService::class);
+        $importExportService = static::getContainer()->get(ImportExportService::class);
 
         $profileId = $this->getDefaultProfileId(PropertyGroupOptionDefinition::ENTITY_NAME);
 
@@ -47,24 +59,81 @@ class ImportExportHandlerTest extends AbstractImportExportTestCase
 
         $importExportHandler->__invoke($importExportMessage);
 
-        $messages = $messageBus->getDispatchedMessages();
+        $messages = \array_filter($messageBus->getDispatchedMessages(), function ($message): bool {
+            return $message['message'] instanceof ImportExportMessage;
+        });
 
-        $importExportMessage = null;
-        foreach ($messages as $message) {
-            if (isset($message['message']) && $message['message'] instanceof ImportExportMessage) {
-                $importExportMessage = $message['message'];
-            }
-        }
+        static::assertCount($importExportMessageCount + 1, $messages);
 
-        static::assertNotNull($importExportMessage);
-        static::assertEquals($logEntity->getId(), $importExportMessage->getLogId());
-        static::assertEquals($logEntity->getActivity(), $importExportMessage->getActivity());
+        $importExportMessage = $messages[\array_key_last($messages)]['message'];
+        static::assertInstanceOf(ImportExportMessage::class, $importExportMessage);
+
+        static::assertSame($logEntity->getId(), $importExportMessage->getLogId());
+        static::assertSame($logEntity->getActivity(), $importExportMessage->getActivity());
 
         $updatedLogEntity = $this->getLogEntity($logEntity->getId());
-        static::assertEquals(50, $updatedLogEntity->getRecords());
+        static::assertSame(50, $updatedLogEntity->getRecords());
 
         $importExportHandler->__invoke($importExportMessage);
         $updatedLogEntity = $this->getLogEntity($logEntity->getId());
-        static::assertEquals(100, $updatedLogEntity->getRecords());
+        static::assertSame(100, $updatedLogEntity->getRecords());
+    }
+
+    public function testImportExportHandlerOnError(): void
+    {
+        $messageBus = static::getContainer()->get('messenger.default_bus');
+        static::assertInstanceOf(TraceableMessageBus::class, $messageBus);
+
+        $importExportMessageCount
+            = \count(
+                \array_filter($messageBus->getDispatchedMessages(), function ($message): bool {
+                    return $message['message'] instanceof ImportExportMessage;
+                })
+            );
+
+        $factory = static::getContainer()->get(ImportExportFactory::class);
+        $eventDispatcher = static::getContainer()->get('event_dispatcher');
+        $context = Context::createDefaultContext();
+
+        $importExportHandler = new ImportExportHandler($messageBus, $factory, $eventDispatcher);
+        $importExportService = static::getContainer()->get(ImportExportService::class);
+        $profileId = $this->getDefaultProfileId(PropertyGroupOptionDefinition::ENTITY_NAME);
+
+        $expireDate = new \DateTimeImmutable('2099-01-01');
+        $file = new UploadedFile(__DIR__ . '/../fixtures/properties.csv', 'properties.csv', 'text/csv');
+
+        $logEntity = $importExportService->prepareImport(
+            $context,
+            $profileId,
+            $expireDate,
+            $file
+        );
+
+        $importExportMessage = new ImportExportMessage($context, 'invalid_id', ImportExportLogEntity::ACTIVITY_IMPORT);
+
+        $importExportExceptionImportExportHandlerEventCount = 0;
+
+        $eventDispatcher
+            ->addListener(
+                ImportExportExceptionImportExportHandlerEvent::class,
+                function (ImportExportExceptionImportExportHandlerEvent $event) use (&$importExportExceptionImportExportHandlerEventCount, $importExportMessage): void {
+                    static::assertInstanceOf(InvalidUuidException::class, $event->getException());
+                    static::assertSame(
+                        0,
+                        $event->getException()->getCode()
+                    );
+                    static::assertSame($importExportMessage, $event->getMessage());
+                    ++$importExportExceptionImportExportHandlerEventCount;
+                }
+            );
+
+        $importExportHandler->__invoke($importExportMessage);
+
+        $messages = \array_filter($messageBus->getDispatchedMessages(), function ($message): bool {
+            return $message['message'] instanceof ImportExportMessage;
+        });
+
+        static::assertCount($importExportMessageCount, $messages);
+        static::assertSame(1, $importExportExceptionImportExportHandlerEventCount);
     }
 }

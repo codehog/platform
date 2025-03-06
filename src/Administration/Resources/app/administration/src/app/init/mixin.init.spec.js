@@ -1,10 +1,12 @@
+/**
+ * @sw-package framework
+ */
 import createAppMixin from 'src/app/init/mixin.init';
 
 describe('src/app/init/mixin.init.js', () => {
     it('should register all app mixins', () => {
         createAppMixin();
 
-        expect(Shopware.Mixin.getByName('discard-detail-page-changes')).toBeDefined();
         expect(Shopware.Mixin.getByName('sw-form-field')).toBeDefined();
         expect(Shopware.Mixin.getByName('generic-condition')).toBeDefined();
         expect(Shopware.Mixin.getByName('listing')).toBeDefined();

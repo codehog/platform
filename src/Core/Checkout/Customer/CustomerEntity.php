@@ -21,7 +21,7 @@ use Shopware\Core\System\Salutation\SalutationEntity;
 use Shopware\Core\System\Tag\TagCollection;
 use Shopware\Core\System\User\UserEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerEntity extends Entity implements \Stringable
 {
     use EntityCustomFieldsTrait;
@@ -31,8 +31,6 @@ class CustomerEntity extends Entity implements \Stringable
     final public const ACCOUNT_TYPE_BUSINESS = 'business';
 
     protected string $groupId;
-
-    protected string $defaultPaymentMethodId;
 
     protected string $salesChannelId;
 
@@ -108,16 +106,6 @@ class CustomerEntity extends Entity implements \Stringable
     protected int $reviewCount;
 
     /**
-     * @var \DateTimeInterface|null
-     */
-    protected $createdAt;
-
-    /**
-     * @var \DateTimeInterface|null
-     */
-    protected $updatedAt;
-
-    /**
      * @internal
      */
     protected ?string $legacyEncoder = null;
@@ -128,8 +116,6 @@ class CustomerEntity extends Entity implements \Stringable
     protected ?string $legacyPassword = null;
 
     protected ?CustomerGroupEntity $group = null;
-
-    protected ?PaymentMethodEntity $defaultPaymentMethod = null;
 
     protected ?SalesChannelEntity $salesChannel = null;
 
@@ -199,16 +185,6 @@ class CustomerEntity extends Entity implements \Stringable
     public function setGroupId(string $groupId): void
     {
         $this->groupId = $groupId;
-    }
-
-    public function getDefaultPaymentMethodId(): string
-    {
-        return $this->defaultPaymentMethodId;
-    }
-
-    public function setDefaultPaymentMethodId(string $defaultPaymentMethodId): void
-    {
-        $this->defaultPaymentMethodId = $defaultPaymentMethodId;
     }
 
     public function getSalesChannelId(): string
@@ -568,16 +544,6 @@ class CustomerEntity extends Entity implements \Stringable
         $this->group = $group;
     }
 
-    public function getDefaultPaymentMethod(): ?PaymentMethodEntity
-    {
-        return $this->defaultPaymentMethod;
-    }
-
-    public function setDefaultPaymentMethod(PaymentMethodEntity $defaultPaymentMethod): void
-    {
-        $this->defaultPaymentMethod = $defaultPaymentMethod;
-    }
-
     public function getSalesChannel(): ?SalesChannelEntity
     {
         return $this->salesChannel;
@@ -640,11 +606,7 @@ class CustomerEntity extends Entity implements \Stringable
 
     public function getActiveBillingAddress(): ?CustomerAddressEntity
     {
-        if (!$this->activeBillingAddress) {
-            return $this->defaultBillingAddress;
-        }
-
-        return $this->activeBillingAddress;
+        return $this->activeBillingAddress ?? $this->defaultBillingAddress;
     }
 
     public function setActiveBillingAddress(CustomerAddressEntity $activeBillingAddress): void
@@ -654,11 +616,7 @@ class CustomerEntity extends Entity implements \Stringable
 
     public function getActiveShippingAddress(): ?CustomerAddressEntity
     {
-        if (!$this->activeShippingAddress) {
-            return $this->defaultShippingAddress;
-        }
-
-        return $this->activeShippingAddress;
+        return $this->activeShippingAddress ?? $this->defaultShippingAddress;
     }
 
     public function setActiveShippingAddress(CustomerAddressEntity $activeShippingAddress): void

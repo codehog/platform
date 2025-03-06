@@ -9,15 +9,9 @@ use Shopware\Core\Framework\Log\Package;
 #[Package('inventory')]
 class ProductOutOfStockError extends Error
 {
-    /**
-     * @var string
-     */
-    protected $id;
+    protected string $id;
 
-    /**
-     * @var string
-     */
-    protected $name;
+    protected string $name;
 
     public function __construct(
         string $id,
@@ -25,7 +19,7 @@ class ProductOutOfStockError extends Error
     ) {
         $this->id = $id;
 
-        $this->message = sprintf('The product %s is no longer available', $name);
+        $this->message = \sprintf('The product %s is no longer available', $name);
 
         parent::__construct($this->message);
         $this->name = $name;

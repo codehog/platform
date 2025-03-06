@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Content\Mail\Service;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Mail\Service\Mail;
 use Shopware\Core\Content\Mail\Service\MailFactory;
@@ -10,9 +11,8 @@ use Symfony\Component\Validator\ConstraintViolationList;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Mail\Service\MailFactory
  */
+#[CoversClass(MailFactory::class)]
 class MailFactoryTest extends TestCase
 {
     public function testCreateWithFeatureFlag(): void
@@ -24,7 +24,7 @@ class MailFactoryTest extends TestCase
 
         $subject = 'mail create test';
         $sender = ['testSender@example.org' => 'Sales Channel'];
-        $recipients = ['testReceiver@example.org' => 'Receiver name'];
+        $recipients = ['testReceiver@example.org' => 'Receiver name', 'null-name@example.org' => null];
         $contents = ['text/html' => 'Message'];
         $attachments = ['test'];
 
@@ -54,6 +54,9 @@ class MailFactoryTest extends TestCase
 
         static::assertSame('Receiver name', $mail->getTo()[0]->getName());
         static::assertSame('testReceiver@example.org', $mail->getTo()[0]->getAddress());
+
+        static::assertSame('', $mail->getTo()[1]->getName());
+        static::assertSame('null-name@example.org', $mail->getTo()[1]->getAddress());
 
         static::assertSame('Message', $mail->getHtmlBody());
         static::assertEmpty($mail->getTextBody());

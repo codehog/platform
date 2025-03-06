@@ -6,20 +6,20 @@ use Shopware\Core\DevOps\Environment\EnvironmentHelper;
 use Shopware\Core\Framework\Adapter\Console\ShopwareStyle;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Plugin\KernelPluginLoader\StaticKernelPluginLoader;
+use Shopware\Core\Framework\Migration\MigrationCollectionLoader;
 use Shopware\Core\Framework\Plugin\PluginLifecycleService;
 use Shopware\Core\Framework\Update\Api\UpdateController;
 use Shopware\Core\Framework\Update\Event\UpdatePostFinishEvent;
 use Shopware\Core\Framework\Update\Event\UpdatePreFinishEvent;
-use Shopware\Core\Kernel;
+use Shopware\Core\Maintenance\MaintenanceException;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
@@ -29,11 +29,14 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
     name: 'system:update:finish',
     description: 'Finishes the update process',
 )]
-#[Package('core')]
+#[Package('framework')]
 class SystemUpdateFinishCommand extends Command
 {
-    public function __construct(private readonly ContainerInterface $container)
-    {
+    public function __construct(
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly SystemConfigService $systemConfigService,
+        private readonly string $shopwareVersion
+    ) {
         parent::__construct();
     }
 
@@ -41,104 +44,126 @@ class SystemUpdateFinishCommand extends Command
     {
         $this
             ->addOption(
+                'skip-migrations',
+                null,
+                InputOption::VALUE_NONE,
+                'Use this option to skip migrations'
+            )
+            ->addOption(
                 'skip-asset-build',
                 null,
                 InputOption::VALUE_NONE,
                 'Use this option to skip asset building'
+            )
+            ->addOption(
+                'version-selection-mode',
+                null,
+                InputOption::VALUE_REQUIRED,
+                \sprintf(
+                    'Define upto which version destructive migrations are executed. Possible values: "%s".',
+                    implode('", "', MigrationCollectionLoader::VALID_VERSION_SELECTION_VALUES)
+                ),
+                MigrationCollectionLoader::VERSION_SELECTION_SAFE
             );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $output = new ShopwareStyle($input, $output);
+        $io = new ShopwareStyle($input, $output);
 
         $dsn = trim((string) EnvironmentHelper::getVariable('DATABASE_URL', getenv('DATABASE_URL')));
         if ($dsn === '') {
-            $output->note('Environment variable \'DATABASE_URL\' not defined. Skipping ' . $this->getName() . '...');
+            $io->note('Environment variable \'DATABASE_URL\' not defined. Skipping ' . $this->getName() . '...');
 
             return self::SUCCESS;
         }
 
-        $output->writeln('Run Post Update');
-        $output->writeln('');
+        $io->writeln('Run Post Update');
+        $io->writeln('');
 
-        /** @var Kernel $kernel */
-        $kernel = $this->container->get('kernel');
-        $pluginLoader = $kernel->getPluginLoader();
-
-        try {
-            $containerWithoutPlugins = $this->rebootKernelWithoutPlugins();
-
-            $context = Context::createDefaultContext();
-            $systemConfigService = $this->container->get(SystemConfigService::class);
-            $oldVersion = $systemConfigService->getString(UpdateController::UPDATE_PREVIOUS_VERSION_KEY);
-
-            $newVersion = $containerWithoutPlugins->getParameter('kernel.shopware_version');
-            if (!\is_string($newVersion)) {
-                throw new \RuntimeException('Container parameter "kernel.shopware_version" needs to be a string');
-            }
-
-            /** @var EventDispatcherInterface $eventDispatcherWithoutPlugins */
-            $eventDispatcherWithoutPlugins = $this->rebootKernelWithoutPlugins()->get('event_dispatcher');
-            $eventDispatcherWithoutPlugins->dispatch(new UpdatePreFinishEvent($context, $oldVersion, $newVersion));
-
-            $this->runMigrations($output);
-        } finally {
-            $kernel->reboot(null, $pluginLoader);
-        }
+        $context = Context::createCLIContext();
+        $oldVersion = $this->systemConfigService->getString(UpdateController::UPDATE_PREVIOUS_VERSION_KEY);
 
         if ($input->getOption('skip-asset-build')) {
             $context->addState(PluginLifecycleService::STATE_SKIP_ASSET_BUILDING);
         }
 
-        /** @var EventDispatcherInterface $eventDispatcher */
-        $eventDispatcher = $this->container->get('event_dispatcher');
-        $updateEvent = new UpdatePostFinishEvent($context, $oldVersion, $newVersion);
-        $eventDispatcher->dispatch($updateEvent);
+        $this->eventDispatcher->dispatch(new UpdatePreFinishEvent($context, $oldVersion, $this->shopwareVersion));
 
-        $this->installAssets($output);
+        if (!$input->getOption('skip-migrations')) {
+            $this->runMigrations($io, $input);
+        }
 
-        $output->writeln('');
+        $updateEvent = new UpdatePostFinishEvent($context, $oldVersion, $this->shopwareVersion);
+        $this->eventDispatcher->dispatch($updateEvent);
+
+        $io->writeln($updateEvent->getPostUpdateMessage());
+
+        if (!$input->getOption('skip-asset-build')) {
+            $exitCode = $this->installAssets($io);
+            if ($exitCode !== self::SUCCESS) {
+                $io->warning('Error while installing assets');
+            }
+        }
+
+        $io->writeln('');
 
         return self::SUCCESS;
     }
 
-    private function runMigrations(OutputInterface $output): int
+    private function runMigrations(ShopwareStyle $io, InputInterface $input): void
     {
-        $application = $this->getApplication();
-        if ($application === null) {
-            throw new \RuntimeException('No application initialised');
-        }
-        $command = $application->find('database:migrate');
+        $application = $this->getConsoleApplication();
 
-        $arguments = [
+        $command = $application->find('database:migrate');
+        $exitCode = $this->runCommand($application, $command, [
             'identifier' => 'core',
             '--all' => true,
-        ];
-        $arrayInput = new ArrayInput($arguments, $command->getDefinition());
+        ], $io);
+        if ($exitCode !== self::SUCCESS) {
+            $io->warning('Error while running migrations');
+        }
 
-        return $command->run($arrayInput, $output);
+        $mode = (string) $input->getOption('version-selection-mode');
+        if (!\in_array($mode, MigrationCollectionLoader::VALID_VERSION_SELECTION_VALUES, true)) {
+            throw MaintenanceException::invalidVersionSelectionMode($mode);
+        }
+        $command = $application->find('database:migrate-destructive');
+        $exitCode = $this->runCommand($application, $command, [
+            'identifier' => 'core',
+            '--all' => true,
+            '--version-selection-mode' => $mode,
+        ], $io);
+        if ($exitCode !== self::SUCCESS) {
+            $io->warning('Error while running destructive migrations');
+        }
     }
 
-    private function installAssets(OutputInterface $output): int
+    private function installAssets(ShopwareStyle $io): int
     {
-        $application = $this->getApplication();
-        if ($application === null) {
-            throw new \RuntimeException('No application initialised');
-        }
+        $application = $this->getConsoleApplication();
         $command = $application->find('assets:install');
 
-        return $command->run(new ArrayInput([], $command->getDefinition()), $output);
+        return $this->runCommand($application, $command, [], $io);
     }
 
-    private function rebootKernelWithoutPlugins(): ContainerInterface
+    /**
+     * @param array<string, string|bool|null> $arguments
+     */
+    private function runCommand(Application $application, Command $command, array $arguments, ShopwareStyle $io): int
     {
-        /** @var Kernel $kernel */
-        $kernel = $this->container->get('kernel');
+        \array_unshift($arguments, $command->getName());
 
-        $classLoad = $kernel->getPluginLoader()->getClassLoader();
-        $kernel->reboot(null, new StaticKernelPluginLoader($classLoad));
+        return $application->doRun(new ArrayInput($arguments), $io);
+    }
 
-        return $kernel->getContainer();
+    private function getConsoleApplication(): Application
+    {
+        $application = $this->getApplication();
+        if (!$application instanceof Application) {
+            throw MaintenanceException::consoleApplicationNotFound();
+        }
+
+        return $application;
     }
 }

@@ -1,54 +1,57 @@
-import { shallowMount } from '@vue/test-utils';
-import swTaxRuleCard from 'src/module/sw-settings-tax/component/sw-tax-rule-card';
-
-Shopware.Component.register('sw-tax-rule-card', swTaxRuleCard);
+import { mount } from '@vue/test-utils';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 async function createWrapper(privileges = []) {
-    return shallowMount(await Shopware.Component.build('sw-tax-rule-card'), {
-        propsData: {
-            tax: {
-                id: 'id',
-                taxId: 'taxId',
-                taxRate: 'taxRate',
-            },
-            isLoading: false,
-            disabled: false,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: () => {
-                        return Promise.resolve([
-                            {
-                                id: 'id',
-                                taxId: 'taxId',
-                                taxRate: 'taxRate',
-                            },
-                        ]);
-                    },
-
-                    delete: () => {
-                        return Promise.resolve();
-                    },
-                }),
-            },
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) {
-                        return true;
-                    }
-
-                    return privileges.includes(identifier);
+    return mount(
+        await wrapTestComponent('sw-tax-rule-card', {
+            sync: true,
+        }),
+        {
+            props: {
+                tax: {
+                    id: 'id',
+                    taxId: 'taxId',
+                    taxRate: 'taxRate',
                 },
+                isLoading: false,
+                disabled: false,
             },
-        },
-        stubs: {
-            'sw-card': {
-                template: `
-                    <div class="sw-card">
+            global: {
+                renderStubDefaultSlot: true,
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            search: () => {
+                                return Promise.resolve([
+                                    {
+                                        id: 'id',
+                                        taxId: 'taxId',
+                                        taxRate: 'taxRate',
+                                    },
+                                ]);
+                            },
+
+                            delete: () => {
+                                return Promise.resolve();
+                            },
+                        }),
+                    },
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
+
+                            return privileges.includes(identifier);
+                        },
+                    },
+                },
+                stubs: {
+                    'mt-card': {
+                        template: `
+                    <div class="mt-card">
                         <slot name="title"></slot>
                         <slot name="tabs"></slot>
                         <slot name="toolbar"></slot>
@@ -58,25 +61,25 @@ async function createWrapper(privileges = []) {
                         <slot></slot>
                     </div>
                 `,
-            },
-            'sw-card-section': {
-                template: `
+                    },
+                    'sw-card-section': {
+                        template: `
                     <div class="sw-card-section">
                         <slot></slot>
                     </div>
                 `,
-            },
-            'sw-card-filter': {
-                template: `
+                    },
+                    'sw-card-filter': {
+                        template: `
                     <div class="sw-card-filter">
                         <slot name="filter"></slot>
                     </div>
                 `,
-            },
-            'sw-number-field': true,
-            'sw-data-grid': {
-                props: ['dataSource'],
-                template: `
+                    },
+                    'mt-number-field': true,
+                    'sw-data-grid': {
+                        props: ['dataSource'],
+                        template: `
                     <div class="sw-data-grid">
                         <template v-for="item in dataSource">
                             <slot name="actions" v-bind="{ item }"></slot>
@@ -84,11 +87,14 @@ async function createWrapper(privileges = []) {
                         </template>
                     </div>
                 `,
+                    },
+                    'sw-context-menu-item': true,
+                    'sw-pagination': true,
+                    'sw-settings-tax-rule-modal': true,
+                },
             },
-            'sw-context-menu-item': true,
-            'sw-button': true,
         },
-    });
+    );
 }
 
 describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
@@ -107,10 +113,6 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
 
         beforeEach(async () => {
             wrapper = await (await init('tax.editor', [{}])).wrapper;
-        });
-
-        afterEach(() => {
-            wrapper.destroy();
         });
 
         it('should be a Vue.JS component', async () => {
@@ -143,10 +145,6 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
             wrapper = await (await init('', [{}])).wrapper;
         });
 
-        afterEach(() => {
-            wrapper.destroy();
-        });
-
         it('should be a Vue.JS component', async () => {
             expect(wrapper.vm).toBeTruthy();
         });
@@ -154,7 +152,7 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
         it('should not be able to add a new country from data grid', async () => {
             const addButton = wrapper.find('.sw-tax-rule-grid-button');
 
-            expect(addButton.attributes().disabled).toBeTruthy();
+            expect(addButton.attributes('disabled')).toBeDefined();
         });
 
         it('should not be able to edit a country from data grid', async () => {
@@ -177,10 +175,6 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
             wrapper = await (await init('tax.editor', [])).wrapper;
         });
 
-        afterEach(() => {
-            wrapper.destroy();
-        });
-
         it('should be a Vue.JS component', async () => {
             expect(wrapper.vm).toBeTruthy();
         });
@@ -199,10 +193,6 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
             wrapper = await (await init('', [])).wrapper;
         });
 
-        afterEach(() => {
-            wrapper.destroy();
-        });
-
         it('should be a Vue.JS component', async () => {
             expect(wrapper.vm).toBeTruthy();
         });
@@ -210,7 +200,7 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
         it('should not be able to add a new country from empty card', async () => {
             const addButton = wrapper.find('.sw-settings-tax-rule-card__empty-state--button');
 
-            expect(addButton.attributes().disabled).toBeTruthy();
+            expect(addButton.attributes('disabled')).toBeDefined();
         });
     });
 
@@ -223,15 +213,8 @@ describe('module/sw-settings-tax/component/sw-tax-rule-card', () => {
 
         const taxRuleDataGrid = wrapper.find('.sw-data-grid');
 
-        const taxRateField = taxRuleDataGrid.find('sw-number-field-stub');
+        const taxRateField = taxRuleDataGrid.find('mt-number-field-stub');
 
         expect(taxRateField.attributes('digits')).toBe('3');
-    });
-
-    it('should return filters from filter registry', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm.assetFilter).toEqual(expect.any(Function));
-        expect(wrapper.vm.dateFilter).toEqual(expect.any(Function));
     });
 });

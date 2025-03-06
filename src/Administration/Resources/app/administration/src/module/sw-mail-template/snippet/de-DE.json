@@ -8,14 +8,14 @@
       "notificationTestMailErrorMessage": "Beim Versand der Test-Mail ist ein Fehler aufgetreten.",
       "notificationTestMailSuccessMessage": "Die Test-Mail ist erfolgreich versandt worden.",
       "notificationSyntaxValidationErrorMessage": "Ungültiges Template, überprüfe die Syntax: {errorMsg}",
-      "notificationGeneralSyntaxValidationErrorMessage": "Ungültiges Template, überprüfe die Syntax."
+      "notificationGeneralSyntaxValidationErrorMessage": "Ungültiges Template, überprüfe die Syntax.",
+      "missingMailTemplateTypeErrorMessage": "Ein erforderliche E-Mail-Template-Typ fehlt oder ist nicht verfügbar."
     },
     "list": {
       "textMailTemplateOverview": "E-Mail-Templates",
       "titleMailTemplateList": "Templates",
       "titleMailFooterList": "Fußzeilen",
       "buttonAddMailTemplate": "E-Mail-Template hinzufügen",
-      "buttonAdd": "Erstellen",
       "columnMailType": "Typ",
       "columnDescription": "Beschreibung",
       "columnSalesChannels": "Verkaufskanal",
@@ -23,7 +23,6 @@
       "contextMenuEdit": "Bearbeiten",
       "contextMenuDuplicate": "Duplizieren",
       "textDeleteConfirm": "Möchtest Du das E-Mail-Template \"{subject}\" wirklich löschen?",
-      "buttonCancel": "Abbrechen",
       "buttonDelete": "Löschen",
       "titleSidebarItemRefresh": "Aktualisieren",
       "errorMediaItemDuplicated": "Medium bereits verwendet",
@@ -46,7 +45,7 @@
         "labelSenderMail": "Absender-Mail",
         "labelSenderName": "Absender",
         "labelSubject": "Betreff",
-        "placeholderSenderMail": "shop@beispiel.com ...",
+        "placeholderSenderMail": "shop{'@'}beispiel.com ...",
         "placeholderSenderName": "Shopnamen eingeben ...",
         "placeholderSubject": "Betreff eingeben ..."
       },
@@ -63,16 +62,16 @@
       },
       "sidebar": {
         "labelContextMenuAddToMailTemplate": "Als Anhang hinzufügen",
-        "placeholderTestMail": "shop@beispiel.com",
+        "placeholderTestMail": "E-Mail-Adresse eingeben ...",
         "buttonTestMail": "Senden",
         "labelTestMail": "Empfänger-Adresse",
         "titleTestMail": "Test-Mail senden",
         "titleShowPreview": "Vorschau anzeigen",
         "titleShowAvailableVariables": "Variablen",
-        "copyTooltip": "In die Zwischenablage kopieren."
+        "copyTooltip": "In die Zwischenablage kopieren.",
+        "languageNotAssignedToSalesChannel": "Die aktuelle Sprache ist nicht dem gewählten Verkaufskanal zugewiesen."
       },
       "previewModalTitle": "Vorschau",
-      "buttonCancel": "Abbrechen",
       "buttonSave": "Speichern",
       "textHeadline": "Neues E-Mail-Template",
       "textHeadlineEdit": "E-Mail-Template bearbeiten",
@@ -98,7 +97,6 @@
       "contextMenuEdit": "Bearbeiten",
       "contextMenuDuplicate": "Duplizieren",
       "textDeleteConfirm": "Möchtest Du die Kopf- und Fußzeile \"{name}\" wirklich löschen?",
-      "buttonCancel": "Abbrechen",
       "buttonDelete": "Löschen",
       "titleSidebarItemRefresh": "Aktualisieren",
       "messageDeleteError": "Die Kopf- und Fußzeile \"{name}\" kann nicht gelöscht werden, solange Verkaufskanäle konfiguriert sind.",
@@ -129,7 +127,6 @@
         "placeholderPlain": "Fußzeile als Text eingeben ...",
         "placeholderHtml": "Fußzeile als HTML eingeben ..."
       },
-      "buttonCancel": "Abbrechen",
       "buttonSave": "Speichern",
       "textHeadline": "Neue E-Mail-Kopf- und Fußzeile",
       "titleResult": "E-Mail-Kopf- und Fußzeile",

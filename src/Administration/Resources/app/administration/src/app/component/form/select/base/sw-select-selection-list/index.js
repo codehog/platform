@@ -4,10 +4,9 @@ import './sw-select-selection-list.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @description Base component for rendering selection lists.
  * @example-type code-only
@@ -16,6 +15,14 @@ Component.register('sw-select-selection-list', {
     template,
 
     inject: ['feature'],
+
+    emits: [
+        'total-count-click',
+        'search-term-change',
+        'last-item-delete',
+        'key-down-enter',
+        'item-remove',
+    ],
 
     props: {
         selections: {
@@ -36,7 +43,6 @@ Component.register('sw-select-selection-list', {
         enableSearch: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -85,13 +91,16 @@ Component.register('sw-select-selection-list', {
             required: false,
             default: false,
         },
+        inputLabel: {
+            type: String,
+            required: false,
+            default: undefined,
+        },
     },
 
     computed: {
         showPlaceholder() {
-            return (this.alwaysShowPlaceholder || this.selections.length === 0 || this.hideLabels)
-                ? this.placeholder
-                : '';
+            return this.alwaysShowPlaceholder || this.selections.length === 0 || this.hideLabels ? this.placeholder : '';
         },
     },
 

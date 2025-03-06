@@ -8,8 +8,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal
+ *
+ * @deprecated tag:v6.8.0 - reason:remove-exception - Will be removed, use FlowException::customTriggerByNameNotFound() instead
  */
-#[Package('business-ops')]
+#[Package('after-sales')]
 class CustomTriggerByNameNotFoundException extends ShopwareHttpException
 {
     public function __construct(string $eventName)

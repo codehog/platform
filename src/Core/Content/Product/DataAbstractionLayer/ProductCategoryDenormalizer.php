@@ -9,10 +9,11 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Doctrine\FetchModeHelper;
 use Shopware\Core\Framework\DataAbstractionLayer\Doctrine\MultiInsertQueryQueue;
 use Shopware\Core\Framework\DataAbstractionLayer\Doctrine\RetryableTransaction;
+use Shopware\Core\Framework\DataAbstractionLayer\Util\StatementHelper;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
-#[Package('core')]
+#[Package('framework')]
 class ProductCategoryDenormalizer
 {
     /**
@@ -71,7 +72,7 @@ class ProductCategoryDenormalizer
             $this->connection->executeStatement(
                 'DELETE FROM product_category_tree WHERE `product_id` IN (:ids) AND `product_version_id` = :version',
                 ['ids' => $allIds, 'version' => $versionId],
-                ['ids' => ArrayParameterType::STRING]
+                ['ids' => ArrayParameterType::BINARY]
             );
         });
 
@@ -79,7 +80,7 @@ class ProductCategoryDenormalizer
             $query = $this->connection->prepare('UPDATE product SET category_tree = :tree WHERE id = :id AND version_id = :version');
 
             foreach ($updates as $update) {
-                $query->executeStatement($update);
+                StatementHelper::executeStatement($query, $update);
             }
         });
 
@@ -110,11 +111,11 @@ class ProductCategoryDenormalizer
     private function fetchMapping(array $ids, Context $context): array
     {
         $query = $this->connection->createQueryBuilder();
-        $query->select([
+        $query->select(
             'LOWER(HEX(product.id)) as product_id',
             'GROUP_CONCAT(category.path SEPARATOR \'\') as paths',
             'GROUP_CONCAT(LOWER(HEX(category.id)) SEPARATOR \'|\') as ids',
-        ]);
+        );
         $query->from('product');
         $query->leftJoin(
             'product',
@@ -139,11 +140,14 @@ class ProductCategoryDenormalizer
 
         $bytes = array_map(fn (string $id) => Uuid::fromHexToBytes($id), $ids);
 
-        $query->setParameter('ids', $bytes, ArrayParameterType::STRING);
+        $query->setParameter('ids', $bytes, ArrayParameterType::BINARY);
 
         $rows = $query->executeQuery()->fetchAllAssociative();
 
-        return FetchModeHelper::groupUnique($rows);
+        /** @var array<string, array<string, string>> $unique */
+        $unique = FetchModeHelper::groupUnique($rows);
+
+        return $unique;
     }
 
     /**

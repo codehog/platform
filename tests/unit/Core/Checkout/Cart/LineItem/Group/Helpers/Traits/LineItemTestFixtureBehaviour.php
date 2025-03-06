@@ -11,6 +11,9 @@ use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 
+/**
+ * @internal
+ */
 #[Package('checkout')]
 trait LineItemTestFixtureBehaviour
 {
@@ -19,7 +22,7 @@ trait LineItemTestFixtureBehaviour
      */
     private function createProductItem(float $netPrice, float $taxRate, ?float $listPriceNet = null): LineItem
     {
-        $product = new LineItem(Uuid::randomBytes(), LineItem::PRODUCT_LINE_ITEM_TYPE);
+        $product = new LineItem(Uuid::randomHex(), LineItem::PRODUCT_LINE_ITEM_TYPE);
 
         // allow quantity change
         $product->setStackable(true);

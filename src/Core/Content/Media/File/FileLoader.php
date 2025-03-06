@@ -5,26 +5,27 @@ namespace Shopware\Core\Content\Media\File;
 use League\Flysystem\FilesystemOperator;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
+use Shopware\Core\Content\Media\MediaCollection;
 use Shopware\Core\Content\Media\MediaEntity;
 use Shopware\Core\Content\Media\MediaException;
-use Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('buyers-experience')]
+#[Package('discovery')]
 class FileLoader
 {
     private readonly FileNameValidator $fileNameValidator;
 
     /**
      * @internal
+     *
+     * @param EntityRepository<MediaCollection> $mediaRepository
      */
     public function __construct(
         private readonly FilesystemOperator $filesystemPublic,
         private readonly FilesystemOperator $filesystemPrivate,
-        private readonly UrlGeneratorInterface $urlGenerator,
         private readonly EntityRepository $mediaRepository,
         private readonly StreamFactoryInterface $streamFactory
     ) {
@@ -35,7 +36,7 @@ class FileLoader
     {
         $media = $this->findMediaById($mediaId, $context);
 
-        return $this->getFileSystem($media)->read($this->getFilePath($media)) ?: '';
+        return $this->getFileSystem($media)->read($this->getFilePath($media));
     }
 
     public function loadMediaFileStream(string $mediaId, Context $context): StreamInterface
@@ -50,7 +51,7 @@ class FileLoader
     {
         $this->fileNameValidator->validateFileName($media->getFileName() ?: '');
 
-        return $this->urlGenerator->getRelativeMediaUrl($media);
+        return $media->getPath();
     }
 
     private function getFileSystem(MediaEntity $media): FilesystemOperator
@@ -67,17 +68,15 @@ class FileLoader
      */
     private function findMediaById(string $mediaId, Context $context): MediaEntity
     {
-        $criteria = new Criteria([$mediaId]);
-        $criteria->addAssociation('mediaFolder');
+        $media = $this->mediaRepository->search(
+            new Criteria([$mediaId]),
+            $context,
+        )->getEntities()->first();
 
-        $currentMedia = $this->mediaRepository
-            ->search($criteria, $context)
-            ->get($mediaId);
-
-        if (!$currentMedia instanceof MediaEntity) {
+        if ($media === null) {
             throw MediaException::mediaNotFound($mediaId);
         }
 
-        return $currentMedia;
+        return $media;
     }
 }

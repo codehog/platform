@@ -2,9 +2,11 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\Changelog;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Changelog\ChangelogParser;
 use Shopware\Core\Framework\Test\TestCaseBase\KernelTestBehaviour;
+use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
@@ -38,7 +40,7 @@ class ChangelogParserTest extends TestCase
                     'major' => null,
                 ],
                 __DIR__ . '/_fixture/stage/minimal-template-expectation.txt',
-                3,
+                2,
             ],
             [
                 __DIR__ . '/_fixture/stage/full-template.txt',
@@ -63,15 +65,14 @@ class ChangelogParserTest extends TestCase
     }
 
     /**
-     * @dataProvider provide
-     *
      * @param array<string, string|null> $expectedData
      */
+    #[DataProvider('provide')]
     public function testData(string $inFile, array $expectedData, string $outFile, int $expectedExceptions): void
     {
         $parser = self::getContainer()->get(ChangelogParser::class);
 
-        $logEntry = $parser->parse((string) file_get_contents($inFile));
+        $logEntry = $parser->parse(new SplFileInfo($inFile, __DIR__, __DIR__), __DIR__);
 
         static::assertSame($expectedData['title'], $logEntry->getTitle());
         static::assertSame($expectedData['issue'], $logEntry->getIssue());

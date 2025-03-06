@@ -12,7 +12,7 @@ use Shopware\Core\Framework\Migration\MigrationSource;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class MigrationCollectionFactory
 {
     public function __construct(private readonly string $projectDir)
@@ -21,10 +21,13 @@ class MigrationCollectionFactory
 
     public function getMigrationCollectionLoader(Connection $connection): MigrationCollectionLoader
     {
+        $nullLogger = new NullLogger();
+
         return new MigrationCollectionLoader(
             $connection,
-            new MigrationRuntime($connection, new NullLogger()),
-            $this->collect()
+            new MigrationRuntime($connection, $nullLogger),
+            $nullLogger,
+            $this->collect(),
         );
     }
 
@@ -39,6 +42,7 @@ class MigrationCollectionFactory
             $this->createMigrationSource('V6_4'),
             $this->createMigrationSource('V6_5'),
             $this->createMigrationSource('V6_6'),
+            $this->createMigrationSource('V6_7'),
         ];
     }
 
@@ -52,6 +56,10 @@ class MigrationCollectionFactory
             $coreBasePath = $this->projectDir . '/src/Core';
             $storefrontBasePath = $this->projectDir . '/src/Storefront';
             $adminBasePath = $this->projectDir . '/src/Administration';
+        } elseif (file_exists($this->projectDir . '/vendor/shopware/platform/src/Core/schema.sql')) {
+            $coreBasePath = $this->projectDir . '/vendor/shopware/platform/src/Core';
+            $storefrontBasePath = $this->projectDir . '/vendor/shopware/platform/src/Storefront';
+            $adminBasePath = $this->projectDir . '/vendor/shopware/platform/src/Administration';
         } else {
             $coreBasePath = $this->projectDir . '/vendor/shopware/core';
             $storefrontBasePath = $this->projectDir . '/vendor/shopware/storefront';
@@ -62,15 +70,15 @@ class MigrationCollectionFactory
         $hasAdminMigrations = is_dir($adminBasePath);
 
         $source = new MigrationSource('core.' . $version, [
-            sprintf('%s/Migration/%s', $coreBasePath, $version) => sprintf('Shopware\\Core\\Migration\\%s', $version),
+            \sprintf('%s/Migration/%s', $coreBasePath, $version) => \sprintf('Shopware\\Core\\Migration\\%s', $version),
         ]);
 
         if ($hasStorefrontMigrations) {
-            $source->addDirectory(sprintf('%s/Migration/%s', $storefrontBasePath, $version), sprintf('Shopware\\Storefront\\Migration\\%s', $version));
+            $source->addDirectory(\sprintf('%s/Migration/%s', $storefrontBasePath, $version), \sprintf('Shopware\\Storefront\\Migration\\%s', $version));
         }
 
         if ($hasAdminMigrations) {
-            $source->addDirectory(sprintf('%s/Migration/%s', $adminBasePath, $version), sprintf('Shopware\\Administration\\Migration\\%s', $version));
+            $source->addDirectory(\sprintf('%s/Migration/%s', $adminBasePath, $version), \sprintf('Shopware\\Administration\\Migration\\%s', $version));
         }
 
         return $source;

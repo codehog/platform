@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Shopware\Tests\Unit\Core\Framework\Api\ApiDefinition\Generator;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Api\ApiDefinition\Generator\CachedEntitySchemaGenerator;
 use Shopware\Core\Framework\Api\ApiDefinition\Generator\EntitySchemaGenerator;
+use Shopware\Core\Framework\Log\Package;
 use Symfony\Contracts\Cache\CacheInterface;
 
 /**
- * @package core
- *
- * @covers \Shopware\Core\Framework\Api\ApiDefinition\Generator\CachedEntitySchemaGenerator
- *
  * @internal
  */
+#[Package('framework')]
+#[CoversClass(CachedEntitySchemaGenerator::class)]
 class CachedEntitySchemaGeneratorTest extends TestCase
 {
     private CachedEntitySchemaGenerator $cachedEntitySchemaGenerator;

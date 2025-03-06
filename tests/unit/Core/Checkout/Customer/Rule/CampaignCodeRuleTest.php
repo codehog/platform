@@ -2,10 +2,16 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Checkout\Customer\Rule\CampaignCodeRule;
+use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\Framework\Rule\RuleConstraints;
@@ -13,14 +19,11 @@ use Shopware\Core\Framework\Rule\RuleScope;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @group rules
- *
- * @covers \Shopware\Core\Checkout\Customer\Rule\CampaignCodeRule
  */
+#[Package('fundamentals@after-sales')]
+#[CoversClass(CampaignCodeRule::class)]
+#[Group('rules')]
 class CampaignCodeRuleTest extends TestCase
 {
     private CampaignCodeRule $rule;
@@ -46,9 +49,7 @@ class CampaignCodeRuleTest extends TestCase
         static::assertEquals(RuleConstraints::string(), $constraints['campaignCode']);
     }
 
-    /**
-     * @dataProvider getMatchValues
-     */
+    #[DataProvider('getMatchValues')]
     public function testRuleMatching(?string $campaignCode, string $operator, ?string $campaignCodeConditionValue, bool $expected): void
     {
         $this->rule->assign([
@@ -68,7 +69,11 @@ class CampaignCodeRuleTest extends TestCase
 
     public function testInvalidCombinationOfValueAndOperator(): void
     {
-        $this->expectException(UnsupportedValueException::class);
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
         $customer = new CustomerEntity();
         $customer->setCampaignCode('code');
 
@@ -103,6 +108,22 @@ class CampaignCodeRuleTest extends TestCase
         $invalidScope = $this->createMock(RuleScope::class);
         $this->rule->assign(['campaignCode' => 'code', 'operator' => Rule::OPERATOR_EQ]);
         static::assertFalse($this->rule->match($invalidScope));
+    }
+
+    public function testMatchThrowsException(): void
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
+
+        $context = $this->createMock(SalesChannelContext::class);
+        $context->method('getCustomer')->willReturn(new CustomerEntity());
+
+        (new CampaignCodeRule())->match(
+            new CheckoutRuleScope($context)
+        );
     }
 
     /**

@@ -1,50 +1,66 @@
-import 'src/module/sw-inactivity-login/page/index/index';
-import 'src/app/component/base/sw-modal';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/base/sw-icon';
-import 'src/app/component/utils/sw-loader';
-import 'src/app/component/form/sw-password-field';
-import 'src/app/component/form/sw-text-field';
-import 'src/app/component/form/field-base/sw-contextual-field';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/form/field-base/sw-field-error';
 import { BroadcastChannel } from 'worker_threads';
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
+/**
+ * @sw-package framework
+ */
 async function createWrapper(routerPushImplementation = jest.fn(), loginByUsername = jest.fn()) {
-    return shallowMount(await Shopware.Component.build('sw-inactivity-login'), {
-        stubs: {
-            'sw-modal': await Shopware.Component.build('sw-modal'),
-            'sw-icon': await Shopware.Component.build('sw-icon'),
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-loader': await Shopware.Component.build('sw-loader'),
-            'sw-password-field': await Shopware.Component.build('sw-password-field'),
-            'sw-text-field': await Shopware.Component.build('sw-text-field'),
-            'sw-contextual-field': await Shopware.Component.build('sw-contextual-field'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-field-error': await Shopware.Component.build('sw-field-error'),
-        },
-        mocks: {
-            $router: {
-                push: routerPushImplementation,
-            },
-        },
-        provide: {
-            loginService: {
-                loginByUsername,
-            },
-            shortcutService: {
-                startEventListener: () => {},
-                stopEventListener: () => {},
-            },
-            validationService: {},
-        },
-        propsData: {
+    return mount(await wrapTestComponent('sw-inactivity-login', { sync: true }), {
+        props: {
             hash: 'foo',
         },
         attachTo: document.body,
+        global: {
+            stubs: {
+                'sw-modal': {
+                    template: `
+                        <div class="sw-modal">
+                          <slot name="modal-header"></slot>
+                          <slot></slot>
+                          <slot name="modal-footer"></slot>
+                        </div>
+                    `,
+                },
+                'sw-loader': await wrapTestComponent('sw-loader'),
+                'sw-text-field': await wrapTestComponent('sw-text-field'),
+                'sw-text-field-deprecated': await wrapTestComponent('sw-text-field-deprecated', { sync: true }),
+                'sw-contextual-field': await wrapTestComponent('sw-contextual-field'),
+                'sw-block-field': await wrapTestComponent('sw-block-field'),
+                'sw-base-field': await wrapTestComponent('sw-base-field'),
+                'sw-checkbox-field': await wrapTestComponent('sw-checkbox-field'),
+                'sw-checkbox-field-deprecated': await wrapTestComponent('sw-checkbox-field-deprecated', { sync: true }),
+                'sw-field-error': await wrapTestComponent('sw-field-error'),
+                'router-link': true,
+                'sw-field-copyable': true,
+                'sw-inheritance-switch': true,
+                'sw-ai-copilot-badge': true,
+                'sw-help-text': true,
+                'sw-loader-deprecated': true,
+            },
+            mocks: {
+                $router: {
+                    push: routerPushImplementation,
+                },
+            },
+            provide: {
+                loginService: {
+                    loginByUsername,
+                    setRememberMe: (active = true) => {
+                        if (!active) {
+                            localStorage.removeItem('rememberMe');
+                            return;
+                        }
+
+                        localStorage.setItem('rememberMe', `true`);
+                    },
+                },
+                shortcutService: {
+                    startEventListener: () => {},
+                    stopEventListener: () => {},
+                },
+                validationService: {},
+            },
+        },
     });
 }
 
@@ -64,11 +80,15 @@ describe('src/module/sw-inactivity-login/page/index/index.ts', () => {
     afterEach(() => {
         sessionStorage.removeItem('lastKnownUser');
         sessionStorage.removeItem('sw-admin-previous-route_foo');
-        localStorage.removeItem('inactivityBackground_foo');
+        sessionStorage.removeItem('inactivityBackground_foo');
+        localStorage.removeItem('rememberMe');
     });
 
     afterAll(() => {
-        Object.defineProperty(window, 'location', { configurable: true, value: original });
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: original,
+        });
     });
 
     it('should be a Vue.js component', async () => {
@@ -79,13 +99,13 @@ describe('src/module/sw-inactivity-login/page/index/index.ts', () => {
 
     it('should set data:url as background image', async () => {
         sessionStorage.setItem('lastKnownUser', 'admin');
-        localStorage.setItem('inactivityBackground_foo', 'data:urlFoOBaR');
+        sessionStorage.setItem('inactivityBackground_foo', 'data:urlFoOBaR');
         const wrapper = await createWrapper();
         await flushPromises();
 
         const container = wrapper.find('.sw-inactivity-login');
         expect(container.exists()).toBe(true);
-        expect((container.element).style.backgroundImage).toBe('url(data:urlFoOBaR)');
+        expect(container.element.style.backgroundImage).toBe('url(data:urlFoOBaR)');
     });
 
     it('should push to login without last known user', async () => {
@@ -109,7 +129,7 @@ describe('src/module/sw-inactivity-login/page/index/index.ts', () => {
         const wrapper = await createWrapper(push, loginByUserName);
         await flushPromises();
 
-        const loginButton = wrapper.find('.sw-button');
+        const loginButton = wrapper.findByText('button', 'sw-login.index.buttonLogin');
         await loginButton.trigger('click');
 
         expect(loginByUserName).toHaveBeenCalledTimes(1);
@@ -126,7 +146,7 @@ describe('src/module/sw-inactivity-login/page/index/index.ts', () => {
         const wrapper = await createWrapper(jest.fn(), loginByUserName);
         await flushPromises();
 
-        const loginButton = wrapper.find('.sw-button');
+        const loginButton = wrapper.findByText('button', 'sw-login.index.buttonLogin');
         await loginButton.trigger('click');
         await flushPromises();
 
@@ -134,7 +154,7 @@ describe('src/module/sw-inactivity-login/page/index/index.ts', () => {
         expect(loginByUserName).toHaveBeenCalledWith('max', '');
 
         expect(wrapper.vm.passwordError !== null).toBe(true);
-        const passwordError = wrapper.find('.sw-field__error');
+        const passwordError = wrapper.findByText('span', 'sw-inactivity-login.modal.errors.password');
         expect(passwordError.exists()).toBe(true);
     });
 
@@ -189,5 +209,28 @@ describe('src/module/sw-inactivity-login/page/index/index.ts', () => {
         expect(push).toHaveBeenCalledTimes(0);
 
         channel.close();
+    });
+
+    it('should remember user', async () => {
+        const push = jest.fn();
+        sessionStorage.setItem('lastKnownUser', 'max');
+        sessionStorage.setItem('sw-admin-previous-route_foo', '{ "fullPath": "sw.example.route.index" }');
+        const wrapper = await createWrapper(
+            push,
+            jest.fn(() => Promise.resolve()),
+        );
+        await flushPromises();
+
+        const rememberMeInput = wrapper.find('.mt-field--checkbox__container input');
+        await rememberMeInput.setChecked(true);
+
+        const loginButton = wrapper.findByText('button', 'sw-login.index.buttonLogin');
+        await loginButton.trigger('click');
+
+        expect(push).toHaveBeenCalledTimes(1);
+        expect(push).toHaveBeenCalledWith('sw.example.route.index');
+
+        const rememberMe = Boolean(localStorage.getItem('rememberMe'));
+        expect(rememberMe).toBe(true);
     });
 });

@@ -1,43 +1,36 @@
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-
-import swExtensionPermissionDetailsModal from 'src/module/sw-extension/component/sw-extension-permissions-details-modal';
-import 'src/app/component/base/sw-button';
-
-Shopware.Component.register('sw-extension-permissions-details-modal', swExtensionPermissionDetailsModal);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper({ permissions, modalTitle, selectedEntity }) {
-    const localVue = createLocalVue();
-    localVue.filter('asset', v => v);
-
-    return shallowMount(await Shopware.Component.build('sw-extension-permissions-details-modal'), {
-        localVue,
-        propsData: {
-            permissions,
-            modalTitle,
-            selectedEntity,
-        },
-        mocks: {
-            $tc: (...args) => (args.length === 1 ? args[0] : JSON.stringify(...args)),
-            $te: () => true,
-        },
-        stubs: {
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-modal': {
-                props: ['title'],
-                // eslint-disable-next-line max-len
-                template: '<div><div class="sw-modal__title">{{ title }}</div><div class="sw-modal__body"><slot/></div><slot name="modal-footer"></slot></div>',
+    return mount(
+        await wrapTestComponent('sw-extension-permissions-details-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                mocks: {
+                    $tc: (...args) => (args.length === 1 ? args[0] : JSON.stringify(...args)),
+                    $te: () => true,
+                },
+                stubs: {
+                    'sw-modal': {
+                        props: ['title'],
+                        // eslint-disable-next-line max-len
+                        template:
+                            '<div><div class="sw-modal__title">{{ title }}</div><div class="sw-modal__body"><slot/></div><slot name="modal-footer"></slot></div>',
+                    },
+                },
             },
-            'sw-extension-permissions-details-modal': true,
-            'sw-icon': {
-                props: ['name', 'color'],
-                template: '<div class="icon">name:{{ name }} color:{{ color }}</div>',
+            props: {
+                permissions,
+                modalTitle,
+                selectedEntity,
             },
         },
-    });
+    );
 }
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  */
 describe('sw-extension-permissions-details-modal', () => {
     it('should be a Vue.JS component', async () => {
@@ -46,11 +39,20 @@ describe('sw-extension-permissions-details-modal', () => {
             selectedEntity: 'product',
             permissions: {
                 product: {
-                    product: ['create', 'read'],
-                    product_visibility: ['create', 'read'],
+                    product: [
+                        'create',
+                        'read',
+                    ],
+                    product_visibility: [
+                        'create',
+                        'read',
+                    ],
                 },
                 promotion: {
-                    promotion: ['create', 'read'],
+                    promotion: [
+                        'create',
+                        'read',
+                    ],
                 },
             },
         });
@@ -64,11 +66,20 @@ describe('sw-extension-permissions-details-modal', () => {
             selectedEntity: 'product',
             permissions: {
                 product: {
-                    product: ['create', 'read'],
-                    product_visibility: ['create', 'read'],
+                    product: [
+                        'create',
+                        'read',
+                    ],
+                    product_visibility: [
+                        'create',
+                        'read',
+                    ],
                 },
                 promotion: {
-                    promotion: ['create', 'read'],
+                    promotion: [
+                        'create',
+                        'read',
+                    ],
                 },
             },
         });
@@ -77,14 +88,16 @@ describe('sw-extension-permissions-details-modal', () => {
 
         const thead = wrapper.findAll('.sw-extension-permissions-details-modal__operation-header');
 
-        expect(thead.at(0).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationRead');
-        expect(thead.at(1).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationUpdate');
-        expect(thead.at(2).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationCreate');
-        expect(thead.at(3).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationDelete');
+        expect(thead.at(0).text()).toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationRead');
+        expect(thead.at(1).text()).toBe(
+            'sw-extension-store.component.sw-extension-permissions-details-modal.operationUpdate',
+        );
+        expect(thead.at(2).text()).toBe(
+            'sw-extension-store.component.sw-extension-permissions-details-modal.operationCreate',
+        );
+        expect(thead.at(3).text()).toBe(
+            'sw-extension-store.component.sw-extension-permissions-details-modal.operationDelete',
+        );
 
         const categoryHeader = wrapper.findAll('.sw-extension-permissions-details-modal__category');
 
@@ -98,25 +111,63 @@ describe('sw-extension-permissions-details-modal', () => {
         expect(entityLabels.at(1).text()).toBe('entityCategories.product.entities.product_visibility');
         expect(entityLabels.at(2).text()).toBe('entityCategories.promotion.entities.promotion');
 
-        const allIcons = wrapper.findAll('.sw-extension-permissions-details-modal__operation')
-            .wrappers.map(td => td.find('.icon').text());
+        const expectedIcons = [
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+        ];
 
-        expect(allIcons).toStrictEqual([
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-        ]);
+        const allIcons = wrapper.findAllComponents('.mt-icon');
+        allIcons.forEach((icon, index) => {
+            expect(icon.vm.name).toBe(expectedIcons[index][0]);
+            expect(icon.vm.color).toBe(expectedIcons[index][1]);
+        });
     });
-
 
     it('should display the permissions for all product permissions', async () => {
         const wrapper = await createWrapper({
@@ -124,12 +175,22 @@ describe('sw-extension-permissions-details-modal', () => {
             selectedEntity: 'product',
             permissions: {
                 product: {
-                    product: ['create', 'read', 'update', 'delete'],
+                    product: [
+                        'create',
+                        'read',
+                        'update',
+                        'delete',
+                    ],
                     product_visibility: ['create'],
                 },
                 promotion: {
                     promotion: ['create'],
-                    promotion_individual_code: ['create', 'read', 'update', 'delete'],
+                    promotion_individual_code: [
+                        'create',
+                        'read',
+                        'update',
+                        'delete',
+                    ],
                 },
             },
         });
@@ -138,14 +199,16 @@ describe('sw-extension-permissions-details-modal', () => {
 
         const thead = wrapper.findAll('.sw-extension-permissions-details-modal__operation-header');
 
-        expect(thead.at(0).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationRead');
-        expect(thead.at(1).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationUpdate');
-        expect(thead.at(2).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationCreate');
-        expect(thead.at(3).text())
-            .toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationDelete');
+        expect(thead.at(0).text()).toBe('sw-extension-store.component.sw-extension-permissions-details-modal.operationRead');
+        expect(thead.at(1).text()).toBe(
+            'sw-extension-store.component.sw-extension-permissions-details-modal.operationUpdate',
+        );
+        expect(thead.at(2).text()).toBe(
+            'sw-extension-store.component.sw-extension-permissions-details-modal.operationCreate',
+        );
+        expect(thead.at(3).text()).toBe(
+            'sw-extension-store.component.sw-extension-permissions-details-modal.operationDelete',
+        );
 
         const categoryHeader = wrapper.findAll('.sw-extension-permissions-details-modal__category');
 
@@ -158,28 +221,79 @@ describe('sw-extension-permissions-details-modal', () => {
         expect(entityLabels.at(0).text()).toBe('entityCategories.product.entities.product');
         expect(entityLabels.at(1).text()).toBe('entityCategories.product.entities.product_visibility');
         expect(entityLabels.at(2).text()).toBe('entityCategories.promotion.entities.promotion');
-        expect(entityLabels.at(3).text())
-            .toBe('entityCategories.promotion.entities.promotion_individual_code');
+        expect(entityLabels.at(3).text()).toBe('entityCategories.promotion.entities.promotion_individual_code');
 
-        const allIcons = wrapper.findAll('.sw-extension-permissions-details-modal__operation')
-            .wrappers.map(td => td.find('.icon').text());
-        expect(allIcons).toStrictEqual([
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-times-s color:#DE294C',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-checkmark-xs color:#37D046',
-            'name:regular-checkmark-xs color:#37D046',
-        ]);
+        const expectedIcons = [
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-times-s',
+                '#DE294C',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+            [
+                'regular-checkmark-xs',
+                '#37D046',
+            ],
+        ];
+
+        const allIcons = wrapper.findAllComponents('.sw-extension-permissions-details-modal__operation .mt-icon');
+        allIcons.forEach((icon, index) => {
+            expect(icon.vm.name).toBe(expectedIcons[index][0]);
+            expect(icon.vm.color).toBe(expectedIcons[index][1]);
+        });
     });
 });

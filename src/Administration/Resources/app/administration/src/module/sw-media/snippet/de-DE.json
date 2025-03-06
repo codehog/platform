@@ -20,10 +20,13 @@
         "download": "Download",
         "move": "Verschieben",
         "replace": "Ersetzen",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "ar": "AR-Ansicht aktivieren",
+        "arHelpText": "AR-Funktion aktiviert, wenn sie in der Storefront präsentiert wird. Sie können die Standardeinstellung in <a href=\"{settingsLink}\">den 3D-Einstellungen</a> ändern."
       },
       "sections": {
         "actions": "Aktionen",
+        "configuration": "Konfiguration",
         "preview": "Vorschau",
         "metadata": "Metadaten",
         "usage": "Wird verwendet in",
@@ -47,6 +50,7 @@
       },
       "usage": {
         "tooltipFoundInProducts": "Gefunden in Produkten",
+        "tooltipFoundInLandingPages": "Gefunden in Landingpages",
         "tooltipFoundInCategories": "Gefunden in Kategorien",
         "tooltipFoundInManufacturers": "Gefunden in Herstellern",
         "tooltipFoundInMailTemplate": "Gefunden in E-Mail-Templates",
@@ -88,14 +92,12 @@
       "titleModal": "Medien auswählen",
       "labelTabItemLibrary": "Bibliothek",
       "labelTabItemUpload": "Dateien hochladen",
-      "labelButtonCancel": "Abbrechen",
       "labelButtonSaveSelection": "Medien hinzufügen"
     },
     "sw-media-modal-v2": {
       "titleModal": "Medien auswählen",
       "labelTabItemLibrary": "Bibliothek",
       "labelTabItemUpload": "Dateien hochladen",
-      "labelButtonCancel": "Abbrechen",
       "labelButtonSaveSelection": "Medien hinzufügen"
     }
   },

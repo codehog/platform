@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer\Event;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Media\MediaDefinition;
 use Shopware\Core\Content\Product\ProductDefinition;
@@ -11,15 +12,14 @@ use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\DeleteCommand;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityExistence;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityWriteGatewayInterface;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\WriteContext;
-use Shopware\Core\Framework\Test\IdsCollection;
-use Shopware\Tests\Unit\Common\Stubs\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\Event\EntityDeleteEvent
  */
+#[CoversClass(EntityDeleteEvent::class)]
 class EntityDeleteEventTest extends TestCase
 {
     public function testGetters(): void
@@ -37,7 +37,7 @@ class EntityDeleteEventTest extends TestCase
 
         $command = new DeleteCommand(
             $registry->getByEntityName('product'),
-            ['id' => $ids->get('p1')],
+            ['id' => $ids->getBytes('p1')],
             new EntityExistence('product', ['id' => $ids->get('p1')], true, true, true, [])
         );
 
@@ -69,7 +69,7 @@ class EntityDeleteEventTest extends TestCase
 
         $command = new DeleteCommand(
             $registry->getByEntityName('product'),
-            ['id' => $ids->get('p1')],
+            ['id' => $ids->getBytes('p1')],
             new EntityExistence('product', ['id' => $ids->get('p1')], true, true, true, [])
         );
 
@@ -121,7 +121,7 @@ class EntityDeleteEventTest extends TestCase
 
         $event = EntityDeleteEvent::create($writeContext, []);
 
-        $callbackFactory = fn () => new class() {
+        $callbackFactory = fn () => new class {
             public int $counter = 0;
 
             public function __invoke(): void

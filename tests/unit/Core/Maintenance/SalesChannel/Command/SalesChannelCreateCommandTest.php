@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\Maintenance\SalesChannel\Command;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Api\Util\AccessKeyHelper;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\WriteException;
@@ -17,19 +19,15 @@ use Symfony\Component\Validator\ConstraintViolationInterface;
 use Symfony\Component\Validator\ConstraintViolationList;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Core\Maintenance\SalesChannel\Command\SalesChannelCreateCommand
  */
+#[CoversClass(SalesChannelCreateCommand::class)]
 class SalesChannelCreateCommandTest extends TestCase
 {
     /**
      * @param array<string, mixed> $inputMockValues
-     *
-     * @dataProvider dataProviderTestExecuteSuccess
      */
+    #[DataProvider('dataProviderTestExecuteSuccess')]
     public function testExecuteSuccess(array $inputMockValues): void
     {
         $accessKey = AccessKeyHelper::generateAccessKey('sales-channel');
@@ -50,14 +48,13 @@ class SalesChannelCreateCommandTest extends TestCase
 
         $result = $refMethod->invoke($salesChannelCreateCmd, $inputMock, $outputMock);
 
-        static::assertEquals(Command::SUCCESS, $result);
+        static::assertSame(Command::SUCCESS, $result);
     }
 
     /**
      * @param array<string, mixed> $inputMockValues
-     *
-     * @dataProvider dataProviderTestExecuteFailure
      */
+    #[DataProvider('dataProviderTestExecuteFailure')]
     public function testExecuteFailure(array $inputMockValues): void
     {
         $constraintViolationMock = $this->createMock(ConstraintViolationInterface::class);
@@ -93,13 +90,13 @@ class SalesChannelCreateCommandTest extends TestCase
 
         $result = $refMethod->invoke($salesChannelCreateCmd, $inputMock, $outputMock);
 
-        static::assertEquals(Command::SUCCESS, $result);
+        static::assertSame(Command::SUCCESS, $result);
     }
 
     public static function dataProviderTestExecuteSuccess(): \Generator
     {
         yield 'Test execute success' => [
-            'Mock method getOption from input' => [
+            'inputMockValues' => [
                 'id' => Uuid::randomHex(),
                 'typeId' => Uuid::randomHex(),
                 'name' => 'Headless',
@@ -117,7 +114,7 @@ class SalesChannelCreateCommandTest extends TestCase
     public static function dataProviderTestExecuteFailure(): \Generator
     {
         yield 'Test execute failure' => [
-            'Mock method getOption from input' => [
+            'inputMockValues' => [
                 'id' => Uuid::randomHex(),
                 'typeId' => Uuid::randomHex(),
                 'name' => 'Headless',

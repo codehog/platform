@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-one-to-many-grid.html.twig';
@@ -8,12 +8,19 @@ const { Component } = Shopware;
 const { Criteria } = Shopware.Data;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
     template,
 
     inject: ['repositoryFactory'],
+
+    emits: [
+        'load-finish',
+        'delete-item-failed',
+        'items-delete-finish',
+        'column-sort',
+    ],
 
     props: {
         collection: {
@@ -22,20 +29,20 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
         },
         localMode: {
             type: Boolean,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
-        // FIXME: add default value to this property
         // eslint-disable-next-line vue/require-default-prop
         dataSource: {
-            type: [Array, Object],
+            type: [
+                Array,
+                Object,
+            ],
             required: false,
         },
         allowDelete: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -56,7 +63,19 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
             page: 1,
             limit: 25,
             total: 0,
+            initial: true,
         };
+    },
+
+    watch: {
+        collection: {
+            handler() {
+                if (!this.initial) {
+                    this.load();
+                }
+            },
+            deep: true,
+        },
     },
 
     methods: {
@@ -65,6 +84,8 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
 
             // assign collection as records for the sw-data-grid
             this.applyResult(this.collection);
+
+            this.initial = false;
 
             // local mode means, the records are loaded with the parent record
             if (this.localMode) {
@@ -82,7 +103,7 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
             );
 
             // records contains a pre loaded offset
-            if (this.records.length > 0) {
+            if (Array.isArray(this.records) && this.records.length > 0) {
                 return Promise.resolve();
             }
 
@@ -91,7 +112,10 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
 
         applyResult(result) {
             this.result = result;
-            this.records = result;
+
+            if (!this.collection || !this.initial) {
+                this.records = result;
+            }
 
             if (result.total) {
                 this.total = result.total;
@@ -125,11 +149,15 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
         },
 
         load() {
-            return this.repository.search(this.result.criteria, this.result.context)
-                .then((response) => {
-                    this.applyResult(response);
-                    this.$emit('load-finish');
-                });
+            // If in local mode, return early since data is loaded with parent
+            if (this.localMode) {
+                return Promise.resolve();
+            }
+
+            return this.repository.search(this.result.criteria, this.result.context).then((response) => {
+                this.applyResult(response);
+                this.$emit('load-finish');
+            });
         },
 
         deleteItem(id) {
@@ -139,13 +167,16 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
                 return Promise.resolve();
             }
 
-            return this.repository.delete(id, this.result.context).then(() => {
-                this.resetSelection();
+            return this.repository
+                .delete(id, this.result.context)
+                .then(() => {
+                    this.resetSelection();
 
-                return this.load();
-            }).catch((errorResponse) => {
-                this.$emit('delete-item-failed', { id, errorResponse });
-            });
+                    return this.load();
+                })
+                .catch((errorResponse) => {
+                    this.$emit('delete-item-failed', { id, errorResponse });
+                });
         },
 
         deleteItems() {
@@ -162,13 +193,17 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
             }
 
             this.isBulkLoading = true;
-            const selectedIds = selection.map(selectedProxy => selectedProxy.id);
+            const selectedIds = selection.map((selectedProxy) => selectedProxy.id);
 
-            return this.repository.syncDeleted(selectedIds, this.result.context).then(() => {
-                return this.deleteItemsFinish();
-            }).catch(() => {
-                return this.deleteItemsFinish();
-            });
+            return this.repository
+                .syncDeleted(selectedIds, this.result.context)
+                .then(() => {
+                    this.resetSelection();
+                    this.load();
+                })
+                .catch(() => {
+                    return this.deleteItemsFinish();
+                });
         },
 
         deleteItemsFinish() {
@@ -196,9 +231,7 @@ Component.extend('sw-one-to-many-grid', 'sw-data-grid', {
                 }
             }
 
-            this.result.criteria.addSorting(
-                Criteria.sort(column.dataIndex, direction, !!column.naturalSorting),
-            );
+            this.result.criteria.addSorting(Criteria.sort(column.dataIndex, direction, !!column.naturalSorting));
 
             this.currentSortBy = column.dataIndex;
             this.currentSortDirection = direction;

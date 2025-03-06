@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-login-recovery-info.html.twig';
@@ -7,10 +7,12 @@ import template from './sw-login-recovery-info.html.twig';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-login-recovery-info', {
     template,
+
+    emits: ['is-not-loading'],
 
     computed: {
         rateLimitTime() {

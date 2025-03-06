@@ -8,7 +8,7 @@ const { Criteria } = Shopware.Data;
  * @status ready
  * @description The <u>sw-sidebar-media-item</u> component is used everywhere you need media objects outside the media
  * manager. Use the additional properties to filter the shown media.
- * @package content
+ * @sw-package discovery
  * @example-type code-only
  * @component-example
  * <sw-sidebar-media-item>
@@ -71,10 +71,6 @@ export default {
 
         itemsLoaded() {
             return this.mediaItems.length;
-        },
-
-        additionalEventListeners() {
-            return this.$listeners;
         },
     },
 
@@ -183,9 +179,7 @@ export default {
                 criteria.term = this.term;
             }
 
-            criteria.addSorting(
-                Criteria.sort('uploadedAt', 'DESC'),
-            );
+            criteria.addSorting(Criteria.sort('uploadedAt', 'DESC'));
 
             return criteria;
         },

@@ -1,34 +1,28 @@
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/form/select/base/sw-multi-tag-select';
-import 'src/app/component/form/select/base/sw-multi-tag-ip-select';
-import 'src/app/component/form/select/base/sw-select-base';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/form/field-base/sw-field-error';
-import 'src/app/component/form/select/base/sw-select-selection-list';
-import 'src/app/component/utils/sw-popover';
+/**
+ * @sw-package framework
+ */
+import { mount } from '@vue/test-utils';
 
-const createMultiDataIpSelect = async (customOptions) => {
-    const options = {
-        stubs: {
-            'sw-select-base': await Shopware.Component.build('sw-select-base'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-field-error': await Shopware.Component.build('sw-field-error'),
-            'sw-select-selection-list': await Shopware.Component.build('sw-select-selection-list'),
-            'sw-popover': await Shopware.Component.build('sw-popover'),
-            'sw-icon': {
-                template: '<div></div>',
+const createMultiDataIpSelect = async () => {
+    return mount(await wrapTestComponent('sw-multi-tag-ip-select', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-select-base': await wrapTestComponent('sw-select-base'),
+                'sw-block-field': await wrapTestComponent('sw-block-field'),
+                'sw-base-field': await wrapTestComponent('sw-base-field'),
+                'sw-field-error': await wrapTestComponent('sw-field-error'),
+                'sw-select-selection-list': await wrapTestComponent('sw-select-selection-list'),
+                'sw-popover': await wrapTestComponent('sw-popover'),
+                'sw-loader': true,
+                'sw-inheritance-switch': true,
+                'sw-ai-copilot-badge': true,
+                'sw-help-text': true,
+                'sw-label': true,
             },
         },
-        propsData: {
+        props: {
             value: [],
         },
-    };
-
-    return shallowMount(await Shopware.Component.build('sw-multi-tag-ip-select'), {
-        ...options,
-        ...customOptions,
     });
 };
 
@@ -39,28 +33,50 @@ describe('components/sw-multi-tag-ip-select', () => {
     });
 
     [
-        ['a676344c-c0dd-49e5-8fbb-5f570c27762c', false],
-        ['::', true],
-        ['10.0.0.1', true],
-        ['aabb::', true],
-        ['127.0.0.1abcd', false],
-    ].forEach(([value, shouldBeValid]) => {
-        it(`should validate IPs correctly: ${value} should be ${shouldBeValid}`, async () => {
-            const multiDataIpSelect = await createMultiDataIpSelect();
-            const input = multiDataIpSelect.find('.sw-select-selection-list__input');
+        [
+            'a676344c-c0dd-49e5-8fbb-5f570c27762c',
+            false,
+        ],
+        [
+            '::',
+            true,
+        ],
+        [
+            '10.0.0.1',
+            true,
+        ],
+        [
+            'aabb::',
+            true,
+        ],
+        [
+            '127.0.0.1abcd',
+            false,
+        ],
+    ].forEach(
+        ([
+            value,
+            shouldBeValid,
+        ]) => {
+            it(`should validate IPs correctly: ${value} should be ${shouldBeValid}`, async () => {
+                const multiDataIpSelect = await createMultiDataIpSelect();
+                await flushPromises();
 
-            expect(multiDataIpSelect.vm.inputIsValid).toBeFalsy();
-            expect(multiDataIpSelect.vm.errorObject).toBeNull();
+                const input = multiDataIpSelect.find('.sw-select-selection-list__input');
 
-            await input.setValue(value);
+                expect(multiDataIpSelect.vm.inputIsValid).toBeFalsy();
+                expect(multiDataIpSelect.vm.errorObject).toBeNull();
 
-            expect(multiDataIpSelect.vm.searchTerm).toBe(value.toString());
-            expect(multiDataIpSelect.vm.inputIsValid).toBe(shouldBeValid);
+                await input.setValue(value);
 
-            await input.setValue('');
+                expect(multiDataIpSelect.vm.searchTerm).toBe(value.toString());
+                expect(multiDataIpSelect.vm.inputIsValid).toBe(shouldBeValid);
 
-            expect(multiDataIpSelect.vm.inputIsValid).toBeFalsy();
-            expect(multiDataIpSelect.vm.errorObject).toBeNull();
-        });
-    });
+                await input.setValue('');
+
+                expect(multiDataIpSelect.vm.inputIsValid).toBeFalsy();
+                expect(multiDataIpSelect.vm.errorObject).toBeNull();
+            });
+        },
+    );
 });

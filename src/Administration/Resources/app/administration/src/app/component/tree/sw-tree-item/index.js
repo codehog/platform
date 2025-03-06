@@ -4,14 +4,61 @@ import './sw-tree-item.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  */
 Component.register('sw-tree-item', {
     template,
 
-    inject: ['feature'],
+    inject: {
+        feature: {
+            from: 'feature',
+            default: null,
+        },
+        getItems: {
+            from: 'getItems',
+            default: null,
+        },
+        treeStartDrag: {
+            from: 'startDrag',
+            default: null,
+        },
+        treeEndDrag: {
+            from: 'endDrag',
+            default: null,
+        },
+        treeMoveDrag: {
+            from: 'moveDrag',
+            default: null,
+        },
+        treeAddSubElement: {
+            from: 'addSubElement',
+            default: null,
+        },
+        treeAddElement: {
+            from: 'addElement',
+            default: null,
+        },
+        treeDuplicateElement: {
+            from: 'duplicateElement',
+            default: null,
+        },
+        treeOnFinishNameingElement: {
+            from: 'onFinishNameingElement',
+            default: null,
+        },
+        treeOnDeleteElements: {
+            from: 'onDeleteElements',
+            default: null,
+        },
+        treeAbortCreateElement: {
+            from: 'abortCreateElement',
+            default: null,
+        },
+    },
+
+    emits: ['check-item'],
 
     props: {
         item: {
@@ -54,7 +101,6 @@ Component.register('sw-tree-item', {
 
         disableContextMenu: {
             type: Boolean,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return false;
@@ -88,7 +134,6 @@ Component.register('sw-tree-item', {
         sortable: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return true;
@@ -124,7 +169,6 @@ Component.register('sw-tree-item', {
         displayCheckbox: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return true;
@@ -134,7 +178,6 @@ Component.register('sw-tree-item', {
         allowNewCategories: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return true;
@@ -144,7 +187,6 @@ Component.register('sw-tree-item', {
         allowDeleteCategories: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return true;
@@ -154,7 +196,6 @@ Component.register('sw-tree-item', {
         allowCreateWithoutPosition: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return false;
@@ -164,7 +205,6 @@ Component.register('sw-tree-item', {
         allowDuplicate: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: () => {
                 return false;
@@ -267,18 +307,14 @@ Component.register('sw-tree-item', {
         },
 
         parentScope() {
-            let parentNode = this.$parent;
-
-            // eslint-disable-next-line
-            while (parentNode.$options._componentTag !== 'sw-tree') {
-                if (parentNode.$parent) {
-                    parentNode = parentNode.$parent;
-                }
-
-                break;
-            }
-
-            return parentNode;
+            return {
+                addSubElement: this.treeAddSubElement,
+                addElement: this.treeAddElement,
+                duplicateElement: this.treeDuplicateElement,
+                onFinishNameingElement: this.treeOnFinishNameingElement,
+                onDeleteElements: this.treeOnDeleteElements,
+                abortCreateElement: this.treeAbortCreateElement,
+            };
         },
 
         toolTip() {
@@ -304,6 +340,18 @@ Component.register('sw-tree-item', {
         isHighlighted() {
             return this.getIsHighlighted(this.item);
         },
+
+        contentSlot() {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+
+            return this.$slots.content;
+        },
+
+        actionsSlot() {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+
+            return this.$slots.actions;
+        },
     },
 
     watch: {
@@ -322,6 +370,7 @@ Component.register('sw-tree-item', {
                 }
             },
             immediate: true,
+            deep: true,
         },
 
         activeItemIds: {
@@ -331,6 +380,7 @@ Component.register('sw-tree-item', {
                 }
             },
             immediate: true,
+            deep: true,
         },
     },
 
@@ -342,6 +392,10 @@ Component.register('sw-tree-item', {
         this.mountedComponent();
     },
 
+    beforeUnmount() {
+        this.beforeUnmountComponent();
+    },
+
     methods: {
         updatedComponent() {
             if (this.item.children.length > 0 || this.item.childCount <= 0) {
@@ -350,14 +404,67 @@ Component.register('sw-tree-item', {
         },
 
         mountedComponent() {
+            this.$el.addEventListener('keydown', this.handleKeyDown);
+
             if (this.item.active) {
                 if (this.$el.querySelector('.sw-tree-item.is--active input')) {
                     this.$el.querySelector('.sw-tree-item.is--active input').focus();
                 }
             }
+
             if (this.newElementId) {
                 this.currentEditElement = this.newElementId;
                 this.editElementName();
+            }
+
+            this.updatedComponent();
+        },
+
+        beforeUnmountComponent() {
+            this.$el.removeEventListener('keydown', this.handleKeyDown);
+        },
+
+        handleKeyDown(event) {
+            // Check if the event is fired inside the tree item
+            if (event.target !== this.$el) {
+                return;
+            }
+
+            switch (event.key) {
+                case 'ArrowRight': {
+                    // When the tree item is already open, do nothing
+                    if (this.opened) {
+                        break;
+                    }
+
+                    // Open the tree item
+                    this.openTreeItem();
+                    this.getTreeItemChildren(this.item);
+
+                    event.stopPropagation();
+                    event.preventDefault();
+
+                    break;
+                }
+
+                case 'ArrowLeft': {
+                    // Check if the tree is open
+                    if (!this.opened) {
+                        break;
+                    }
+
+                    // Close the tree item
+                    this.openTreeItem(false);
+
+                    event.stopPropagation();
+                    event.preventDefault();
+
+                    break;
+                }
+
+                default: {
+                    break;
+                }
             }
         },
 
@@ -380,14 +487,6 @@ Component.register('sw-tree-item', {
             }
         },
 
-        getItems(args, schema) {
-            if (this.feature.isActive('VUE3')) {
-                return this.$parent.$parent.getItems(args, schema);
-            }
-
-            return this.$parent.getItems(args, schema);
-        },
-
         dragStart(config, element, dragElement) {
             if (this.isDragging || this.isLoading) {
                 return;
@@ -395,23 +494,11 @@ Component.register('sw-tree-item', {
 
             this.dragEl = dragElement;
 
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.startDrag(this);
-
-                return;
-            }
-
-            this.$parent.startDrag(this);
+            this.treeStartDrag(this);
         },
 
         dragEnd() {
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.endDrag();
-
-                return;
-            }
-
-            this.$parent.endDrag();
+            this.treeEndDrag();
         },
 
         onMouseEnter(dragData, dropData) {
@@ -419,39 +506,19 @@ Component.register('sw-tree-item', {
                 return;
             }
 
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.moveDrag(dragData, dropData);
-
-                return;
-            }
-
-            this.$parent.moveDrag(dragData, dropData);
+            this.treeMoveDrag(dragData, dropData);
         },
 
         startDrag(draggedComponent) {
-            if (this.feature.isActive('VUE3')) {
-                return this.$parent.$parent.startDrag(draggedComponent);
-            }
-
-            return this.$parent.startDrag(draggedComponent);
+            return this.treeStartDrag(draggedComponent);
         },
 
         endDrag() {
-            if (this.feature.isActive('VUE3')) {
-                this.$parent.$parent.endDrag();
-
-                return;
-            }
-
-            this.$parent.endDrag();
+            this.treeEndDrag();
         },
 
         moveDrag(draggedComponent, droppedComponent) {
-            if (this.feature.isActive('VUE3')) {
-                return this.$parent.$parent.moveDrag(draggedComponent, droppedComponent);
-            }
-
-            return this.$parent.moveDrag(draggedComponent, droppedComponent);
+            return this.treeMoveDrag(draggedComponent, droppedComponent);
         },
 
         // Bubbles this method to the root tree from any item depth
@@ -544,6 +611,18 @@ Component.register('sw-tree-item', {
             }
 
             return false;
+        },
+
+        renderContentSlotNode({ item, openTreeItem, getName }) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+
+            return this.$slots.content({ item, openTreeItem, getName });
+        },
+
+        renderActionsSlotNode({ item, openTreeItem }) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+
+            return this.$slots.actions({ item, openTreeItem });
         },
     },
 });

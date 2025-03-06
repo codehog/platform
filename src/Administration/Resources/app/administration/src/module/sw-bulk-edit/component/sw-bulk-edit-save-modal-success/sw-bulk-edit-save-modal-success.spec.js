@@ -1,57 +1,53 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@framework
  */
-import { shallowMount } from '@vue/test-utils';
-import swBulkEditSaveModalSuccess from 'src/module/sw-bulk-edit/component/sw-bulk-edit-save-modal-success';
-import swBulkEditState from 'src/module/sw-bulk-edit/state/sw-bulk-edit.state';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-bulk-edit-save-modal-success', swBulkEditSaveModalSuccess);
-
-async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-bulk-edit-save-modal-success'), {
-        stubs: {
-            'sw-label': true,
-            'sw-icon': true,
-            'sw-button': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        search: () => Promise.resolve([]),
-                    };
+async function createWrapper(
+    repositoryMocks = {
+        search: () => Promise.resolve([]),
+    },
+) {
+    return mount(
+        await wrapTestComponent('sw-bulk-edit-save-modal-success', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-label': true,
+                },
+                provide: {
+                    repositoryFactory: {
+                        create: () => {
+                            return {
+                                search: repositoryMocks.search,
+                            };
+                        },
+                    },
+                    orderDocumentApiService: {
+                        create: () => {
+                            return Promise.resolve();
+                        },
+                        download: () => {
+                            return Promise.resolve();
+                        },
+                    },
                 },
             },
-            orderDocumentApiService: {
-                create: () => {
-                    return Promise.resolve();
-                },
-                download: () => {
-                    return Promise.resolve();
-                },
-            },
         },
-    });
+    );
 }
 
 describe('sw-bulk-edit-save-modal-success', () => {
     let wrapper;
 
     beforeAll(() => {
-        Shopware.State.registerModule('swBulkEdit', swBulkEditState);
-        Shopware.State.commit('shopwareApps/setSelectedIds', ['orderId']);
+        Shopware.Store.get('shopwareApps').selectedIds = ['orderId'];
     });
 
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
-    });
-
-    it('should be a Vue.js component', async () => {
-        expect(wrapper.vm).toBeTruthy();
     });
 
     it('should contain a correct selectedIds computed property', async () => {
@@ -68,7 +64,7 @@ describe('sw-bulk-edit-save-modal-success', () => {
     });
 
     it('should not be able to get latest documents', async () => {
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsIsChanged', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsIsChanged({
             type: 'download',
             isChanged: false,
         });
@@ -79,42 +75,47 @@ describe('sw-bulk-edit-save-modal-success', () => {
     });
 
     it('should be able to get latest documents', async () => {
-        wrapper.vm.documentRepository.search = jest.fn(() => {
-            return Promise.resolve([
-                {
-                    id: '1',
-                    documentTypeId: '1',
-                    orderId: '1',
-                    createdAt: '2020-01-01',
-                    deepLinkCode: '123',
-                    fileType: 'pdf',
-                    orderVersionId: '1',
-                },
-                {
-                    id: '2',
-                    documentTypeId: '1',
-                    orderId: '1',
-                    createdAt: '2020-01-01',
-                    deepLinkCode: '123',
-                    fileType: 'pdf',
-                    orderVersionId: '1',
-                },
-                {
-                    id: '3',
-                    documentTypeId: '2',
-                    orderId: '1',
-                    createdAt: '2020-01-01',
-                    deepLinkCode: '123',
-                    fileType: 'pdf',
-                    orderVersionId: '1',
-                },
-            ]);
+        wrapper.unmount();
+
+        wrapper = await createWrapper({
+            search: () => {
+                return Promise.resolve([
+                    {
+                        id: '1',
+                        documentTypeId: '1',
+                        orderId: '1',
+                        createdAt: '2020-01-01',
+                        deepLinkCode: '123',
+                        fileType: 'pdf',
+                        orderVersionId: '1',
+                    },
+                    {
+                        id: '2',
+                        documentTypeId: '1',
+                        orderId: '1',
+                        createdAt: '2020-01-01',
+                        deepLinkCode: '123',
+                        fileType: 'pdf',
+                        orderVersionId: '1',
+                    },
+                    {
+                        id: '3',
+                        documentTypeId: '2',
+                        orderId: '1',
+                        createdAt: '2020-01-01',
+                        deepLinkCode: '123',
+                        fileType: 'pdf',
+                        orderVersionId: '1',
+                    },
+                ]);
+            },
         });
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsIsChanged', {
+
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsIsChanged({
             type: 'download',
             isChanged: true,
         });
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsValue', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsValue({
             type: 'download',
             value: [
                 {
@@ -140,19 +141,22 @@ describe('sw-bulk-edit-save-modal-success', () => {
 
         await wrapper.vm.getLatestDocuments();
 
-        expect(wrapper.vm.latestDocuments).toEqual(expect.objectContaining({
-            invoice: expect.arrayContaining(['1']),
-            credit_note: expect.arrayContaining(['3']),
-        }));
-        wrapper.vm.documentRepository.search.mockRestore();
+        expect(wrapper.vm.latestDocuments).toEqual(
+            expect.objectContaining({
+                invoice: expect.arrayContaining(['1']),
+                credit_note: expect.arrayContaining(['3']),
+            }),
+        );
     });
 
     it('should be able to download documents', async () => {
         window.URL.createObjectURL = jest.fn();
 
-        wrapper.vm.orderDocumentApiService.download = jest.fn(() => Promise.resolve({
-            data: null,
-        }));
+        wrapper.vm.orderDocumentApiService.download = jest.fn(() =>
+            Promise.resolve({
+                data: null,
+            }),
+        );
 
         await wrapper.setData({
             latestDocuments: {
@@ -166,12 +170,14 @@ describe('sw-bulk-edit-save-modal-success', () => {
         expect(wrapper.vm.orderDocumentApiService.download).toHaveBeenCalled();
         expect(wrapper.vm.document.invoice.isDownloading).toBe(false);
 
-        wrapper.vm.orderDocumentApiService.download = jest.fn(() => Promise.resolve({
-            headers: {
-                'content-disposition': 'filename=example.pdf',
-            },
-            data: 'http://downloadlink',
-        }));
+        wrapper.vm.orderDocumentApiService.download = jest.fn(() =>
+            Promise.resolve({
+                headers: {
+                    'content-disposition': 'filename=example.pdf',
+                },
+                data: 'http://downloadlink',
+            }),
+        );
 
         await wrapper.vm.downloadDocument('invoice');
 
@@ -195,7 +201,9 @@ describe('sw-bulk-edit-save-modal-success', () => {
 
     it('should call download documents with error', async () => {
         wrapper.vm.createNotificationError = jest.fn();
-        wrapper.vm.orderDocumentApiService.download = jest.fn().mockImplementation(() => Promise.reject(new Error('error occured')));
+        wrapper.vm.orderDocumentApiService.download = jest
+            .fn()
+            .mockImplementation(() => Promise.reject(new Error('error occured')));
 
         await wrapper.setData({
             latestDocuments: {
@@ -215,17 +223,17 @@ describe('sw-bulk-edit-save-modal-success', () => {
     });
 
     it('should compute selectedDocumentTypes correctly', async () => {
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsIsChanged', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsIsChanged({
             type: 'download',
             isChanged: true,
         });
 
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsIsChanged', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsIsChanged({
             type: 'invoice',
             isChanged: true,
         });
 
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsValue', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsValue({
             type: 'invoice',
             value: {
                 documentDate: 'documentDate',
@@ -233,14 +241,14 @@ describe('sw-bulk-edit-save-modal-success', () => {
             },
         });
 
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsValue', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsValue({
             type: 'download',
             value: [],
         });
 
         expect(wrapper.vm.selectedDocumentTypes).toStrictEqual([]);
 
-        Shopware.State.commit('swBulkEdit/setOrderDocumentsValue', {
+        Shopware.Store.get('swBulkEdit').setOrderDocumentsValue({
             type: 'download',
             value: [
                 {

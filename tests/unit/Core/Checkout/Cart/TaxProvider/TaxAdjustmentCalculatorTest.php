@@ -2,18 +2,16 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\TaxProvider;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRule;
 use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
 use Shopware\Core\Checkout\Cart\TaxProvider\TaxAdjustmentCalculator;
 
 /**
- * @package checkout
- *
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Cart\TaxProvider\TaxAdjustmentCalculator
  */
+#[CoversClass(TaxAdjustmentCalculator::class)]
 class TaxAdjustmentCalculatorTest extends TestCase
 {
     public function testCalculateGrossTaxesActuallyCalculatesNetTaxes(): void

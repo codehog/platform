@@ -4,10 +4,12 @@ namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Integration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscount\PromotionDiscountEntity;
+use Shopware\Core\Checkout\Promotion\PromotionCollection;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Exception\InconsistentCriteriaIdsException;
@@ -16,17 +18,16 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionIntegrationTestBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\ShippingMethodPricesTestBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionIntegrationTestBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\ShippingMethodPricesTestBehaviour;
 
 /**
  * @internal
- *
- * @group slow
  */
 #[Package('checkout')]
+#[Group('slow')]
 class DeliveryPromotionCalculationTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -34,6 +35,9 @@ class DeliveryPromotionCalculationTest extends TestCase
     use PromotionTestFixtureBehaviour;
     use ShippingMethodPricesTestBehaviour;
 
+    /**
+     * @var EntityRepository<PromotionCollection>
+     */
     private EntityRepository $promotionRepository;
 
     private CartService $cartService;
@@ -45,11 +49,11 @@ class DeliveryPromotionCalculationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->connection = $this->getContainer()->get(Connection::class);
-        $this->promotionRepository = $this->getContainer()->get('promotion.repository');
+        $this->connection = static::getContainer()->get(Connection::class);
+        $this->promotionRepository = static::getContainer()->get('promotion.repository');
         $this->token = Uuid::randomHex();
-        $this->cartService = $this->getContainer()->get(CartService::class);
-        $this->context = $this->getContainer()->get(SalesChannelContextFactory::class)->create($this->token, TestDefaults::SALES_CHANNEL);
+        $this->cartService = static::getContainer()->get(CartService::class);
+        $this->context = static::getContainer()->get(SalesChannelContextFactory::class)->create($this->token, TestDefaults::SALES_CHANNEL);
     }
 
     protected function tearDown(): void
@@ -64,10 +68,9 @@ class DeliveryPromotionCalculationTest extends TestCase
      * We add a product and also an absolute promotion.
      * Our final delivery price should then be as expected.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testAbsoluteDeliveryDiscount(): void
     {
         $productId = Uuid::randomHex();
@@ -78,10 +81,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 10, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 10, static::getContainer(), $this->context, $code);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -103,10 +106,9 @@ class DeliveryPromotionCalculationTest extends TestCase
      * We add a product and also an percentage promotion.
      * Our final delivery price should then be as expected.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testPercentageDeliveryDiscount(): void
     {
         $productId = Uuid::randomHex();
@@ -117,10 +119,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, 30, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, 30, static::getContainer(), $this->context, $code);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -142,10 +144,9 @@ class DeliveryPromotionCalculationTest extends TestCase
      * We only add a product and got a auto promotion.
      * Our final delivery price should then be as expected.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testPercentageAutoDeliveryDiscount(): void
     {
         $productId = Uuid::randomHex();
@@ -154,10 +155,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $this->setNewShippingPrices($this->connection, 100);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new auto promotion
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, 50, $this->getContainer(), $this->context, null);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, 50, static::getContainer(), $this->context, null);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -173,10 +174,9 @@ class DeliveryPromotionCalculationTest extends TestCase
      * discounts would discount our shipping costs beneath 0
      * Because we are aware of this fact, shipping costs are 0
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testPercentageAbsoluteDeliveryDiscountCombination(): void
     {
         $productId = Uuid::randomHex();
@@ -187,13 +187,13 @@ class DeliveryPromotionCalculationTest extends TestCase
         $this->setNewShippingPrices($this->connection, 100);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new auto promotion
-        $this->createTestFixtureDeliveryPromotion($autoPromotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 90, $this->getContainer(), $this->context, null);
+        $this->createTestFixtureDeliveryPromotion($autoPromotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 90, static::getContainer(), $this->context, null);
 
         // add a new auto promotion
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, 20, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, 20, static::getContainer(), $this->context, $code);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -214,11 +214,10 @@ class DeliveryPromotionCalculationTest extends TestCase
     /**
      * function tests that an absolute discount may not reduce shipping costs beneath 0
      *
-     * @group promotions
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testAbsoluteDeliveryDiscountHigherThanShippingCosts(): void
     {
         $productId = Uuid::randomHex();
@@ -229,10 +228,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 200, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 200, static::getContainer(), $this->context, $code);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -250,11 +249,10 @@ class DeliveryPromotionCalculationTest extends TestCase
     /**
      * function tests that an fixed price discount may not increase shipping costs
      *
-     * @group promotions
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testFixedDeliveryDiscountHigherThanShippingCosts(): void
     {
         $productId = Uuid::randomHex();
@@ -265,10 +263,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, 200, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, 200, static::getContainer(), $this->context, $code);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -286,11 +284,10 @@ class DeliveryPromotionCalculationTest extends TestCase
     /**
      * function tests that an fixed price discount sets shipping costs to the defined price
      *
-     * @group promotions
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testFixedDeliveryDiscount(): void
     {
         $productId = Uuid::randomHex();
@@ -301,10 +298,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, 69, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, 69, static::getContainer(), $this->context, $code);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -323,11 +320,10 @@ class DeliveryPromotionCalculationTest extends TestCase
      * function tests that an fixed price discount that has currency advanced
      * prices, sets shipping costs to the defined advanced currency price
      *
-     * @group promotions
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testFixedDeliveryDiscountWithCurrency(): void
     {
         $productId = Uuid::randomHex();
@@ -341,12 +337,12 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 97, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 97, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $deliveryId = $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, $fixedPrice, $this->getContainer(), $this->context, $code);
+        $deliveryId = $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, $fixedPrice, static::getContainer(), $this->context, $code);
 
-        $this->createTestFixtureAdvancedPrice($deliveryId, Defaults::CURRENCY, $currencyPrice, $this->getContainer());
+        $this->createTestFixtureAdvancedPrice($deliveryId, Defaults::CURRENCY, $currencyPrice, static::getContainer());
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -365,11 +361,10 @@ class DeliveryPromotionCalculationTest extends TestCase
      * function tests that an fixed price discount sets shipping costs to the defined price
      * all other discounts are ignored when fixed price discount is present
      *
-     * @group promotions
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testMultipleDeliveryDiscountsWithFixed(): void
     {
         $productId = Uuid::randomHex();
@@ -380,14 +375,14 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 40, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 40, static::getContainer(), $this->context, $code);
 
-        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, PromotionDiscountEntity::SCOPE_DELIVERY, 20, null, $this->getContainer(), $this->context);
+        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, PromotionDiscountEntity::SCOPE_DELIVERY, 20, null, static::getContainer(), $this->context);
 
-        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, PromotionDiscountEntity::SCOPE_DELIVERY, 69, null, $this->getContainer(), $this->context);
+        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, PromotionDiscountEntity::SCOPE_DELIVERY, 69, null, static::getContainer(), $this->context);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -410,14 +405,13 @@ class DeliveryPromotionCalculationTest extends TestCase
      * function tests that an fixed price discount sets shipping costs to the defined price
      * all other discount are ignored when fixed price discount is present
      *
-     * @group promotions
-     *
-     * NEXT-21735 - Sometimes has a $reduceValue of 0
-     * @group not-deterministic
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions
+
+NEXT-21735 - Sometimes has a $reduceValue of 0')]
+    #[Group('not-deterministic')]
     public function testMultipleDeliveryDiscountsWithoutFixed(): void
     {
         $productId = Uuid::randomHex();
@@ -428,12 +422,12 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 40, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_ABSOLUTE, 40, static::getContainer(), $this->context, $code);
 
-        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, PromotionDiscountEntity::SCOPE_DELIVERY, 20, null, $this->getContainer(), $this->context);
+        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_PERCENTAGE, PromotionDiscountEntity::SCOPE_DELIVERY, 20, null, static::getContainer(), $this->context);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -456,11 +450,10 @@ class DeliveryPromotionCalculationTest extends TestCase
      * function tests that if several fixed price discount are collected
      * only one and the best customer discount will be selected
      *
-     * @group promotions
-     *
      * @throws Exception
      * @throws CartException
      */
+    #[Group('promotions')]
     public function testMultipleFixedPriceDeliveryDiscounts(): void
     {
         $productId = Uuid::randomHex();
@@ -471,14 +464,14 @@ class DeliveryPromotionCalculationTest extends TestCase
         $code = 'BF';
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 60, 17, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 60, 17, static::getContainer(), $this->context);
 
         // add a new promotion black friday
-        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, 90, $this->getContainer(), $this->context, $code);
+        $this->createTestFixtureDeliveryPromotion($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, 90, static::getContainer(), $this->context, $code);
 
-        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, PromotionDiscountEntity::SCOPE_DELIVERY, 20, null, $this->getContainer(), $this->context);
+        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, PromotionDiscountEntity::SCOPE_DELIVERY, 20, null, static::getContainer(), $this->context);
 
-        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, PromotionDiscountEntity::SCOPE_DELIVERY, 50, null, $this->getContainer(), $this->context);
+        $this->createTestFixtureDiscount($promotionId, PromotionDiscountEntity::TYPE_FIXED_UNIT, PromotionDiscountEntity::SCOPE_DELIVERY, 50, null, static::getContainer(), $this->context);
 
         $cart = $this->cartService->getCart($this->token, $this->context);
 
@@ -506,9 +499,8 @@ class DeliveryPromotionCalculationTest extends TestCase
      * a max global threshold of 40 EUR.
      * Our test needs to verify that we use 40 EUR, and end with a shipping cost
      * sum of 60 EUR in the end.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function test50PercentageDeliveryDiscountWithMaximumValue(): void
     {
         $productId = Uuid::randomHex();
@@ -526,9 +518,9 @@ class DeliveryPromotionCalculationTest extends TestCase
         $expectedTotal = $expectedPrice + $productGross;
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, $productGross, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, $productGross, 19, static::getContainer(), $this->context);
 
-        $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, $maxValueGlobal, $this->getContainer(), PromotionDiscountEntity::SCOPE_DELIVERY);
+        $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, $maxValueGlobal, static::getContainer(), PromotionDiscountEntity::SCOPE_DELIVERY);
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -552,9 +544,8 @@ class DeliveryPromotionCalculationTest extends TestCase
      * a max global threshold of 40 EUR.
      * But for your currency, we use 30 EUR instead.
      * Our test needs to verify that we use 30 EUR, and end with a product sum of 70 EUR in the end.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function test50PercentageDeliveryDiscountWithMaximumValueAndCurrencies(): void
     {
         $productId = Uuid::randomHex();
@@ -572,11 +563,11 @@ class DeliveryPromotionCalculationTest extends TestCase
         $expectedPrice = $deliveryCosts - $currencyMaxValue;
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, $productGross, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, $productGross, 19, static::getContainer(), $this->context);
 
-        $discountId = $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, $maxValueGlobal, $this->getContainer(), PromotionDiscountEntity::SCOPE_DELIVERY);
+        $discountId = $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, $maxValueGlobal, static::getContainer(), PromotionDiscountEntity::SCOPE_DELIVERY);
 
-        $this->createTestFixtureAdvancedPrice($discountId, Defaults::CURRENCY, $currencyMaxValue, $this->getContainer());
+        $this->createTestFixtureAdvancedPrice($discountId, Defaults::CURRENCY, $currencyMaxValue, static::getContainer());
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -594,9 +585,8 @@ class DeliveryPromotionCalculationTest extends TestCase
     /**
      * This test verifies that we use the same tax calculation for our discounts
      * as the delivery costs have (they take them from products)
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testMultipleDiscountsWithMultipleTaxProducts(): void
     {
         $productId = Uuid::randomHex();
@@ -611,10 +601,10 @@ class DeliveryPromotionCalculationTest extends TestCase
         $percentage = 50;
 
         // add two new sample product
-        $this->createTestFixtureProduct($productId, $productGross, 19, $this->getContainer(), $this->context);
-        $this->createTestFixtureProduct($productTwoId, $productGross, 7, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, $productGross, 19, static::getContainer(), $this->context);
+        $this->createTestFixtureProduct($productTwoId, $productGross, 7, static::getContainer(), $this->context);
 
-        $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, null, $this->getContainer(), PromotionDiscountEntity::SCOPE_DELIVERY);
+        $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, null, static::getContainer(), PromotionDiscountEntity::SCOPE_DELIVERY);
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 

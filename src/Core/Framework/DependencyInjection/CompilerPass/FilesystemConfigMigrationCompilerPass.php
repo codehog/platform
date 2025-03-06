@@ -6,7 +6,7 @@ use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-#[Package('core')]
+#[Package('framework')]
 class FilesystemConfigMigrationCompilerPass implements CompilerPassInterface
 {
     private const MIGRATED_FS = ['theme', 'asset', 'sitemap'];
@@ -14,7 +14,7 @@ class FilesystemConfigMigrationCompilerPass implements CompilerPassInterface
     public function process(ContainerBuilder $container): void
     {
         foreach (self::MIGRATED_FS as $fs) {
-            $key = sprintf('shopware.filesystem.%s', $fs);
+            $key = \sprintf('shopware.filesystem.%s', $fs);
             $urlKey = $key . '.url';
             $typeKey = $key . '.type';
             $configKey = $key . '.config';

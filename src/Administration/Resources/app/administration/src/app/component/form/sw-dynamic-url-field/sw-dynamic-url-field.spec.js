@@ -1,80 +1,119 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { createLocalVue, shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/app/component/form/sw-dynamic-url-field';
+import selectMtSelectOptionByText from '../../../../../test/_helper_/select-mt-select-by-text';
 
 const seoDomainPrefix = '124c71d524604ccbad6042edce3ac799';
 
-const linkDataProvider = [{
-    URL: 'http://www.domain.de/test',
-    value: 'http://www.domain.de/test',
-    type: 'link',
-    prefix: '',
-    selector: '.sw-text-field',
-    label: 'sw-text-editor-toolbar.link.linkTo',
-    placeholder: 'sw-text-editor-toolbar.link.placeholder',
-}, {
-    URL: 'tel:01234567890123',
-    value: '01234567890123',
-    type: 'phone',
-    prefix: 'tel:',
-    selector: '.sw-text-field',
-    label: 'sw-text-editor-toolbar.link.linkTo',
-    placeholder: 'sw-text-editor-toolbar.link.placeholderPhoneNumber',
-}, {
-    URL: 'mailto:test@shopware.com',
-    value: 'test@shopware.com',
-    type: 'email',
-    prefix: 'mailto:',
-    selector: '.sw-email-field',
-    label: 'sw-text-editor-toolbar.link.linkTo',
-    placeholder: 'sw-text-editor-toolbar.link.placeholderEmail',
-}, {
-    URL: `${seoDomainPrefix}/detail/aaaaaaa524604ccbad6042edce3ac799#`,
-    value: 'aaaaaaa524604ccbad6042edce3ac799',
-    type: 'detail',
-    prefix: `${seoDomainPrefix}/detail/`,
-    selector: '.sw-entity-single-select',
-    label: 'sw-text-editor-toolbar.link.linkTo',
-    placeholder: 'sw-text-editor-toolbar.link.placeholderProduct',
-}];
-
+const linkDataProvider = [
+    {
+        URL: 'http://www.domain.de/test',
+        modelValue: 'http://www.domain.de/test',
+        type: 'link',
+        prefix: '',
+        selector: '.mt-text-field',
+        inputSelector: '.mt-text-field input',
+        label: 'sw-text-editor-toolbar.link.linkTo',
+        placeholder: 'sw-text-editor-toolbar.link.placeholder',
+    },
+    {
+        URL: 'tel:01234567890123',
+        modelValue: '01234567890123',
+        type: 'phone',
+        prefix: 'tel:',
+        selector: '.mt-text-field',
+        inputSelector: '.mt-text-field input',
+        label: 'sw-text-editor-toolbar.link.linkTo',
+        placeholder: 'sw-text-editor-toolbar.link.placeholderPhoneNumber',
+    },
+    {
+        URL: 'mailto:test@shopware.com',
+        modelValue: 'test@shopware.com',
+        type: 'email',
+        prefix: 'mailto:',
+        selector: '.mt-email-field',
+        inputSelector: '.mt-email-field input',
+        label: 'sw-text-editor-toolbar.link.linkTo',
+        placeholder: 'sw-text-editor-toolbar.link.placeholderEmail',
+    },
+    {
+        URL: `${seoDomainPrefix}/detail/aaaaaaa524604ccbad6042edce3ac799#`,
+        value: 'aaaaaaa524604ccbad6042edce3ac799',
+        type: 'detail',
+        prefix: `${seoDomainPrefix}/detail/`,
+        selector: '.sw-entity-single-select',
+        label: 'sw-text-editor-toolbar.link.linkTo',
+        placeholder: 'sw-text-editor-toolbar.link.placeholderProduct',
+    },
+    {
+        URL: `${seoDomainPrefix}/mediaId/aaaaaaa524604ccbad6042edce3ac799#`,
+        value: 'aaaaaaa524604ccbad6042edce3ac799',
+        type: 'media',
+        prefix: `${seoDomainPrefix}/mediaId/`,
+        selector: '.sw-media-field',
+        label: 'sw-text-editor-toolbar.link.linkTo',
+    },
+];
 
 async function createWrapper(startingValue) {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-dynamic-url-field'), {
-        localVue,
-        stubs: {
-            'sw-select-field': {
-                template: '<select class="sw-select-field" :value="value" @change="$emit(\'change\', $event.target.value)"><slot></slot></select>',
-                props: ['value'],
+    return mount(await wrapTestComponent('sw-dynamic-url-field', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-select-field': {
+                    template:
+                        '<select class="sw-select-field" :value="value" @change="$emit(\'update:value\', $event.target.value)"><slot></slot></select>',
+                    props: ['value'],
+                },
+                'sw-email-field': {
+                    props: [
+                        'value',
+                        'label',
+                        'placeholder',
+                    ],
+                    template:
+                        '<input class="sw-email-field" :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
+                },
+                'sw-text-field': {
+                    props: [
+                        'value',
+                        'label',
+                        'placeholder',
+                    ],
+                    template:
+                        '<input class="sw-text-field" :value="value" @input="$emit(\'update:value\', $event.target.value)" />',
+                },
+                'sw-entity-single-select': {
+                    props: [
+                        'value',
+                        'label',
+                        'placeholder',
+                    ],
+                    template:
+                        '<input class="sw-entity-single-select" :value="value" @input="$emit(\'update:value\', $event.target.value)">',
+                },
+                'sw-category-tree-field': {
+                    props: [
+                        'label',
+                        'placeholder',
+                        'criteria',
+                        'categories-collection',
+                    ],
+                    template: '<div class="sw-category-tree-field"></div>',
+                },
+                'sw-media-field': {
+                    props: [
+                        'value',
+                        'label',
+                    ],
+                    template:
+                        '<input class="sw-media-field" :value="value" @input="$emit(\'update:value\', $event.target.value)">',
+                },
             },
-            'sw-switch-field': {
-                props: ['value', 'label', 'placeholder'],
-                template: '<input class="sw-switch-field" type="checkbox" :value="value" @input="$emit(\'input\', $event.target.value)" />',
-            },
-            'sw-email-field': {
-                props: ['value', 'label', 'placeholder'],
-                template: '<input class="sw-email-field" :value="value" @input="$emit(\'input\', $event.target.value)" />',
-            },
-            'sw-text-field': {
-                props: ['value', 'label', 'placeholder'],
-                template: '<input class="sw-text-field" :value="value" @input="$emit(\'input\', $event.target.value)" />',
-            },
-            'sw-entity-single-select': {
-                props: ['value', 'label', 'placeholder'],
-                template: '<input class="sw-entity-single-select" :value="value" @input="$emit(\'input\', $event.target.value)">',
-            },
-            'sw-category-tree-field': {
-                props: ['label', 'placeholder', 'criteria', 'categories-collection'],
-                template: '<div class="sw-category-tree-field"></div>',
-            },
-            'sw-button': true,
         },
-        propsData: {
+        props: {
             value: startingValue,
         },
     });
@@ -91,62 +130,64 @@ responses.addResponse({
     url: '/search/category',
     status: 200,
     response: {
-        data: [{
-            id: 'test-id',
-            attributes: categoryData,
-            relationships: [],
-        }],
+        data: [
+            {
+                id: 'test-id',
+                attributes: categoryData,
+                relationships: [],
+            },
+        ],
         meta: {
             total: 1,
         },
     },
 });
 
-describe('components/form/sw-text-editor/sw-text-editor-link-menu', () => {
-    it('should be a Vue.js component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
-    linkDataProvider.forEach(link => {
-        it(`parses ${link.type} URL's correctly`, async () => {
+describe('components/form/sw-text-editor/sw-dynamic-url-field', () => {
+    linkDataProvider.forEach((link) => {
+        it(`parses ${link.type} URLs correctly`, async () => {
             const wrapper = await createWrapper(link.URL);
+            await flushPromises();
 
-            await wrapper.vm.$nextTick();
-            await wrapper.vm.$nextTick();
-
-            const inputField = wrapper.find(link.selector);
+            const inputField = wrapper.findComponent(link.selector);
             expect(inputField.props()).toStrictEqual(
                 expect.objectContaining({
-                    value: link.value,
+                    [link.modelValue ? 'modelValue' : 'value']: link.modelValue ? link.modelValue : link.value,
                     label: link.label,
-                    placeholder: link.placeholder,
+                    ...(link.type !== 'media'
+                        ? {
+                              placeholder: link.placeholder,
+                          }
+                        : {}),
                 }),
             );
 
             let placeholderId = 'some-id';
-            await inputField.setValue(placeholderId);
+            const inputSelector = link.inputSelector ? link.inputSelector : link.selector;
+            await wrapper.find(inputSelector).setValue(placeholderId);
 
-            if (link.type === 'detail') {
+            if (
+                [
+                    'detail',
+                    'media',
+                ].includes(link.type)
+            ) {
                 placeholderId += '#';
             }
 
-            const dispatchedInputEvents = wrapper.emitted('input');
+            const dispatchedInputEvents = wrapper.emitted('update:value').at(0);
 
-            expect(dispatchedInputEvents[0]).toStrictEqual([link.prefix + placeholderId]);
+            expect(dispatchedInputEvents).toStrictEqual([
+                link.prefix + placeholderId,
+            ]);
         });
     });
 
     it('parses category links and reacts to changes correctly', async () => {
         const wrapper = await createWrapper(`${seoDomainPrefix}/navigation/aaaaaaa524604ccbad6042edce3ac799#`);
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
-
-        const categoryTreeField = wrapper.find('.sw-category-tree-field');
+        const categoryTreeField = wrapper.findComponent('.sw-category-tree-field');
         const props = categoryTreeField.props();
 
         expect(props.label).toBe('sw-text-editor-toolbar.link.linkTo');
@@ -166,16 +207,26 @@ describe('components/form/sw-text-editor/sw-text-editor-link-menu', () => {
         expect(associations[0].criteria.associations).toHaveLength(1);
         expect(associations[0].criteria.associations[0].association).toBe('group');
 
-        expect(props.criteria.filters).toStrictEqual(expect.objectContaining(
-            [{
-                operator: 'OR',
-                queries: [
-                    { field: 'product.childCount', type: 'equals', value: 0 },
-                    { field: 'product.childCount', type: 'equals', value: null },
-                ],
-                type: 'multi',
-            }],
-        ));
+        expect(props.criteria.filters).toStrictEqual(
+            expect.objectContaining([
+                {
+                    operator: 'OR',
+                    queries: [
+                        {
+                            field: 'product.childCount',
+                            type: 'equals',
+                            value: 0,
+                        },
+                        {
+                            field: 'product.childCount',
+                            type: 'equals',
+                            value: null,
+                        },
+                    ],
+                    type: 'multi',
+                },
+            ]),
+        );
 
         expect(props.categoriesCollection).toHaveLength(1);
         expect(props.categoriesCollection[0]).toEqual(categoryData);
@@ -185,9 +236,11 @@ describe('components/form/sw-text-editor/sw-text-editor-link-menu', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const dispatchedInputEvents = wrapper.emitted('input');
+        const dispatchedInputEvents = wrapper.emitted('update:value');
 
-        expect(dispatchedInputEvents[0]).toStrictEqual(['124c71d524604ccbad6042edce3ac799/navigation/new-selection#']);
+        expect(dispatchedInputEvents[0]).toStrictEqual([
+            '124c71d524604ccbad6042edce3ac799/navigation/new-selection#',
+        ]);
 
         categoryTreeField.vm.$emit('selection-remove');
         await wrapper.vm.$nextTick();
@@ -197,32 +250,27 @@ describe('components/form/sw-text-editor/sw-text-editor-link-menu', () => {
 
     it('should clear the state if the link category is changed', async () => {
         const wrapper = await createWrapper('http://www.domain.de/test');
-
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         expect(wrapper.vm.linkCategory).toBe('link');
 
-        const options = wrapper.find('select').findAll('option');
-        await options.at(3).setSelected();
+        await selectMtSelectOptionByText(wrapper, 'sw-text-editor-toolbar.link.labelMedia');
 
-        expect(wrapper.vm.linkCategory).toBe('email');
+        expect(wrapper.vm.linkCategory).toBe('media');
 
-        const dispatchedInputEvents = wrapper.emitted('input');
+        const dispatchedInputEvents = wrapper.emitted('update:value');
         expect(dispatchedInputEvents[0]).toStrictEqual(['']);
     });
 
     it('should clear the linkTarget when the remove button is pressed', async () => {
         const wrapper = await createWrapper('http://www.domain.de/test');
 
-        await wrapper.vm.$nextTick();
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         expect(wrapper.vm.linkCategory).toBe('link');
         expect(wrapper.vm.linkTarget).toBe('http://www.domain.de/test');
 
-        wrapper.find('.sw-dynamic-url-field__link-menu-buttons-button-remove').vm.$emit('click');
-        await wrapper.vm.$nextTick();
+        await wrapper.findComponent('.sw-dynamic-url-field__link-menu-buttons-button-remove').vm.$emit('click');
 
         expect(wrapper.vm.linkCategory).toBe('link');
         expect(wrapper.vm.linkTarget).toBe('');

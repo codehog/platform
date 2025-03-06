@@ -2,7 +2,7 @@ import template from './sw-extension-rating-stars.html.twig';
 import './sw-extension-rating-stars.scss';
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  * @private
  */
 export default {
@@ -10,10 +10,7 @@ export default {
 
     inject: ['feature'],
 
-    model: {
-        prop: 'rating',
-        event: 'rating-changed',
-    },
+    emits: ['update:rating'],
 
     props: {
         editable: {
@@ -104,19 +101,15 @@ export default {
 
             // subtract because rtl direction is used
             this.ratingValue = this.maxRating - rating;
-            if (this.feature.isActive('VUE3')) {
-                this.$emit('update:rating', this.ratingValue);
-
-                return;
-            }
-
-            this.$emit('rating-changed', this.ratingValue);
+            this.$emit('update:rating', this.ratingValue);
         },
 
         showPartialStar(key) {
-            return this.ratingValue % 1 !== 0
+            return (
+                this.ratingValue % 1 !== 0 &&
                 // subtract because rtl direction is used
-                && (this.maxRating - Math.ceil(this.ratingValue)) === key;
+                this.maxRating - Math.ceil(this.ratingValue) === key
+            );
         },
     },
 };

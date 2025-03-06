@@ -11,7 +11,10 @@ use Shopware\Core\Framework\Rule\RuleConfig;
 use Shopware\Core\Framework\Rule\RuleConstraints;
 use Shopware\Core\Framework\Rule\RuleScope;
 
-#[Package('buyers-experience')]
+/**
+ * @final
+ */
+#[Package('fundamentals@after-sales')]
 class PromotionsInCartCountRule extends Rule
 {
     final public const RULE_NAME = 'promotionsInCartCount';

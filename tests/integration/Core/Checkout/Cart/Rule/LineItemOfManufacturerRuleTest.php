@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
@@ -9,18 +11,18 @@ use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
 use Shopware\Core\Checkout\Cart\Rule\LineItemOfManufacturerRule;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Rule\Exception\UnsupportedOperatorException;
 use Shopware\Core\Framework\Rule\Rule;
+use Shopware\Core\Framework\Rule\RuleComparison;
+use Shopware\Core\Framework\Rule\RuleException;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
 
 /**
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[Group('rules')]
 class LineItemOfManufacturerRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -47,10 +49,9 @@ class LineItemOfManufacturerRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider getLineItemScopeTestData
-     *
      * @param array<string> $manufacturerIds
      */
+    #[DataProvider('getLineItemScopeTestData')]
     public function testIfMatchesCorrectWithLineItemScope(
         array $manufacturerIds,
         string $operator,
@@ -83,10 +84,9 @@ class LineItemOfManufacturerRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider getCartRuleScopeTestData
-     *
      * @param array<string> $manufacturerIds
      */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScope(
         array $manufacturerIds,
         string $operator,
@@ -113,10 +113,9 @@ class LineItemOfManufacturerRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider getCartRuleScopeTestData
-     *
      * @param array<string> $manufacturerIds
      */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScopeNested(
         array $manufacturerIds,
         string $operator,
@@ -165,7 +164,7 @@ class LineItemOfManufacturerRuleTest extends TestCase
             'operator' => Rule::OPERATOR_LT,
         ]);
 
-        $this->expectException(UnsupportedOperatorException::class);
+        $this->expectExceptionObject(RuleException::unsupportedOperator(Rule::OPERATOR_LT, RuleComparison::class));
 
         $this->rule->match(new LineItemScope(
             $this->createLineItemWithManufacturer('3'),

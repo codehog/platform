@@ -2,121 +2,96 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Store;
 
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Psr7\Request;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Store\StoreException;
-use Shopware\Core\Test\Annotation\DisabledFeatures;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Store\StoreException
  */
-#[Package('merchant-services')]
+#[Package('checkout')]
+#[CoversClass(StoreException::class)]
 class StoreExceptionTest extends TestCase
 {
     public function testCannotDeleteManaged(): void
     {
         $exception = StoreException::cannotDeleteManaged('test-extension');
 
-        static::assertEquals(
+        static::assertSame(
             'Extension test-extension is managed by Composer and cannot be deleted',
             $exception->getMessage()
         );
 
-        static::assertEquals('FRAMEWORK__STORE_CANNOT_DELETE_COMPOSER_MANAGED', $exception->getErrorCode());
-        static::assertEquals(Response::HTTP_BAD_REQUEST, $exception->getStatusCode());
+        static::assertSame('FRAMEWORK__STORE_CANNOT_DELETE_COMPOSER_MANAGED', $exception->getErrorCode());
+        static::assertSame(Response::HTTP_BAD_REQUEST, $exception->getStatusCode());
     }
 
     public function testExtensionThemeStillInUse(): void
     {
         $exception = StoreException::extensionThemeStillInUse('abcdefg');
 
-        static::assertEquals(
+        static::assertSame(
             'The extension with id "abcdefg" can not be removed because its theme is still assigned to a sales channel.',
             $exception->getMessage()
         );
 
-        static::assertEquals('FRAMEWORK__EXTENSION_THEME_STILL_IN_USE', $exception->getErrorCode());
-        static::assertEquals(Response::HTTP_FORBIDDEN, $exception->getStatusCode());
+        static::assertSame('FRAMEWORK__EXTENSION_THEME_STILL_IN_USE', $exception->getErrorCode());
+        static::assertSame(Response::HTTP_FORBIDDEN, $exception->getStatusCode());
     }
 
-    /**
-     * @DisabledFeatures(features={"v6.6.0.0"})
-     */
-    public function testExtensionInstallException(): void
+    public function testCouldNotUploadExtensionCorrectly(): void
     {
-        $exception = StoreException::extensionInstallException('Extension not found');
+        $exception = StoreException::couldNotUploadExtensionCorrectly();
 
-        static::assertEquals(
-            'Extension not found',
+        static::assertSame(
+            'Extension could not be uploaded correctly.',
             $exception->getMessage()
         );
 
-        static::assertEquals('FRAMEWORK__EXTENSION_INSTALL_EXCEPTION', $exception->getErrorCode());
-        static::assertEquals(Response::HTTP_INTERNAL_SERVER_ERROR, $exception->getStatusCode());
+        static::assertSame('FRAMEWORK__EXTENSION_CANNOT_BE_UPLOADED_CORRECTLY', $exception->getErrorCode());
+        static::assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $exception->getStatusCode());
     }
 
-    /**
-     * @DisabledFeatures(features={"v6.6.0.0"})
-     */
-    public function testExtensionUpdateRequiresConsentAffirmationException(): void
+    public function testInvalidContextSource(): void
     {
-        $exception = StoreException::extensionUpdateRequiresConsentAffirmationException('test-app', [
-            'permissions' => [
-                'product' => ['read'],
-                'categories' => ['read'],
-            ],
-        ]);
+        $exception = StoreException::invalidContextSource('context1', 'context2');
 
-        static::assertEquals(
-            'Updating app "test-app" requires a renewed consent affirmation.',
+        static::assertSame(
+            'Expected context source to be "context1" but got "context2".',
             $exception->getMessage()
         );
 
-        static::assertEquals('FRAMEWORK__EXTENSION_UPDATE_REQUIRES_CONSENT_AFFIRMATION', $exception->getErrorCode());
-        static::assertEquals(Response::HTTP_INTERNAL_SERVER_ERROR, $exception->getStatusCode());
-        static::assertEquals([
-            'appName' => 'test-app',
-            'deltas' => [
-                'permissions' => [
-                    'product' => ['read'],
-                    'categories' => ['read'],
-                ],
-            ],
-        ], $exception->getParameters());
+        static::assertSame('FRAMEWORK__STORE_DATA_INVALID_CONTEXT_SOURCE', $exception->getErrorCode());
+        static::assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $exception->getStatusCode());
     }
 
-    /**
-     * @DisabledFeatures(features={"v6.6.0.0"})
-     */
-    public function testExtensionNotFoundFromId(): void
+    public function testMissingIntegrationInContextSource(): void
     {
-        $exception = StoreException::extensionNotFoundFromId('123');
+        $exception = StoreException::missingIntegrationInContextSource('context');
 
-        static::assertEquals(
-            'Could not find extension with id "123".',
+        static::assertSame(
+            'No integration available in context source "context"',
             $exception->getMessage()
         );
 
-        static::assertEquals('FRAMEWORK__EXTENSION_NOT_FOUND', $exception->getErrorCode());
-        static::assertEquals(Response::HTTP_NOT_FOUND, $exception->getStatusCode());
+        static::assertSame('FRAMEWORK__STORE_MISSING_INTEGRATION_IN_CONTEXT_SOURCE', $exception->getErrorCode());
+        static::assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $exception->getStatusCode());
     }
 
-    /**
-     * @DisabledFeatures(features={"v6.6.0.0"})
-     */
-    public function testExtensionNotFoundFromTechnicalName(): void
+    public function testStoreError(): void
     {
-        $exception = StoreException::extensionNotFoundFromTechnicalName('test-app');
+        $exception = StoreException::storeError(new ClientException('some test message', new Request('GET', 'https://example.com'), new \GuzzleHttp\Psr7\Response()));
 
-        static::assertEquals(
-            'Could not find extension with technical name "test-app".',
+        static::assertSame(
+            'some test message',
             $exception->getMessage()
         );
 
-        static::assertEquals('FRAMEWORK__EXTENSION_NOT_FOUND', $exception->getErrorCode());
-        static::assertEquals(Response::HTTP_NOT_FOUND, $exception->getStatusCode());
+        static::assertSame('FRAMEWORK__STORE_ERROR', $exception->getErrorCode());
+        static::assertSame(Response::HTTP_INTERNAL_SERVER_ERROR, $exception->getStatusCode());
     }
 }

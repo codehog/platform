@@ -4,12 +4,14 @@ import './sw-data-grid-column-boolean.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  */
 Component.register('sw-data-grid-column-boolean', {
     template,
+
+    emits: ['update:value'],
 
     props: {
         isInlineEdit: {
@@ -22,7 +24,6 @@ Component.register('sw-data-grid-column-boolean', {
             required: false,
             default: false,
         },
-        // FIXME: add property type
         // eslint-disable-next-line vue/require-prop-types
         value: {
             required: true,
@@ -36,7 +37,7 @@ Component.register('sw-data-grid-column-boolean', {
             },
 
             set(newValue) {
-                this.$emit('input', newValue);
+                this.$emit('update:value', newValue);
             },
         },
     },

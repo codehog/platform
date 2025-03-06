@@ -8,35 +8,20 @@ use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerWishlistProductEntity extends Entity
 {
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $wishlistId;
+    protected string $wishlistId;
 
-    /**
-     * @var string
-     */
-    protected $productId;
+    protected string $productId;
 
-    /**
-     * @var string
-     */
-    protected $productVersionId;
+    protected string $productVersionId;
 
-    /**
-     * @var CustomerWishlistEntity|null
-     */
-    protected $wishlist;
+    protected ?CustomerWishlistEntity $wishlist = null;
 
-    /**
-     * @var ProductEntity|null
-     */
-    protected $product;
+    protected ?ProductEntity $product = null;
 
     public function getWishlist(): ?CustomerWishlistEntity
     {

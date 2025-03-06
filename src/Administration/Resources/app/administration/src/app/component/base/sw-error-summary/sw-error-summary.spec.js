@@ -1,32 +1,17 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-error-summary/index';
-import 'src/app/component/base/sw-alert/index';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(errors = {}, options = {}) {
-    if (typeof Shopware.State.get('error') !== 'undefined') {
-        Shopware.State.unregisterModule('error');
-    }
+    Shopware.Store.get('error').api = errors;
 
-    Shopware.State.registerModule('error', {
-        namespaced: true,
-
-        state: {
-            api: errors,
-        },
-    });
-    Shopware.State.getters['error/getAllApiErrors'] = () => [errors];
-
-    return shallowMount(await Shopware.Component.build('sw-error-summary'), {
-        stubs: {
-            'sw-alert': await Shopware.Component.build('sw-alert'),
-            'sw-icon': true,
-        },
+    return mount(await wrapTestComponent('sw-error-summary', { sync: true }), {
         attachTo: document.body,
-        ...options,
+        global: {
+            ...options,
+        },
     });
 }
 
@@ -38,16 +23,12 @@ describe('src/app/component/base/sw-error-summary/index.js', () => {
         await flushPromises();
     });
 
-    afterEach(() => {
-        wrapper.destroy();
-    });
-
     it('should be a Vue.js component', () => {
         expect(wrapper.vm).toBeTruthy();
     });
 
     it('should not show alert box without errors', () => {
-        const alert = wrapper.find('.sw-alert');
+        const alert = wrapper.find('[role="banner"]');
 
         expect(alert.exists()).toBeFalsy();
     });
@@ -79,14 +60,14 @@ describe('src/app/component/base/sw-error-summary/index.js', () => {
         );
         await flushPromises();
 
-        const alert = wrapper.find('.sw-alert');
+        const alert = wrapper.find('[role="banner"]');
         expect(alert.exists()).toBeTruthy();
 
         const quantity = wrapper.find('.sw-error-summary__quantity');
         expect(quantity.exists()).toBeTruthy();
         expect(quantity.text()).toBe('2x');
 
-        const message = wrapper.find('.sw-alert__message');
+        const message = wrapper.find('.mt-banner__message');
         expect(message.exists()).toBeTruthy();
         expect(message.text()).toBe('2x "Error 1"');
     });

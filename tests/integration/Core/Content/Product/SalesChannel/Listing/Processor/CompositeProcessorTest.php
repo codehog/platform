@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Content\Product\SalesChannel\Listing\Processor;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\SalesChannel\Listing\Processor\CompositeListingProcessor;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -13,9 +14,8 @@ use Symfony\Component\HttpFoundation\Request;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SalesChannel\Listing\Processor\CompositeListingProcessor
  */
+#[CoversClass(CompositeListingProcessor::class)]
 class CompositeProcessorTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -24,14 +24,14 @@ class CompositeProcessorTest extends TestCase
     {
         $request = new Request();
         $criteria = new Criteria();
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $request->query->set('no-aggregations', true);
-        $this->getContainer()->get(CompositeListingProcessor::class)->prepare($request, $criteria, $context);
+        static::getContainer()->get(CompositeListingProcessor::class)->prepare($request, $criteria, $context);
         static::assertEmpty($criteria->getAggregations());
 
         $request->query->set('only-aggregations', true);
-        $this->getContainer()->get(CompositeListingProcessor::class)->prepare($request, $criteria, $context);
+        static::getContainer()->get(CompositeListingProcessor::class)->prepare($request, $criteria, $context);
         static::assertEmpty($criteria->getSorting());
         static::assertEmpty($criteria->getAssociations());
         static::assertSame(0, $criteria->getLimit());

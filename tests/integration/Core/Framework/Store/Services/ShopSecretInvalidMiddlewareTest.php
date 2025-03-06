@@ -5,6 +5,7 @@ namespace Shopware\Tests\Integration\Core\Framework\Store\Services;
 use Doctrine\DBAL\Connection;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Store\Exception\ShopSecretInvalidException;
 use Shopware\Core\Framework\Store\Services\ShopSecretInvalidMiddleware;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
@@ -13,6 +14,7 @@ use Shopware\Core\System\SystemConfig\SystemConfigService;
 /**
  * @internal
  */
+#[Package('checkout')]
 class ShopSecretInvalidMiddlewareTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -23,8 +25,8 @@ class ShopSecretInvalidMiddlewareTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->connection = $this->getContainer()->get(Connection::class);
-        $this->systemConfigService = $this->getContainer()->get(SystemConfigService::class);
+        $this->connection = static::getContainer()->get(Connection::class);
+        $this->systemConfigService = static::getContainer()->get(SystemConfigService::class);
     }
 
     public function testKeepsStoreTokensAndReturnsResponse(): void

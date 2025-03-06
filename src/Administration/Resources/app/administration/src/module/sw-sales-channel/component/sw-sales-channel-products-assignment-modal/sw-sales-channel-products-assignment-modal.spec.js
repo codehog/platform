@@ -1,50 +1,58 @@
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
 
-import { shallowMount } from '@vue/test-utils';
-import swSalesChannelProductsAssignmentModal from 'src/module/sw-sales-channel/component/sw-sales-channel-products-assignment-modal';
+import { mount } from '@vue/test-utils';
 import 'src/app/component/base/sw-button';
 
-Shopware.Component.register('sw-sales-channel-products-assignment-modal', swSalesChannelProductsAssignmentModal);
-
 async function createWrapper(activeTab = 'singleProducts') {
-    return shallowMount(await Shopware.Component.build('sw-sales-channel-products-assignment-modal'), {
-        directives: {
-            hide: {},
-        },
-        stubs: {
-            'sw-sales-channel-products-assignment-single-products': true,
-            'sw-sales-channel-product-assignment-categories': true,
-            'sw-sales-channel-products-assignment-dynamic-product-groups': true,
-            'sw-container': true,
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-modal': true,
-            'sw-tabs': {
-                data() {
-                    return { active: activeTab };
+    return mount(
+        await wrapTestComponent('sw-sales-channel-products-assignment-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                directives: {
+                    hide: {},
                 },
-                template: '<div><slot></slot><slot name="content" v-bind="{ active }"></slot></div>',
+                stubs: {
+                    'sw-sales-channel-products-assignment-single-products': true,
+                    'sw-sales-channel-product-assignment-categories': true,
+                    'sw-sales-channel-products-assignment-dynamic-product-groups': true,
+                    'sw-container': {
+                        template: '<div class="sw-container"><slot></slot></div>',
+                    },
+                    'sw-modal': {
+                        template:
+                            '<div class="sw-modal"><slot></slot><slot name="content"></slot><slot name="modal-footer"></slot></div>',
+                    },
+                    'sw-tabs': {
+                        data() {
+                            return { active: activeTab };
+                        },
+                        template: '<div><slot></slot><slot name="content" v-bind="{ active }"></slot></div>',
+                    },
+                    'sw-tabs-item': true,
+                    'sw-loader': true,
+                    'router-link': true,
+                },
             },
-            'sw-tabs-item': true,
-            'sw-icon': true,
-            'sw-loader': true,
-        },
-        propsData: {
-            salesChannel: {
-                id: 1,
-                name: 'Headless',
+            props: {
+                salesChannel: {
+                    id: 1,
+                    name: 'Headless',
+                },
+                isAssignProductLoading: false,
             },
-            isAssignProductLoading: false,
         },
-    });
+    );
 }
 
 describe('src/module/sw-sales-channel/component/sw-sales-channel-products-assignment-modal', () => {
     it('should emit modal close event', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.findAll('.sw-button').at(0).trigger('click');
+        await wrapper.get('.sw-sales-channel-products-assignment-modal__close-button').trigger('click');
 
         expect(wrapper.emitted('modal-close')).toBeTruthy();
     });
@@ -60,10 +68,12 @@ describe('src/module/sw-sales-channel/component/sw-sales-channel-products-assign
             ],
         });
 
-        await wrapper.find('.sw-button--primary').trigger('click');
+        await wrapper.findByText('button', 'sw-sales-channel.detail.products.buttonAddProducts').trigger('click');
 
         expect(wrapper.emitted('products-add')).toBeTruthy();
-        expect(wrapper.emitted('products-add')[0]).toEqual([wrapper.vm.products]);
+        expect(wrapper.emitted('products-add')[0]).toEqual([
+            wrapper.vm.products,
+        ]);
     });
 
     it('should emit products data when clicking Add Products button to assign product by categories', async () => {
@@ -83,7 +93,7 @@ describe('src/module/sw-sales-channel/component/sw-sales-channel-products-assign
             categoryProducts: products,
         });
 
-        const assignButton = wrapper.find('.sw-button--primary');
+        const assignButton = wrapper.findByText('button', 'sw-sales-channel.detail.products.buttonAddProducts');
         await assignButton.trigger('click');
 
         expect(wrapper.emitted('products-add')).toBeTruthy();

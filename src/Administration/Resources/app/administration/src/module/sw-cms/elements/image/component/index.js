@@ -6,10 +6,12 @@ const { Mixin, Filter } = Shopware;
 
 /**
  * @private
- * @package buyers-experience
+ * @sw-package discovery
  */
 export default {
     template,
+
+    inject: ['feature'],
 
     mixins: [
         Mixin.getByName('cms-element'),
@@ -26,9 +28,12 @@ export default {
 
         styles() {
             return {
-                'min-height': this.element.config.displayMode.value === 'cover' &&
-                              this.element.config.minHeight.value &&
-                              this.element.config.minHeight.value !== 0 ? this.element.config.minHeight.value : '340px',
+                'min-height':
+                    this.element.config.displayMode.value === 'cover' &&
+                    this.element.config.minHeight.value &&
+                    this.element.config.minHeight.value !== 0
+                        ? this.element.config.minHeight.value
+                        : '340px',
             };
         },
 
@@ -82,25 +87,19 @@ export default {
         },
 
         mediaConfigValue() {
-            return this.element?.config?.sliderItems?.value;
+            return this.element?.config?.media?.value;
         },
     },
 
     watch: {
-        cmsPageState: {
-            deep: true,
+        'cmsPageState.currentDemoEntity': {
             handler() {
-                this.$forceUpdate();
+                this.updateDemoValue(this.mediaConfigValue);
             },
         },
 
         mediaConfigValue(value) {
-            const mediaId = this.element?.data?.media?.id;
-            const isSourceStatic = this.element?.config?.media?.source === 'static';
-
-            if (isSourceStatic && mediaId && value !== mediaId) {
-                this.element.config.media.value = mediaId;
-            }
+            this.updateDemoValue(value);
         },
     },
 
@@ -112,6 +111,15 @@ export default {
         createdComponent() {
             this.initElementConfig('image');
             this.initElementData('image');
+        },
+
+        updateDemoValue(value) {
+            const mediaId = this.element?.data?.media?.id;
+            const isSourceStatic = this.element?.config?.media?.source === 'static';
+
+            if (isSourceStatic && mediaId && value !== mediaId) {
+                this.element.config.media.value = mediaId;
+            }
         },
     },
 };

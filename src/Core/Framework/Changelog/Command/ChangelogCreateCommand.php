@@ -21,7 +21,7 @@ use Symfony\Component\Process\Process;
     name: 'changelog:create',
     description: 'Creates a changelog file',
 )]
-#[Package('core')]
+#[Package('framework')]
 class ChangelogCreateCommand extends Command
 {
     /**
@@ -58,14 +58,7 @@ class ChangelogCreateCommand extends Command
 
                 return $title;
             });
-        $issue = $input->getArgument('issue')
-            ?? $IOHelper->ask('The corresponding Jira ticket ID', null, function ($issue) {
-                if (!$issue) {
-                    throw new \RuntimeException('Jira ticket ID is required in changelog file');
-                }
-
-                return $issue;
-            });
+        $issue = $input->getArgument('issue') ?? $IOHelper->ask('The corresponding GitHub issue or Jira ticket ID');
         $date = $input->getOption('date')
             ?? $IOHelper->ask('The date in `YYYY-MM-DD` format which the change will be applied', $default['date'], function ($date) {
                 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -78,6 +71,7 @@ class ChangelogCreateCommand extends Command
         $author = $input->getOption('author') ?? $IOHelper->ask('The author of code changes', $default['author']);
         $authorEmail = $input->getOption('author-email') ?? $IOHelper->ask('The author email of code changes', $default['authorEmail']);
         $authorGithub = $input->getOption('author-github') ?? $IOHelper->ask('The author GitHub account', $default['authorGithub']);
+        $authorGithub = '@' . ltrim($authorGithub, '@');
 
         $template = (new ChangelogDefinition())
             ->setTitle($title)

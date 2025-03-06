@@ -6,23 +6,14 @@ use Shopware\Core\Framework\DataAbstractionLayer\TranslationEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Tax\Aggregate\TaxRuleType\TaxRuleTypeEntity;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class TaxRuleTypeTranslationEntity extends TranslationEntity
 {
-    /**
-     * @var string
-     */
-    protected $taxRuleTypeId;
+    protected string $taxRuleTypeId;
 
-    /**
-     * @var string|null
-     */
-    protected $typeName;
+    protected ?string $typeName = null;
 
-    /**
-     * @var TaxRuleTypeEntity|null
-     */
-    protected $taxRuleType;
+    protected ?TaxRuleTypeEntity $taxRuleType = null;
 
     public function getTaxRuleTypeId(): string
     {

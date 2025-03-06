@@ -4,10 +4,9 @@ import './sw-internal-link.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description Link to another route inside the administration
  * @status ready
  * @example-type dynamic
@@ -20,6 +19,8 @@ const { Component } = Shopware;
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 Component.register('sw-internal-link', {
     template,
+
+    emits: ['click'],
 
     props: {
         routerLink: {

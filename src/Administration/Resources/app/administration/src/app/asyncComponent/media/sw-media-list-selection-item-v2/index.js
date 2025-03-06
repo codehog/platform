@@ -5,13 +5,17 @@ import './sw-media-list-selection-item-v2.scss';
  * @private
  * @description Component which renders an image.
  * @status ready
- * @package content
+ * @sw-package discovery
  */
 export default {
     template,
 
+    emits: [
+        'click',
+        'item-remove',
+    ],
+
     props: {
-        // FIXME: add type to property
         // eslint-disable-next-line vue/require-prop-types
         item: {
             required: true,

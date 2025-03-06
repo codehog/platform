@@ -3,27 +3,27 @@
 namespace Shopware\Tests\Integration\Core\Checkout\Payment\Cart;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundStateHandler;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundStates;
+use Shopware\Core\Checkout\Order\OrderCollection;
+use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\AbstractPaymentHandler;
 use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\PaymentHandlerRegistry;
-use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\RefundPaymentHandlerInterface;
+use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\PaymentHandlerType;
 use Shopware\Core\Checkout\Payment\Cart\PaymentRefundProcessor;
-use Shopware\Core\Checkout\Payment\Exception\InvalidRefundTransitionException;
-use Shopware\Core\Checkout\Payment\Exception\UnknownRefundException;
-use Shopware\Core\Checkout\Payment\Exception\UnknownRefundHandlerException;
+use Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStructFactory;
 use Shopware\Core\Checkout\Payment\PaymentException;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Test\Integration\Builder\Order\OrderBuilder;
 use Shopware\Core\Test\Integration\Builder\Order\OrderTransactionBuilder;
 use Shopware\Core\Test\Integration\Builder\Order\OrderTransactionCaptureBuilder;
 use Shopware\Core\Test\Integration\Builder\Order\OrderTransactionCaptureRefundBuilder;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 
 /**
  * @internal
@@ -35,6 +35,9 @@ class PaymentRefundProcessorTest extends TestCase
 
     private IdsCollection $ids;
 
+    /**
+     * @var EntityRepository<OrderCollection>
+     */
     private EntityRepository $orderRepository;
 
     private PaymentRefundProcessor $paymentRefundProcessor;
@@ -43,8 +46,8 @@ class PaymentRefundProcessorTest extends TestCase
     {
         $this->ids = new IdsCollection();
 
-        $this->orderRepository = $this->getContainer()->get('order.repository');
-        $this->paymentRefundProcessor = $this->getContainer()->get(PaymentRefundProcessor::class);
+        $this->orderRepository = static::getContainer()->get('order.repository');
+        $this->paymentRefundProcessor = static::getContainer()->get(PaymentRefundProcessor::class);
     }
 
     public function testItThrowsIfRefundNotFound(): void
@@ -63,9 +66,6 @@ class PaymentRefundProcessorTest extends TestCase
 
         $this->orderRepository->upsert([$order], Context::createDefaultContext());
 
-        if (!Feature::isActive('v6.6.0.0')) {
-            static::expectException(UnknownRefundException::class);
-        }
         static::expectException(PaymentException::class);
         static::expectExceptionMessage('The Refund process failed with following exception: Unknown refund with id ' . $this->ids->get('refund') . '.');
 
@@ -94,7 +94,8 @@ class PaymentRefundProcessorTest extends TestCase
             ->add('paymentMethod', [
                 'id' => $this->ids->get('payment_method'),
                 // this enables refund handling for the payment method
-                'handlerIdentifier' => RefundPaymentHandlerInterface::class,
+                'technicalName' => 'payment_test',
+                'handlerIdentifier' => AbstractPaymentHandler::class,
                 'translations' => [
                     Defaults::LANGUAGE_SYSTEM => [
                         'name' => 'foo',
@@ -109,18 +110,13 @@ class PaymentRefundProcessorTest extends TestCase
 
         $this->orderRepository->upsert([$order], Context::createDefaultContext());
 
-        if (!Feature::isActive('v6.6.0.0')) {
-            static::expectException(UnknownRefundHandlerException::class);
-        }
         static::expectException(PaymentException::class);
         static::expectExceptionMessage('The Refund process failed with following exception: Unknown refund handler for refund id ' . $this->ids->get('refund') . '.');
 
         $this->paymentRefundProcessor->processRefund($this->ids->get('refund'), Context::createDefaultContext());
     }
 
-    /**
-     * @dataProvider getInvalidStatesForTransitions
-     */
+    #[DataProvider('getInvalidStatesForTransitions')]
     public function testItThrowsIfRefundIsInWrongState(string $stateMachineState): void
     {
         $refund = (new OrderTransactionCaptureRefundBuilder(
@@ -148,10 +144,6 @@ class PaymentRefundProcessorTest extends TestCase
 
         $this->orderRepository->upsert([$order], Context::createDefaultContext());
 
-        if (!Feature::isActive('v6.6.0.0')) {
-            static::expectException(InvalidRefundTransitionException::class);
-        }
-
         static::expectException(PaymentException::class);
         static::expectExceptionMessage('The Refund process failed with following exception: Can not process refund with id ' . $refund['id'] . ' as refund has state ' . $stateMachineState . '.');
 
@@ -160,20 +152,27 @@ class PaymentRefundProcessorTest extends TestCase
 
     public function testItCallsRefundHandler(): void
     {
-        $handlerMock = $this->createMock(RefundPaymentHandlerInterface::class);
+        $handlerMock = $this->createMock(AbstractPaymentHandler::class);
         $handlerMock
             ->expects(static::once())
             ->method('refund');
 
+        $handlerMock
+            ->expects(static::once())
+            ->method('supports')
+            ->with(PaymentHandlerType::REFUND, $this->ids->get('payment_method'), Context::createDefaultContext())
+            ->willReturn(true);
+
         $handlerRegistryMock = $this->createMock(PaymentHandlerRegistry::class);
         $handlerRegistryMock
-            ->method('getRefundPaymentHandler')
+            ->method('getPaymentMethodHandler')
             ->willReturn($handlerMock);
 
         $processor = new PaymentRefundProcessor(
-            $this->getContainer()->get(Connection::class),
-            $this->getContainer()->get(OrderTransactionCaptureRefundStateHandler::class),
-            $handlerRegistryMock
+            static::getContainer()->get(Connection::class),
+            static::getContainer()->get(OrderTransactionCaptureRefundStateHandler::class),
+            $handlerRegistryMock,
+            static::getContainer()->get(PaymentTransactionStructFactory::class),
         );
 
         $refund = (new OrderTransactionCaptureRefundBuilder(
@@ -196,7 +195,8 @@ class PaymentRefundProcessorTest extends TestCase
             ->add('paymentMethod', [
                 'id' => $this->ids->get('payment_method'),
                 // this enables refund handling for the payment method
-                'handlerIdentifier' => RefundPaymentHandlerInterface::class,
+                'technicalName' => 'payment_test',
+                'handlerIdentifier' => AbstractPaymentHandler::class,
                 'translations' => [
                     Defaults::LANGUAGE_SYSTEM => [
                         'name' => 'foo',

@@ -1,7 +1,7 @@
 {% block component_product_box_action_inner %}
     {% set id = product.id %}
     <div class="product-action">
-        {% set isAvailable = not product.isCloseout or (product.availableStock >= product.minPurchase) %}
+        {% set isAvailable = not product.isCloseout or (product.stock >= product.minPurchase) %}
         {% set displayFrom = product.calculatedPrices.count > 1 %}
         {% set displayBuyButton = isAvailable and not displayFrom and product.childCount <= 0 %}
 
@@ -12,9 +12,7 @@
                       method="post"
                       class="buy-widget"
                       data-add-to-cart="true">
-
                     {% block component_product_box_action_form %}
-
                         {% block component_product_box_action_buy_redirect_input %}
                             {# fallback redirect back to detail page is deactivated via js #}
                             <input type="hidden"
@@ -24,10 +22,10 @@
                             <input type="hidden"
                                    name="redirectParameters"
                                    data-redirect-parameters="true"
-                                   value='{"productId": "{{ product.id }}"}'>
+                                   value="{{ {productId: id}|json_encode }}">
                         {% endblock %}
 
-                        {% block page_product_detail_buy_product_buy_info %}
+                        {% block component_product_box_action_buy_info %}
                             <input type="hidden"
                                    name="lineItems[{{ id }}][id]"
                                    value="{{ id }}">
@@ -48,17 +46,19 @@
                                    value="{{ product.minPurchase }}">
                         {% endblock %}
 
-                        {% block page_product_detail_product_buy_meta %}
+                        {% block component_product_box_action_buy_meta %}
                             <input type="hidden"
                                    name="product-name"
                                    value="{{ product.translated.name }}">
                         {% endblock %}
 
-                        {% block page_product_detail_product_buy_button %}
+                        {% block component_product_box_action_buy_button %}
                             <div class="d-grid">
                                 <button class="btn btn-buy"
-                                        title="{{ "listing.boxAddProduct"|trans|striptags }}">
-                                    {{ "listing.boxAddProduct"|trans|sw_sanitize }}
+                                        title="{{ 'listing.boxAddProduct'|trans|striptags }}">
+                                    {% block page_product_detail_product_buy_button_label %}
+                                        {{ 'listing.boxAddProduct'|trans|sw_sanitize }}
+                                    {% endblock %}
                                 </button>
                             </div>
                         {% endblock %}
@@ -68,23 +68,15 @@
         {% else %}
             {% block component_product_box_action_detail %}
                 <div class="d-grid">
-                    <a href="{{ seoUrl('frontend.detail.page', {'productId': id}) }}"
-                       class="btn btn-light"
-                       title="{{ "listing.boxProductDetails"|trans|striptags }}">
-                        {{ "listing.boxProductDetails"|trans|sw_sanitize }}
+                    <a href="{{ seoUrl('frontend.detail.page', {productId: id}) }}"
+                       class="btn btn-light btn-detail"
+                       title="{{ 'listing.boxProductDetails'|trans|striptags }}">
+                        {% block component_product_box_action_detail_label %}
+                            {{ 'listing.boxProductDetails'|trans|sw_sanitize }}
+                        {% endblock %}
                     </a>
                 </div>
             {% endblock %}
         {% endif %}
     </div>
-
-    {% block component_product_box_action_meta %}
-        <input type="hidden"
-               name="product-name"
-               value="{{ product.translated.name }}">
-
-        <input type="hidden"
-               name="product-id"
-               value="{{ id }}">
-    {% endblock %}
 {% endblock %}

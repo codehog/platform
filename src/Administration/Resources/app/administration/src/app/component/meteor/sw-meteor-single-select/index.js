@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import './sw-meteor-single-select.scss';
@@ -9,21 +9,22 @@ const { Component, Mixin } = Shopware;
 const { debounce, get } = Shopware.Utils;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-meteor-single-select', {
     template,
 
     inject: ['feature'],
 
+    emits: [
+        'paginate',
+        'update:value',
+        'search',
+    ],
+
     mixins: [
         Mixin.getByName('remove-api-error'),
     ],
-
-    model: {
-        prop: 'value',
-        event: 'change',
-    },
 
     props: {
         options: {
@@ -31,7 +32,6 @@ Component.register('sw-meteor-single-select', {
             type: Array,
         },
 
-        // FIXME: add type for property
         // eslint-disable-next-line vue/require-prop-types
         value: {
             required: true,
@@ -52,7 +52,6 @@ Component.register('sw-meteor-single-select', {
         highlightSearchTerm: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -92,12 +91,7 @@ Component.register('sw-meteor-single-select', {
                 return this.value;
             },
             set(newValue) {
-                if (this.feature.isActive('VUE3')) {
-                    this.$emit('update:value', newValue);
-                    return;
-                }
-
-                this.$emit('change', newValue);
+                this.$emit('update:value', newValue);
             },
         },
 
@@ -115,7 +109,7 @@ Component.register('sw-meteor-single-select', {
 
         singleSelection: {
             get() {
-                return this.options.find(option => {
+                return this.options.find((option) => {
                     return this.getKey(option, this.valueProperty) === this.currentValue;
                 });
             },
@@ -178,7 +172,7 @@ Component.register('sw-meteor-single-select', {
         search() {
             this.$emit('search', this.searchTerm);
 
-            this.results = this.options.filter(option => {
+            this.results = this.options.filter((option) => {
                 const label = this.getKey(option, this.labelProperty);
                 if (!label) {
                     return false;

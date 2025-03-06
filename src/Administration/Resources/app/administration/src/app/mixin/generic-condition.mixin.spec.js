@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 import { shallowMount } from '@vue/test-utils';
 
@@ -39,23 +39,22 @@ describe('app/mixin/generic-condition', () => {
 
     beforeEach(async () => {
         wrapper = shallowMount(await Shopware.Component.build('sw-mock'), {
-            mixins: [
-                Shopware.Mixin.getByName('generic-condition'),
-            ],
-            mocks: {
-                condition: {
-                    type: 'cartLineItemDimensionWeight',
-                    value: null,
+            global: {
+                mixins: [
+                    Shopware.Mixin.getByName('generic-condition'),
+                ],
+                mocks: {
+                    condition: {
+                        type: 'cartLineItemDimensionWeight',
+                        value: null,
+                    },
+                    ensureValueExist: () => {},
+                    $tc: (snippetKey) => snippetKey,
                 },
-                ensureValueExist: () => {},
             },
         });
 
-        Shopware.State.commit('ruleConditionsConfig/setConfig', config);
-    });
-
-    it('should be a Vue.js component', () => {
-        expect(wrapper.vm).toBeTruthy();
+        Shopware.Store.get('ruleConditionsConfig').config = config;
     });
 
     it('should update and convert the field value', () => {

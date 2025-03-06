@@ -2,16 +2,18 @@
 
 namespace Shopware\Tests\Unit\Core\System\Tax\Aggregate\TaxRule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Tax\Aggregate\TaxRule\TaxRuleCollection;
 use Shopware\Core\System\Tax\Aggregate\TaxRule\TaxRuleEntity;
 use Shopware\Core\System\Tax\Aggregate\TaxRuleType\TaxRuleTypeEntity;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\System\Tax\Aggregate\TaxRule\TaxRuleCollection
  */
+#[CoversClass(TaxRuleCollection::class)]
+#[Package('checkout')]
 class TaxRuleCollectionTest extends TestCase
 {
     public function testLatestActivationDate(): void

@@ -2,10 +2,16 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Checkout\Customer\Rule\AffiliateCodeRule;
+use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
@@ -13,14 +19,11 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @group rules
- *
- * @covers \Shopware\Core\Checkout\Customer\Rule\AffiliateCodeRule
  */
+#[Package('fundamentals@after-sales')]
+#[CoversClass(AffiliateCodeRule::class)]
+#[Group('rules')]
 class AffiliateCodeRuleTest extends TestCase
 {
     public function testGetConstraints(): void
@@ -45,7 +48,7 @@ class AffiliateCodeRuleTest extends TestCase
         $config = (new AffiliateCodeRule())->getConfig();
         static::assertEquals([
             'fields' => [
-                [
+                'affiliateCode' => [
                     'name' => 'affiliateCode',
                     'type' => 'string',
                     'config' => [],
@@ -69,7 +72,11 @@ class AffiliateCodeRuleTest extends TestCase
 
     public function testInvalidCombinationOfValueAndOperator(): void
     {
-        $this->expectException(UnsupportedValueException::class);
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
         $rule = new AffiliateCodeRule(Rule::OPERATOR_EQ, null);
         $customer = new CustomerEntity();
         $customer->setAffiliateCode('testing');
@@ -82,9 +89,7 @@ class AffiliateCodeRuleTest extends TestCase
         $rule->match($scope);
     }
 
-    /**
-     * @dataProvider getCaseTestMatchValues
-     */
+    #[DataProvider('getCaseTestMatchValues')]
     public function testMatch(string $operator, ?string $ruleCode, ?string $customerCode, bool $hasCustomer, bool $isMatching): void
     {
         $rule = new AffiliateCodeRule($operator, $ruleCode);

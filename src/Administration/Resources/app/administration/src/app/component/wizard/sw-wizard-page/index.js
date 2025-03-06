@@ -1,3 +1,7 @@
+/**
+ * @sw-package framework
+ */
+
 import './sw-wizard-page.scss';
 import template from './sw-wizard-page.html.twig';
 
@@ -11,11 +15,16 @@ const { Component } = Shopware;
 Component.register('sw-wizard-page', {
     template,
 
+    inject: [
+        'feature',
+        'swWizardPageAdd',
+        'swWizardPageRemove',
+    ],
+
     props: {
         isActive: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default() {
                 return false;
@@ -30,7 +39,10 @@ Component.register('sw-wizard-page', {
         },
         position: {
             type: Number,
-            required: true,
+            required: false,
+            default() {
+                return 0;
+            },
         },
     },
 
@@ -45,17 +57,17 @@ Component.register('sw-wizard-page', {
         this.createdComponent();
     },
 
-    destroyed() {
+    unmounted() {
         this.destroyedComponent();
     },
 
     methods: {
         createdComponent() {
-            this.$parent.$emit('page-add', this);
+            this.swWizardPageAdd(this);
         },
 
         destroyedComponent() {
-            this.$parent.$emit('page-remove', this);
+            this.swWizardPageRemove(this);
         },
     },
 });

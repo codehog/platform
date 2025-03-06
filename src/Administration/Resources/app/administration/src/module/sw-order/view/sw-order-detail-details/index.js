@@ -2,20 +2,59 @@ import template from './sw-order-detail-details.html.twig';
 import './sw-order-detail-details.scss';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-const { Component, State } = Shopware;
+const { Component, Store } = Shopware;
 const { Criteria } = Shopware.Data;
-const { mapGetters, mapState } = Component.getComponentHelper();
+const { mapPropertyErrors } = Component.getComponentHelper();
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
-    inject: [
-        'repositoryFactory',
-        'acl',
+    inject: {
+        swOrderDetailOnSaveAndReload: {
+            from: 'swOrderDetailOnSaveAndReload',
+            default: null,
+        },
+        swOrderDetailOnSaveEdits: {
+            from: 'swOrderDetailOnSaveEdits',
+            default: null,
+        },
+        swOrderDetailOnLoadingChange: {
+            from: 'swOrderDetailOnLoadingChange',
+            default: null,
+        },
+        swOrderDetailOnSaveAndRecalculate: {
+            from: 'swOrderDetailOnSaveAndRecalculate',
+            default: null,
+        },
+        swOrderDetailOnReloadEntityData: {
+            from: 'swOrderDetailOnReloadEntityData',
+            default: null,
+        },
+        swOrderDetailOnError: {
+            from: 'swOrderDetailOnError',
+            default: null,
+        },
+        acl: {
+            from: 'acl',
+            default: null,
+        },
+        repositoryFactory: {
+            from: 'repositoryFactory',
+            default: null,
+        },
+    },
+
+    emits: [
+        'update-loading',
+        'save-and-recalculate',
+        'save-and-reload',
+        'save-edits',
+        'reload-entity-data',
+        'error',
     ],
 
     props: {
@@ -38,15 +77,15 @@ export default {
     },
 
     computed: {
-        ...mapGetters('swOrderDetail', [
-            'isLoading',
-        ]),
+        isLoading: () => Store.get('swOrderDetail').isLoading,
 
-        ...mapState('swOrderDetail', [
-            'order',
-            'versionContext',
-            'orderAddressIds',
-        ]),
+        order: () => Store.get('swOrderDetail').order,
+
+        versionContext: () => Store.get('swOrderDetail').versionContext,
+
+        orderAddressIds: () => Store.get('swOrderDetail').orderAddressIds,
+
+        ...mapPropertyErrors('order', ['orderCustomer.email']),
 
         delivery() {
             return this.order.deliveries.length > 0 && this.order.deliveries[0];
@@ -54,7 +93,12 @@ export default {
 
         transaction() {
             for (let i = 0; i < this.order.transactions.length; i += 1) {
-                if (!['cancelled', 'failed'].includes(this.order.transactions[i].stateMachineState.technicalName)) {
+                if (
+                    ![
+                        'cancelled',
+                        'failed',
+                    ].includes(this.order.transactions[i].stateMachineState.technicalName)
+                ) {
                     return this.order.transactions[i];
                 }
             }
@@ -83,13 +127,7 @@ export default {
         },
 
         paymentMethodCriteria() {
-            const criteria = new Criteria(1, 25);
-
-            if (this.order.salesChannelId) {
-                criteria.addFilter(Criteria.equals('salesChannels.id', this.order.salesChannelId));
-            }
-
-            return criteria;
+            return new Criteria(1, 25);
         },
 
         taxStatus() {
@@ -111,12 +149,12 @@ export default {
         },
 
         selectedBillingAddressId() {
-            const currentAddress = this.orderAddressIds.find(item => item.type === 'billing');
+            const currentAddress = this.orderAddressIds.find((item) => item.type === 'billing');
             return currentAddress?.customerAddressId || this.billingAddress.id;
         },
 
         selectedShippingAddressId() {
-            const currentAddress = this.orderAddressIds.find(item => item.type === 'shipping');
+            const currentAddress = this.orderAddressIds.find((item) => item.type === 'shipping');
             return currentAddress?.customerAddressId || this.shippingAddress.id;
         },
 
@@ -137,10 +175,16 @@ export default {
     methods: {
         createdComponent() {
             this.$emit('update-loading', true);
+            if (this.swOrderDetailOnLoadingChange) {
+                this.swOrderDetailOnLoadingChange(true);
+            }
 
             this.customFieldSetRepository.search(this.customFieldSetCriteria).then((result) => {
                 this.customFieldSets = result;
                 this.$emit('update-loading', false);
+                if (this.swOrderDetailOnLoadingChange) {
+                    this.swOrderDetailOnLoadingChange(false);
+                }
             });
         },
 
@@ -153,26 +197,44 @@ export default {
 
         saveAndRecalculate() {
             this.$emit('save-and-recalculate');
+            if (this.swOrderDetailOnSaveAndRecalculate) {
+                this.swOrderDetailOnSaveAndRecalculate();
+            }
         },
 
         saveAndReload() {
             this.$emit('save-and-reload');
+            if (this.swOrderDetailOnSaveAndReload) {
+                this.swOrderDetailOnSaveAndReload();
+            }
         },
 
         onSaveEdits() {
             this.$emit('save-edits');
+            if (this.swOrderDetailOnSaveEdits) {
+                this.swOrderDetailOnSaveEdits();
+            }
         },
 
         reloadEntityData() {
             this.$emit('reload-entity-data');
+            if (this.swOrderDetailOnReloadEntityData) {
+                this.swOrderDetailOnReloadEntityData();
+            }
         },
 
         showError(error) {
             this.$emit('error', error);
+            if (this.swOrderDetailOnError) {
+                this.swOrderDetailOnError(error);
+            }
         },
 
         updateLoading(loadingValue) {
-            State.commit('swOrderDetail/setLoading', ['order', loadingValue]);
+            Store.get('swOrderDetail').setLoading([
+                'order',
+                loadingValue,
+            ]);
         },
 
         validateTrackingCode(searchTerm) {
@@ -182,12 +244,12 @@ export default {
                 return false;
             }
 
-            const isExist = this.delivery?.trackingCodes?.find(code => code === trackingCode);
+            const isExist = this.delivery?.trackingCodes?.find((code) => code === trackingCode);
             return !isExist;
         },
 
         onChangeOrderAddress(value) {
-            State.commit('swOrderDetail/setOrderAddressIds', value);
+            Store.get('swOrderDetail').setOrderAddressIds(value);
         },
     },
 };

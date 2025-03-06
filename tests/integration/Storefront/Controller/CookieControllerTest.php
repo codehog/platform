@@ -2,11 +2,13 @@
 
 namespace Shopware\Tests\Integration\Storefront\Controller;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\KernelLifecycleManager;
 use Shopware\Core\Framework\Test\TestCaseHelper\TestBrowser;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Storefront\Controller\CookieController;
 use Shopware\Storefront\Framework\Captcha\GoogleReCaptchaV2;
 use Shopware\Storefront\Framework\Captcha\GoogleReCaptchaV3;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * @internal
  */
+#[CoversClass(CookieController::class)]
 class CookieControllerTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -27,7 +30,7 @@ class CookieControllerTest extends TestCase
 
     public function testCookieGroupIncludeComfortFeatures(): void
     {
-        $systemConfig = $this->getContainer()->get(SystemConfigService::class);
+        $systemConfig = static::getContainer()->get(SystemConfigService::class);
 
         $systemConfig->set('core.cart.wishlistEnabled', true);
 
@@ -40,7 +43,7 @@ class CookieControllerTest extends TestCase
 
     public function testCookieGroupNotIncludeWishlistInComfortFeatures(): void
     {
-        $systemConfig = $this->getContainer()->get(SystemConfigService::class);
+        $systemConfig = static::getContainer()->get(SystemConfigService::class);
 
         $systemConfig->set('core.cart.wishlistEnabled', false);
 
@@ -53,7 +56,7 @@ class CookieControllerTest extends TestCase
 
     public function testCookieRequiredGroupIncludeGoogleReCaptchaWhenActive(): void
     {
-        $systemConfig = $this->getContainer()->get(SystemConfigService::class);
+        $systemConfig = static::getContainer()->get(SystemConfigService::class);
 
         $systemConfig->set('core.basicInformation.activeCaptchasV2', [
             GoogleReCaptchaV2::CAPTCHA_NAME => [

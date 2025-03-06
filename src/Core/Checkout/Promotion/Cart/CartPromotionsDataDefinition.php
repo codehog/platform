@@ -6,11 +6,17 @@ use Shopware\Core\Checkout\Promotion\PromotionEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\Struct;
 
-#[Package('buyers-experience')]
+#[Package('checkout')]
 class CartPromotionsDataDefinition extends Struct
 {
+    /**
+     * @var array<string, array<PromotionEntity>>
+     */
     private array $codePromotions;
 
+    /**
+     * @var array<PromotionEntity>
+     */
     private array $automaticPromotions;
 
     public function __construct()
@@ -20,8 +26,9 @@ class CartPromotionsDataDefinition extends Struct
     }
 
     /**
-     * Adds a list of promotions to the existing
-     * list of automatic promotions.
+     * Adds a list of promotions to the existing list of automatic promotions.
+     *
+     * @param array<PromotionEntity> $promotions
      */
     public function addAutomaticPromotions(array $promotions): void
     {
@@ -29,56 +36,38 @@ class CartPromotionsDataDefinition extends Struct
     }
 
     /**
-     * Gets all added automatic promotions.
-     */
-    public function getAutomaticPromotions(): array
-    {
-        return $this->automaticPromotions;
-    }
-
-    /**
-     * Gets all added code promotions
-     */
-    public function getCodePromotions(): array
-    {
-        return $this->codePromotions;
-    }
-
-    /**
-     * Adds the provided list of promotions
-     * to the existing list of promotions for this code.
+     * Adds the provided list of promotions to the existing list of promotions for this code.
      *
-     * @param string $code       the promotion code
-     * @param array  $promotions a list of promotion entities for this code
+     * @param string $code the promotion code
+     * @param array<PromotionEntity> $promotions a list of promotion entities for this code
      */
     public function addCodePromotions(string $code, array $promotions): void
     {
         if (!\array_key_exists($code, $this->codePromotions)) {
-            $this->codePromotions[$code] = [];
+            $this->codePromotions[$code] = $promotions;
+
+            return;
         }
 
-        /** @var array $existing */
-        $existing = $this->codePromotions[$code];
-
-        $this->codePromotions[$code] = array_merge($existing, $promotions);
+        $this->codePromotions[$code] = array_merge($this->codePromotions[$code], $promotions);
     }
 
     /**
-     * Gets a list of all added automatic and
-     * code promotions.
+     * Gets a list of all added automatic and code promotions.
+     *
+     * @return list<PromotionCodeTuple>
      */
     public function getPromotionCodeTuples(): array
     {
         $list = [];
 
-        /** @var PromotionEntity $promotion */
         foreach ($this->automaticPromotions as $promotion) {
             $list[] = new PromotionCodeTuple('', $promotion);
         }
 
         foreach ($this->codePromotions as $code => $promotionList) {
-            /** @var PromotionEntity $promotion */
             foreach ($promotionList as $promotion) {
+                // Keep the string cast, as numeric codes will be implicitly cast to integer
                 $list[] = new PromotionCodeTuple((string) $code, $promotion);
             }
         }
@@ -87,8 +76,7 @@ class CartPromotionsDataDefinition extends Struct
     }
 
     /**
-     * Gets if there is at least an empty list of promotions
-     * available for the provided code.
+     * Gets if there is at least an empty list of promotions available for the provided code.
      */
     public function hasCode(string $code): bool
     {
@@ -96,8 +84,7 @@ class CartPromotionsDataDefinition extends Struct
     }
 
     /**
-     * Removes the assigne promotions for the
-     * provided code, if existing.
+     * Removes the assigned promotions for the provided code, if existing.
      */
     public function removeCode(string $code): void
     {
@@ -110,6 +97,8 @@ class CartPromotionsDataDefinition extends Struct
 
     /**
      * Gets a flat list of all added codes.
+     *
+     * @return list<string>
      */
     public function getAllCodes(): array
     {

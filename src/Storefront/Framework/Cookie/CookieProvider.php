@@ -4,7 +4,7 @@ namespace Shopware\Storefront\Framework\Cookie;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('storefront')]
+#[Package('framework')]
 class CookieProvider implements CookieProviderInterface
 {
     private const REQUIRED_COOKIES = [
@@ -54,11 +54,25 @@ class CookieProvider implements CookieProviderInterface
             [
                 'snippet_name' => 'cookie.groupComfortFeaturesWishlist',
                 'cookie' => 'wishlist-enabled',
+                'expiration' => '30',
                 'value' => '1',
             ],
             [
                 'snippet_name' => 'cookie.groupComfortFeaturesYoutubeVideo',
                 'cookie' => 'youtube-video',
+                'expiration' => '30',
+                'value' => '1',
+            ],
+        ],
+    ];
+
+    private const MARKETING_COOKIES = [
+        'snippet_name' => 'cookie.groupMarketing',
+        'snippet_description' => 'cookie.groupMarketingDescription',
+        'entries' => [
+            [
+                'snippet_name' => 'cookie.groupMarketingAdConsent',
+                'cookie' => 'google-ads-enabled',
                 'expiration' => '30',
                 'value' => '1',
             ],
@@ -100,6 +114,7 @@ class CookieProvider implements CookieProviderInterface
         return [
             $requiredCookies,
             self::STATISTICAL_COOKIES,
+            self::MARKETING_COOKIES,
             self::COMFORT_FEATURES_COOKIES,
         ];
     }

@@ -14,7 +14,7 @@ use Shopware\Core\Framework\Uuid\Uuid;
 /**
  * @internal
  */
-#[Package('business-ops')]
+#[Package('after-sales')]
 class AddCustomerAffiliateAndCampaignCodeAction extends FlowAction implements DelayableAction
 {
     /**

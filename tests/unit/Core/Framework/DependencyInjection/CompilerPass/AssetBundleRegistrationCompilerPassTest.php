@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DependencyInjection\CompilerPass;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\DependencyInjection\CompilerPass\AssetBundleRegistrationCompilerPass;
 use Shopware\Core\Framework\Framework;
@@ -15,9 +16,8 @@ use Symfony\Component\DependencyInjection\Definition;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DependencyInjection\CompilerPass\AssetBundleRegistrationCompilerPass
  */
+#[CoversClass(AssetBundleRegistrationCompilerPass::class)]
 class AssetBundleRegistrationCompilerPassTest extends TestCase
 {
     public function testCompilerPass(): void
@@ -42,12 +42,12 @@ class AssetBundleRegistrationCompilerPassTest extends TestCase
 
         $container->set('shopware.asset.asset_without_versioning', $this->createMock(Package::class));
 
-        /** @var Packages $assetService */
         $assetService = $container->get('assets.packages');
 
         $assetService->getPackage('@Framework');
 
-        static::expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('There is no "@FrameworkBundle" asset package.');
         $assetService->getPackage('@FrameworkBundle');
     }
 }

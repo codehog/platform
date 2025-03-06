@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Core\Framework\Adapter;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Adapter\Twig\EntityTemplateLoader;
@@ -11,9 +12,8 @@ use Twig\Source;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Adapter\Twig\EntityTemplateLoader
  */
+#[CoversClass(EntityTemplateLoader::class)]
 class EntityTemplateLoaderTest extends TestCase
 {
     /**
@@ -48,35 +48,9 @@ class EntityTemplateLoaderTest extends TestCase
         static::assertFalse($result);
 
         static::expectException(LoaderError::class);
-        static::expectExceptionMessage(sprintf('Template "%s" is not defined.', 'test'));
+        static::expectExceptionMessage(\sprintf('Template "%s" is not defined.', 'test'));
 
         $entityTemplateLoader->getSourceContext('test');
-    }
-
-    public function testDisabledExtensionMode(): void
-    {
-        try {
-            $_ENV['DISABLE_EXTENSIONS'] = true;
-
-            $entityTemplateLoader = new EntityTemplateLoader($this->connectionMock, 'prod');
-
-            $this->connectionMock->expects(static::never())->method('fetchAllAssociative');
-
-            $result = $entityTemplateLoader->exists('@test/test');
-
-            static::assertFalse($result);
-
-            $result = $entityTemplateLoader->isFresh('@test/test', \time());
-
-            static::assertFalse($result);
-
-            static::expectException(LoaderError::class);
-            static::expectExceptionMessage(sprintf('Template "%s" is not defined.', '@test/test'));
-
-            $entityTemplateLoader->getSourceContext('@test/test');
-        } finally {
-            $_ENV['DISABLE_EXTENSIONS'] = false;
-        }
     }
 
     public function testProdModeNoResult(): void
@@ -94,7 +68,7 @@ class EntityTemplateLoaderTest extends TestCase
         static::assertFalse($result);
 
         static::expectException(LoaderError::class);
-        static::expectExceptionMessage(sprintf('Template "%s" is not defined.', '@test/test'));
+        static::expectExceptionMessage(\sprintf('Template "%s" is not defined.', '@test/test'));
 
         $entityTemplateLoader->getSourceContext('@test/test');
     }
@@ -110,20 +84,16 @@ class EntityTemplateLoaderTest extends TestCase
                     'path' => 'test',
                     'namespace' => 'test',
                     'updatedAt' => '2000-01-01',
+                    'hash' => 'hash',
                 ],
             ]
         );
 
-        $result = $entityTemplateLoader->exists('test');
-
-        static::assertFalse($result);
-
-        $result = $entityTemplateLoader->isFresh('test', \time());
-
-        static::assertFalse($result);
+        static::assertFalse($entityTemplateLoader->exists('test'));
+        static::assertFalse($entityTemplateLoader->isFresh('test', \time()));
 
         static::expectException(LoaderError::class);
-        static::expectExceptionMessage(sprintf('Template "%s" is not defined.', 'test'));
+        static::expectExceptionMessage(\sprintf('Template "%s" is not defined.', 'test'));
 
         $entityTemplateLoader->getSourceContext('test');
     }
@@ -139,21 +109,18 @@ class EntityTemplateLoaderTest extends TestCase
                     'path' => 'test',
                     'namespace' => 'test',
                     'updatedAt' => '2000-01-01',
+                    'hash' => 'hash',
                 ],
             ]
         );
 
-        $result = $entityTemplateLoader->exists('@test/test');
-
-        static::assertTrue($result);
-
-        $result = $entityTemplateLoader->isFresh('@test/test', \time());
-
-        static::assertTrue($result);
-
-        $result = $entityTemplateLoader->getSourceContext('@test/test');
-
-        static::assertEquals(new Source('<html></html>', '@test/test'), $result);
+        static::assertTrue($entityTemplateLoader->exists('@test/test'));
+        static::assertTrue($entityTemplateLoader->isFresh('@test/test', \time()));
+        static::assertSame('@test/test_hash', $entityTemplateLoader->getCacheKey('@test/test'));
+        static::assertEquals(
+            new Source('<html></html>', '@test/test'),
+            $entityTemplateLoader->getSourceContext('@test/test')
+        );
     }
 
     public function testProdModeReset(): void
@@ -167,18 +134,21 @@ class EntityTemplateLoaderTest extends TestCase
                     'path' => 'test',
                     'namespace' => 'test',
                     'updatedAt' => '2000-01-01',
+                    'hash' => 'hash',
                 ],
             ]
         );
 
-        $result = $entityTemplateLoader->getSourceContext('@test/test');
-
-        static::assertEquals(new Source('<html></html>', '@test/test'), $result);
+        static::assertEquals(
+            new Source('<html></html>', '@test/test'),
+            $entityTemplateLoader->getSourceContext('@test/test')
+        );
 
         $entityTemplateLoader->reset();
 
-        $result = $entityTemplateLoader->getSourceContext('@test/test');
-
-        static::assertEquals(new Source('<html></html>', '@test/test'), $result);
+        static::assertEquals(
+            new Source('<html></html>', '@test/test'),
+            $entityTemplateLoader->getSourceContext('@test/test')
+        );
     }
 }

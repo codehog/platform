@@ -6,13 +6,14 @@ use Shopware\Core\Framework\HttpException;
 use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('core')]
+#[Package('framework')]
 class MessageQueueException extends HttpException
 {
     public const NO_VALID_RECEIVER_NAME_PROVIDED = 'FRAMEWORK__NO_VALID_RECEIVER_NAME_PROVIDED';
     public const QUEUE_CANNOT_UNSERIALIZE_MESSAGE = 'FRAMEWORK__QUEUE_CANNOT_UNSERIALIZE_MESSAGE';
     public const WORKER_IS_LOCKED = 'FRAMEWORK__WORKER_IS_LOCKED';
     public const CANNOT_FIND_SCHEDULED_TASK = 'FRAMEWORK__CANNOT_FIND_SCHEDULED_TASK';
+    public const QUEUE_MESSAGE_SIZE_EXCEEDS = 'FRAMEWORK__QUEUE_MESSAGE_SIZE_EXCEEDS';
 
     public static function validReceiverNameNotProvided(): self
     {
@@ -48,8 +49,23 @@ class MessageQueueException extends HttpException
         return new self(
             Response::HTTP_BAD_REQUEST,
             self::CANNOT_FIND_SCHEDULED_TASK,
-            'Cannot find scheduled task by name "{{ name }}"',
-            ['name' => $name]
+            self::$couldNotFindMessage,
+            ['entity' => 'scheduled task', 'field' => 'name', 'value' => $name]
+        );
+    }
+
+    public static function queueMessageSizeExceeded(string $messageName, float $size): self
+    {
+        $message = 'The message "{{ message }}" exceeds the 256 kB size limit with its size of {{ size }} kB.';
+
+        return new self(
+            Response::HTTP_REQUEST_ENTITY_TOO_LARGE,
+            self::QUEUE_MESSAGE_SIZE_EXCEEDS,
+            $message,
+            [
+                'message' => $messageName,
+                'size' => $size,
+            ]
         );
     }
 }

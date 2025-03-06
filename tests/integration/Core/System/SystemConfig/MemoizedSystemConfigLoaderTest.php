@@ -6,23 +6,25 @@ use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\KernelTestBehaviour;
 use Shopware\Core\System\SystemConfig\CachedSystemConfigLoader;
+use Shopware\Core\System\SystemConfig\ConfiguredSystemConfigLoader;
 use Shopware\Core\System\SystemConfig\MemoizedSystemConfigLoader;
 use Shopware\Core\System\SystemConfig\SystemConfigLoader;
 
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class MemoizedSystemConfigLoaderTest extends TestCase
 {
     use KernelTestBehaviour;
 
     public function testServiceDecorationChainPriority(): void
     {
-        $service = $this->getContainer()->get(SystemConfigLoader::class);
+        $service = static::getContainer()->get(SystemConfigLoader::class);
 
         static::assertInstanceOf(MemoizedSystemConfigLoader::class, $service);
-        static::assertInstanceOf(CachedSystemConfigLoader::class, $service->getDecorated());
-        static::assertInstanceOf(SystemConfigLoader::class, $service->getDecorated()->getDecorated());
+        static::assertInstanceOf(ConfiguredSystemConfigLoader::class, $service->getDecorated());
+        static::assertInstanceOf(CachedSystemConfigLoader::class, $service->getDecorated()->getDecorated());
+        static::assertInstanceOf(SystemConfigLoader::class, $service->getDecorated()->getDecorated()->getDecorated());
     }
 }

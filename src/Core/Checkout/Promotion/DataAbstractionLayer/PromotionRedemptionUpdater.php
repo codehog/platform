@@ -5,21 +5,31 @@ namespace Shopware\Core\Checkout\Promotion\DataAbstractionLayer;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Shopware\Core\Checkout\Cart\Event\CheckoutOrderPlacedEvent;
+use Shopware\Core\Checkout\Order\Aggregate\OrderLineItem\OrderLineItemDefinition;
 use Shopware\Core\Checkout\Order\Aggregate\OrderLineItem\OrderLineItemEntity;
 use Shopware\Core\Checkout\Promotion\Cart\PromotionProcessor;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Doctrine\RetryableQuery;
+use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWriteEvent;
+use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\DeleteCommand;
+use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\WriteCommand;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * @internal
  */
-#[Package('buyers-experience')]
-class PromotionRedemptionUpdater implements EventSubscriberInterface
+#[Package('checkout')]
+class PromotionRedemptionUpdater implements EventSubscriberInterface, ResetInterface
 {
+    /**
+     * @var array<string, true>
+     */
+    private array $processedPromotions = [];
+
     /**
      * @internal
      */
@@ -34,6 +44,7 @@ class PromotionRedemptionUpdater implements EventSubscriberInterface
     {
         return [
             CheckoutOrderPlacedEvent::class => 'orderPlaced',
+            EntityWriteEvent::class => 'beforeDeletePromotionLineItems',
         ];
     }
 
@@ -65,12 +76,13 @@ SQL;
         $promotions = $this->connection->fetchAllAssociative(
             $sql,
             ['type' => PromotionProcessor::LINE_ITEM_TYPE, 'ids' => Uuid::fromHexToBytesList($ids), 'versionId' => Uuid::fromHexToBytes(Defaults::LIVE_VERSION)],
-            ['ids' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY]
         );
 
         if (empty($promotions)) {
             return;
         }
+
         $update = new RetryableQuery(
             $this->connection,
             $this->connection->prepare('UPDATE promotion SET order_count = :count, orders_per_customer_count = :customerCount WHERE id = :id')
@@ -87,6 +99,8 @@ SQL;
                 'count' => (int) $total,
                 'customerCount' => json_encode($totals, \JSON_THROW_ON_ERROR),
             ]);
+
+            $this->processedPromotions[$id] = true;
         }
     }
 
@@ -131,11 +145,138 @@ SQL;
                 $allCustomerCounts[$promotionId][$customerId] = 1 + ($allCustomerCounts[$promotionId][$customerId] ?? 0);
             }
 
-            $update->execute([
-                'id' => Uuid::fromHexToBytes($promotionId),
-                'customerCount' => json_encode($allCustomerCounts[$promotionId], \JSON_THROW_ON_ERROR),
-            ]);
+            if (!isset($this->processedPromotions[$promotionId])) {
+                $update->execute([
+                    'id' => Uuid::fromHexToBytes($promotionId),
+                    'customerCount' => json_encode($allCustomerCounts[$promotionId], \JSON_THROW_ON_ERROR),
+                ]);
+            }
         }
+    }
+
+    public function beforeDeletePromotionLineItems(EntityWriteEvent $event): void
+    {
+        if ($event->getContext()->getVersionId() !== Defaults::LIVE_VERSION) {
+            return;
+        }
+
+        $ids = $this->getDeletedLineItemIds($event);
+
+        if (empty($ids)) {
+            return;
+        }
+
+        $promotions = $this->fetchOrderLineItemsByIds($ids);
+
+        if (empty($promotions)) {
+            return;
+        }
+
+        $event->addSuccess(function () use ($promotions): void {
+            $groupedPromotions = $this->groupByPromotion($promotions);
+
+            $allCustomerCounts = $this->getAllCustomerCounts(array_keys($groupedPromotions));
+
+            $update = new RetryableQuery(
+                $this->connection,
+                $this->connection->prepare('UPDATE promotion SET order_count = order_count - :orderCount, orders_per_customer_count = :customerCount WHERE id = :id')
+            );
+
+            foreach ($groupedPromotions as $promotionId => $totals) {
+                $orderCount = array_sum($totals);
+
+                foreach ($totals as $customerId => $total) {
+                    if (!isset($allCustomerCounts[$promotionId][$customerId])) {
+                        continue;
+                    }
+                    $allCustomerCounts[$promotionId][$customerId] -= $total;
+
+                    if ($allCustomerCounts[$promotionId][$customerId] <= 0) {
+                        unset($allCustomerCounts[$promotionId][$customerId]);
+                    }
+                }
+
+                $update->execute([
+                    'id' => Uuid::fromHexToBytes($promotionId),
+                    'customerCount' => json_encode($allCustomerCounts[$promotionId], \JSON_THROW_ON_ERROR),
+                    'orderCount' => (int) $orderCount,
+                ]);
+            }
+
+            $promotionCodes = [];
+            foreach ($promotions as $promotion) {
+                $payload = json_decode($promotion['payload'], true, 512, \JSON_THROW_ON_ERROR) ?? [];
+                $promotionCodes[] = $payload['code'] ?? '';
+            }
+
+            $promotionCodes = array_unique(array_filter($promotionCodes));
+
+            if (empty($promotionCodes)) {
+                return;
+            }
+
+            $this->connection->executeStatement(
+                'UPDATE promotion_individual_code set payload = NULL WHERE code IN (:codes)',
+                ['codes' => $promotionCodes],
+                ['codes' => ArrayParameterType::STRING]
+            );
+        });
+    }
+
+    public function reset(): void
+    {
+        $this->processedPromotions = [];
+    }
+
+    /**
+     * @return array<string>
+     */
+    private function getDeletedLineItemIds(EntityWriteEvent $event): array
+    {
+        return array_map(
+            static fn (WriteCommand $command) => $command->getPrimaryKey()['id'],
+            array_filter($event->getCommandsForEntity(OrderLineItemDefinition::ENTITY_NAME), static function (WriteCommand $command) {
+                if ($command instanceof DeleteCommand) {
+                    return true;
+                }
+
+                return false;
+            })
+        );
+    }
+
+    /**
+     * @param array<string> $ids
+     *
+     * @return array<array<string, string>>
+     */
+    private function fetchOrderLineItemsByIds(array $ids): array
+    {
+        $sql = <<<'SQL'
+        SELECT LOWER(HEX(order_line_item.promotion_id)) as promotion_id,
+               order_line_item.payload as payload,
+               COUNT(DISTINCT order_line_item.id) as total,
+               LOWER(HEX(order_customer.customer_id)) as customer_id
+        FROM order_line_item
+        INNER JOIN order_customer
+            ON order_customer.order_id = order_line_item.order_id
+            AND order_customer.version_id = order_line_item.version_id
+        WHERE order_line_item.type = :type
+        AND order_line_item.id IN (:ids)
+        AND order_line_item.version_id = :versionId
+        GROUP BY order_line_item.promotion_id, order_customer.customer_id
+        SQL;
+
+        /** @var array<array<string, string>> $result */
+        $result = $this->connection->fetchAllAssociative($sql, [
+            'ids' => $ids,
+            'versionId' => Uuid::fromHexToBytes(Defaults::LIVE_VERSION),
+            'type' => PromotionProcessor::LINE_ITEM_TYPE,
+        ], [
+            'ids' => ArrayParameterType::BINARY,
+        ]);
+
+        return $result;
     }
 
     /**
@@ -166,7 +307,7 @@ SQL;
         $countResult = $this->connection->fetchAllAssociative(
             'SELECT `id`, `orders_per_customer_count` FROM `promotion` WHERE `id` IN (:ids)',
             ['ids' => Uuid::fromHexToBytesList($promotionIds)],
-            ['ids' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY]
         );
 
         foreach ($countResult as $row) {

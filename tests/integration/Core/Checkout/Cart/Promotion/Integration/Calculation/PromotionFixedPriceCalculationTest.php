@@ -2,10 +2,13 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Integration\Calculation;
 
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
 use Shopware\Core\Checkout\Promotion\Aggregate\PromotionDiscount\PromotionDiscountEntity;
 use Shopware\Core\Checkout\Promotion\Cart\PromotionProcessor;
+use Shopware\Core\Checkout\Promotion\PromotionCollection;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Log\Package;
@@ -13,9 +16,9 @@ use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Util\Random;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionIntegrationTestBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionIntegrationTestBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
 
 /**
  * @internal
@@ -27,21 +30,27 @@ class PromotionFixedPriceCalculationTest extends TestCase
     use PromotionIntegrationTestBehaviour;
     use PromotionTestFixtureBehaviour;
 
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
     protected EntityRepository $productRepository;
 
     protected CartService $cartService;
 
+    /**
+     * @var EntityRepository<PromotionCollection>
+     */
     protected EntityRepository $promotionRepository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $this->context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->promotionRepository = $this->getContainer()->get('promotion.repository');
-        $this->cartService = $this->getContainer()->get(CartService::class);
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->promotionRepository = static::getContainer()->get('promotion.repository');
+        $this->cartService = static::getContainer()->get(CartService::class);
     }
 
     /**
@@ -49,9 +58,8 @@ class PromotionFixedPriceCalculationTest extends TestCase
      * We test that we always end with a final price of our promotion if that one is set to a "fixed price".
      * Our price would be 40 EUR. It must not matter how many items and products we have in there,
      * the final price should always be 40 EUR.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testFixedUnitDiscount(): void
     {
         $productId = Uuid::randomHex();
@@ -60,11 +68,11 @@ class PromotionFixedPriceCalculationTest extends TestCase
         $code = 'BF19';
 
         // add a new sample products
-        $this->createTestFixtureProduct($productId, 100, 19, $this->getContainer(), $this->context);
-        $this->createTestFixtureProduct($productIdTwo, 100, 7, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId, 100, 19, static::getContainer(), $this->context);
+        $this->createTestFixtureProduct($productIdTwo, 100, 7, static::getContainer(), $this->context);
 
         // add a new promotion
-        $this->createTestFixtureFixedDiscountPromotion($promotionId, 40, PromotionDiscountEntity::SCOPE_CART, $code, $this->getContainer(), $this->context);
+        $this->createTestFixtureFixedDiscountPromotion($promotionId, 40, PromotionDiscountEntity::SCOPE_CART, $code, static::getContainer(), $this->context);
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 
@@ -83,20 +91,19 @@ class PromotionFixedPriceCalculationTest extends TestCase
     /**
      * if a automatic fixed price promotion (no code necessary) discount is removed
      * it should not be added again. This is a new feature - to block automatic promotions.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testRemoveOfFixedUnitPromotionsWithoutCode(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 100, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 100, 19, static::getContainer(), $context);
 
         // add a new promotion
-        $this->createTestFixtureFixedDiscountPromotion($promotionId, 40, PromotionDiscountEntity::SCOPE_CART, null, $this->getContainer(), $context);
+        $this->createTestFixtureFixedDiscountPromotion($promotionId, 40, PromotionDiscountEntity::SCOPE_CART, null, static::getContainer(), $context);
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -130,15 +137,14 @@ class PromotionFixedPriceCalculationTest extends TestCase
      * That would lead to 80 EUR for the product
      * But for your currency defined price, we use 65 as fixed price instead.
      * Our test needs to verify that we use 30 EUR, and end with a product sum of 65 EUR in the end.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testFixedUnitPriceDiscountWithCurrencyPrices(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $productGross = 100;
         $fixedPriceValue = 80;
@@ -147,11 +153,11 @@ class PromotionFixedPriceCalculationTest extends TestCase
         $expectedPrice = $currencyMaxValue;
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, $productGross, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, $productGross, 19, static::getContainer(), $context);
 
-        $discountId = $this->createTestFixtureFixedDiscountPromotion($promotionId, $fixedPriceValue, PromotionDiscountEntity::SCOPE_CART, $code, $this->getContainer(), $context);
+        $discountId = $this->createTestFixtureFixedDiscountPromotion($promotionId, $fixedPriceValue, PromotionDiscountEntity::SCOPE_CART, $code, static::getContainer(), $context);
 
-        $this->createTestFixtureAdvancedPrice($discountId, Defaults::CURRENCY, $currencyMaxValue, $this->getContainer());
+        $this->createTestFixtureAdvancedPrice($discountId, Defaults::CURRENCY, $currencyMaxValue, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -174,9 +180,8 @@ class PromotionFixedPriceCalculationTest extends TestCase
      * Then we add a promotion with a fixed price of 100 EUR.
      * This means that our final cart price should be 100 EUR and the discount need to be calculated correctly
      * by considering the existing cart items.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function testFixedCartPriceDiscount(): void
     {
         $productId1 = Uuid::randomHex();
@@ -185,11 +190,11 @@ class PromotionFixedPriceCalculationTest extends TestCase
         $code = 'BF19';
 
         // add 2 test products
-        $this->createTestFixtureProduct($productId1, 200, 19, $this->getContainer(), $this->context);
-        $this->createTestFixtureProduct($productId2, 50, 19, $this->getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId1, 200, 19, static::getContainer(), $this->context);
+        $this->createTestFixtureProduct($productId2, 50, 19, static::getContainer(), $this->context);
 
         // add a new promotion
-        $this->createTestFixtureFixedDiscountPromotion($promotionId, 100, PromotionDiscountEntity::SCOPE_CART, $code, $this->getContainer(), $this->context);
+        $this->createTestFixtureFixedDiscountPromotion($promotionId, 100, PromotionDiscountEntity::SCOPE_CART, $code, static::getContainer(), $this->context);
 
         $cart = $this->cartService->getCart($this->context->getToken(), $this->context);
 

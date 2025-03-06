@@ -2,6 +2,8 @@
 
 namespace Shopware\Tests\Unit\Core\System\SalesChannel\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Framework\Log\Package;
@@ -10,22 +12,20 @@ use Shopware\Core\Framework\Rule\RuleConstraints;
 use Shopware\Core\Framework\Rule\RuleScope;
 use Shopware\Core\Framework\Rule\SalesChannelRule;
 use Shopware\Core\Framework\Uuid\Uuid;
-use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SalesChannel\SalesChannelEntity;
+use Shopware\Core\Test\Generator;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Rule\SalesChannelRule
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
+#[CoversClass(SalesChannelRule::class)]
 class SalesChannelRuleTest extends TestCase
 {
     /**
-     * @dataProvider provideTestData
-     *
      * @param list<string> $salesChannelIds
      */
+    #[DataProvider('provideTestData')]
     public function testMatchesWithCorrectSalesChannel(string $operator, string $currentSalesChannel, ?array $salesChannelIds, bool $expected): void
     {
         $ruleScope = $this->createRuleScope($currentSalesChannel);
@@ -89,7 +89,7 @@ class SalesChannelRuleTest extends TestCase
 
     public function testProvidesConstraints(): void
     {
-        $salesChannelRule = new SalesChannelRule(RUle::OPERATOR_EQ, []);
+        $salesChannelRule = new SalesChannelRule(Rule::OPERATOR_EQ, []);
         $constraints = $salesChannelRule->getConstraints();
 
         static::assertArrayHasKey('salesChannelIds', $constraints);
@@ -101,12 +101,12 @@ class SalesChannelRuleTest extends TestCase
 
     private function createRuleScope(string $salesChannelId): RuleScope
     {
-        $salesChannelContext = $this->createMock(SalesChannelContext::class);
-
         $salesChannel = new SalesChannelEntity();
         $salesChannel->setId($salesChannelId);
 
-        $salesChannelContext->method('getSalesChannel')->willReturn($salesChannel);
+        $salesChannelContext = Generator::generateSalesChannelContext(
+            salesChannel: $salesChannel
+        );
 
         return new CheckoutRuleScope(
             $salesChannelContext

@@ -7,9 +7,11 @@
       "placeholderSearchBar": "Search all orders..."
     },
     "list": {
+      "columnCustomerCompany": "Company",
       "columnCustomerName": "Customer name",
       "columnBillingAddress": "Billing address",
-      "columnAmount": "Order value",
+      "columnDeliveryAddress": "Delivery address",
+      "columnAmount": "Total",
       "columnState": "Order status",
       "columnTransactionState": "Payment status",
       "columnDeliveryState": "Delivery status",
@@ -30,7 +32,6 @@
       "titleSidebarItemFilterAffiliateCode": "Affiliate code",
       "titleSidebarItemFilterCampaignCode": "Campaign code",
       "buttonDelete": "Delete",
-      "buttonCancel": "Cancel",
       "textDeleteConfirm": "Do you really want to delete this order ({orderNumber})?",
       "labelManualOrder": "Created by admin"
     },
@@ -47,12 +48,12 @@
       "messageSaveError": "An error occurred during saving",
       "messageShippingNotAvailable": "Delivery to the selected country not possible.",
       "labelManualOrder": "Created by admin",
-      "textUnsavedOrderWarning": "There are unsaved changes. Please save the order before leaving this page."
+      "textUnsavedOrderWarning": "There are unsaved changes. Please save the order before leaving this page.",
+      "messageEmptyLineItems": "Could not save order. There are no line items."
     },
     "create": {
       "textNewOrder": "New order",
       "buttonSaveOrder": "Save order",
-      "buttonCancelOrder": "Cancel",
       "messageSaveError": "Order could not be saved.",
       "messageSwitchCustomerError": "An error occurred during switching customer",
       "messageFetchCustomerAddressesError": "An error occurred during fetching customer addresses",
@@ -104,6 +105,7 @@
         "labelPhoneNumber": "Phone number",
         "placeholderEmail": "Enter email address...",
         "placeholderPhoneNumber": "Enter phone number...",
+        "labelAddressCompany": "Address company",
         "labelBillingAddress": "Billing address",
         "labelShippingAddress": "Shipping address",
         "placeholder": "Select or add customer first...",
@@ -274,8 +276,7 @@
       "labelDeliveryDate": "Delivery date",
       "labelShippingCosts": "Shipping costs",
       "labelDeliveryState": "Delivery state",
-      "buttonMerge": "Merge order",
-      "buttonDelete": "Delete"
+      "buttonMerge": "Merge order"
     },
     "detailCustomerComment": {
       "title": "Additional information"
@@ -299,6 +300,11 @@
       "description": "There are unsaved changes. Are you sure you want to leave this page without saving?",
       "confirmButton": "Leave page",
       "cancelButton": "Stay on page"
+    },
+    "saveChangesBeforehandModal": {
+      "headline": "Warning",
+      "statusDescription": "Before changing the status, your changes need to be saved. Do you want to save the changes now?",
+      "confirmButton": "Save changes"
     },
     "stateCard": {
       "cardTitle": "Status",
@@ -347,6 +353,7 @@
       "labelMarkAsSent": "Mark as sent",
       "labelMarkAsUnsent": "Mark as unsent",
       "labelCreateNew": "Create new document",
+      "labelAvailableFormats": "Available formats",
       "messageEmptyTitle": "No documents created yet",
       "messageNoDocumentFound": "No documents found",
       "messageEmptySubline": "Manage documents here.",
@@ -403,7 +410,8 @@
       "labelHighlightedItemsHeader": "Name",
       "labelHighlightedItemsEntry": "Total",
       "labelNoItems": "No credit shown",
-      "fileInputLabel": "Upload custom document"
+      "fileInputLabel": "Upload custom document",
+      "labelPreviewOnlyHtml": "HTML preview"
     },
     "documentSendModal": {
       "labelNumber": "Number",
@@ -462,7 +470,17 @@
         "columnCustomerName": "Name",
         "columnCustomerNumber": "Customer number",
         "columnSalesChannel": "Sales Channel",
-        "columnEmailAddress": "Email address"
+        "columnEmailAddress": "Email address",
+        "titleSelectSalesChannel": "Select Sales Channel",
+        "descriptionSelectSalesChannel": "The selected customer has access to multiple Sales Channels, please select the Sales Channel you wish to use for this order.",
+        "alertSelectSalesChannel": "Because the selected Sales channel channel determines the available products and options, changing it will remove the products and reset the options.",
+        "labelSalesChannel": "Use Sales Channel",
+        "placeholderSalesChannel": "Select a Sales Channel...",
+        "buttonSelectSalesChannel": "Select",
+        "labelAllChannel": "All Channels",
+        "titleCustomerChanges": "Change Customer",
+        "descriptionCustomerChanges": "Are you sure you want to change the customer for this order? This customer has a different sales channel, this will remove the products and reset the options.",
+        "buttonChangeCustomer": "Change customer"
       },
       "options": {
         "textHeadlineOrder": "Order",
@@ -472,6 +490,9 @@
         "labelSameAsBillingAddress": "Shipping address is same as billing address",
         "textSameAsBillingAddress": "Same as billing address",
         "labelShippingCosts": "Shipping costs"
+      },
+      "tooltip": {
+        "customerUnavailable": "This customer can only use one sales channel. The Sales Channel is currently inactive or does not exist anymore."
       }
     },
     "filters": {
@@ -519,6 +540,14 @@
         "label": "Sales Channels",
         "placeholder": "Select Sales Channels..."
       },
+      "orderNumberFilter": {
+        "label": "Order number",
+        "placeholder": "Enter order number..."
+      },
+      "customerNumberFilter": {
+        "label": "Customer number",
+        "placeholder": "Enter customer number..."
+      },
       "billingCountryFilter": {
         "label": "Billing country",
         "placeholder": "Select billing countries..."
@@ -541,15 +570,15 @@
       },
       "affiliateCodeFilter": {
         "label": "Affiliate code",
-        "placeholder": "Select affiliate code..."
+        "placeholder": "Enter affiliate code..."
       },
       "campaignCodeFilter": {
         "label": "Campaign code",
-        "placeholder": "Select campaign code..."
+        "placeholder": "Enter campaign code..."
       },
       "promotionCodeFilter": {
         "label": "Promotion code",
-        "placeholder": "Select promotion code..."
+        "placeholder": "Enter promotion code..."
       },
       "messageEmptyTitle": "Nothing found",
       "messageEmptySubline": "Edit your filters to find results."

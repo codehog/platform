@@ -3,29 +3,31 @@
 namespace Shopware\Tests\Integration\Core\Content\Newsletter\SalesChannel;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Newsletter\Event\NewsletterRegisterEvent;
 use Shopware\Core\Content\Newsletter\Event\NewsletterSubscribeUrlEvent;
+use Shopware\Core\Content\Newsletter\SalesChannel\NewsletterSubscribeRoute;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelApiTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseHelper\CallableClass;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @group store-api
- *
- * @covers \Shopware\Core\Content\Newsletter\SalesChannel\NewsletterSubscribeRoute
  */
-#[Package('buyers-experience')]
+#[Package('after-sales')]
+#[CoversClass(NewsletterSubscribeRoute::class)]
+#[Group('store-api')]
 class NewsletterSubscribeRouteTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -49,9 +51,53 @@ class NewsletterSubscribeRouteTest extends TestCase
             'id' => $this->ids->create('sales-channel'),
         ]);
 
-        $this->systemConfig = $this->getContainer()->get(SystemConfigService::class);
+        $this->systemConfig = static::getContainer()->get(SystemConfigService::class);
         static::assertNotNull($this->systemConfig);
         $this->systemConfig->set('core.newsletter.doubleOptIn', false);
+    }
+
+    public function testSubscribeToMultipleSalesChannels(): void
+    {
+        $this->browser
+            ->request(
+                'POST',
+                '/store-api/newsletter/subscribe',
+                [
+                    'email' => 'test@example.com',
+                    'option' => 'direct',
+                    'storefrontUrl' => 'http://localhost',
+                    'firstName' => 'Foo',
+                    'lastName' => 'Bar',
+                ]
+            );
+
+        $this->browser = $this->createCustomSalesChannelBrowser([
+            'id' => $this->ids->create('sales-channel-2'),
+            'domains' => [
+                [
+                    'languageId' => Defaults::LANGUAGE_SYSTEM,
+                    'currencyId' => Defaults::CURRENCY,
+                    'snippetSetId' => $this->getSnippetSetIdForLocale('en-GB'),
+                    'url' => 'http://test.localhost',
+                ],
+            ],
+        ]);
+
+        $this->browser
+            ->request(
+                'POST',
+                '/store-api/newsletter/subscribe',
+                [
+                    'email' => 'test@example.com',
+                    'option' => 'direct',
+                    'storefrontUrl' => 'http://test.localhost',
+                    'firstName' => 'Foo',
+                    'lastName' => 'Bar',
+                ],
+            );
+
+        $count = (int) static::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM newsletter_recipient WHERE email = "test@example.com" AND status = "direct"');
+        static::assertSame(2, $count);
     }
 
     public function testSubscribeWithoutFields(): void
@@ -102,8 +148,8 @@ class NewsletterSubscribeRouteTest extends TestCase
     {
         $this->systemConfig->set('core.newsletter.doubleOptIn', true);
 
-        $connection = $this->getContainer()->get(Connection::class);
-        $newsletterRecipientRepository = $this->getContainer()->get('newsletter_recipient.repository');
+        $connection = static::getContainer()->get(Connection::class);
+        $newsletterRecipientRepository = static::getContainer()->get('newsletter_recipient.repository');
 
         // 1: prepare existing user with double opt in
         $firstConfirmedAt = '2020-06-06 00:00:00.000';
@@ -182,11 +228,11 @@ class NewsletterSubscribeRouteTest extends TestCase
         $listener = $this->getMockBuilder(CallableClass::class)->getMock();
         $listener->expects(static::never())->method('__invoke');
 
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
         $this->addEventListener($dispatcher, NewsletterRegisterEvent::class, $listener);
 
         $context = Context::createDefaultContext();
-        $newsletterRecipientRepository = $this->getContainer()->get('newsletter_recipient.repository');
+        $newsletterRecipientRepository = static::getContainer()->get('newsletter_recipient.repository');
 
         $data = [
             'id' => '22bbd935e68e4d64a4ab829bb91b30f1',
@@ -222,7 +268,7 @@ class NewsletterSubscribeRouteTest extends TestCase
             $this->systemConfig->set('core.newsletter.subscribeUrl', '/custom-newsletter/confirm/%%HASHEDEMAIL%%/%%SUBSCRIBEHASH%%');
 
             /** @var EventDispatcherInterface $dispatcher */
-            $dispatcher = $this->getContainer()->get('event_dispatcher');
+            $dispatcher = static::getContainer()->get('event_dispatcher');
 
             $this->addEventListener(
                 $dispatcher,
@@ -269,7 +315,7 @@ class NewsletterSubscribeRouteTest extends TestCase
             $this->systemConfig->set('core.newsletter.doubleOptInDomain', 'http://test.test');
 
             /** @var EventDispatcherInterface $dispatcher */
-            $dispatcher = $this->getContainer()->get('event_dispatcher');
+            $dispatcher = static::getContainer()->get('event_dispatcher');
 
             $caughtEvent = null;
             $this->addEventListener(
@@ -300,10 +346,9 @@ class NewsletterSubscribeRouteTest extends TestCase
     }
 
     /**
-     * @dataProvider subscribeWithDomainAndLeadingSlashProvider
-     *
      * @param array<string, string> $domainUrlTest
      */
+    #[DataProvider('subscribeWithDomainAndLeadingSlashProvider')]
     public function testSubscribeWithTrailingSlashUrl(array $domainUrlTest): void
     {
         $browser = $this->createCustomSalesChannelBrowser([
@@ -328,13 +373,11 @@ class NewsletterSubscribeRouteTest extends TestCase
             ]
         );
 
-        $count = (int) $this->getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM newsletter_recipient WHERE email = "test@example.com" AND status = "direct"');
+        $count = (int) static::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM newsletter_recipient WHERE email = "test@example.com" AND status = "direct"');
         static::assertSame(1, $count);
     }
 
-    /**
-     * @dataProvider subscribeWithDomainProvider
-     */
+    #[DataProvider('subscribeWithDomainProvider')]
     public function testSubscribeWithInvalid(string $firstName, string $lastName, \Closure $expectClosure): void
     {
         $this->browser
@@ -362,7 +405,7 @@ class NewsletterSubscribeRouteTest extends TestCase
                 'POST',
                 '/store-api/newsletter/subscribe',
                 [
-                    'email' => 'test@example.com',
+                    'email' => 'test@exämple.com',
                     'option' => 'direct',
                     'storefrontUrl' => 'http://localhost',
                     'firstName' => 'Y',
@@ -370,7 +413,7 @@ class NewsletterSubscribeRouteTest extends TestCase
                 ]
             );
 
-        $count = (int) $this->getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM newsletter_recipient WHERE email = "test@example.com" AND status = "direct"');
+        $count = (int) static::getContainer()->get(Connection::class)->fetchOne('SELECT COUNT(*) FROM newsletter_recipient WHERE email = "test@xn--exmple-cua.com" AND status = "direct"');
         static::assertSame(1, $count);
     }
 

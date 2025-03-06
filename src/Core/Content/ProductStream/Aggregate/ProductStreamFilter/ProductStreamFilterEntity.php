@@ -8,66 +8,36 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('business-ops')]
+#[Package('inventory')]
 class ProductStreamFilterEntity extends Entity
 {
     use EntityCustomFieldsTrait;
     use EntityIdTrait;
 
-    /**
-     * @var string
-     */
-    protected $type;
+    protected string $type;
+
+    protected ?string $field = null;
+
+    protected ?string $operator = null;
+
+    protected ?string $value = null;
+
+    protected string $productStreamId;
+
+    protected ?string $parentId = null;
+
+    protected ?ProductStreamEntity $productStream = null;
+
+    protected ?ProductStreamFilterCollection $queries = null;
+
+    protected ?ProductStreamFilterEntity $parent = null;
+
+    protected int $position;
 
     /**
-     * @var string|null
+     * @var array<string>|null
      */
-    protected $field;
-
-    /**
-     * @var string|null
-     */
-    protected $operator;
-
-    /**
-     * @var string|null
-     */
-    protected $value;
-
-    /**
-     * @var string
-     */
-    protected $productStreamId;
-
-    /**
-     * @var string|null
-     */
-    protected $parentId;
-
-    /**
-     * @var ProductStreamEntity|null
-     */
-    protected $productStream;
-
-    /**
-     * @var ProductStreamFilterCollection|null
-     */
-    protected $queries;
-
-    /**
-     * @var ProductStreamFilterEntity|null
-     */
-    protected $parent;
-
-    /**
-     * @var int
-     */
-    protected $position;
-
-    /**
-     * @var array|null
-     */
-    protected $parameters;
+    protected ?array $parameters = null;
 
     public function getField(): ?string
     {
@@ -169,11 +139,17 @@ class ProductStreamFilterEntity extends Entity
         $this->type = $type;
     }
 
+    /**
+     * @return array<string>|null
+     */
     public function getParameters(): ?array
     {
         return $this->parameters;
     }
 
+    /**
+     * @param array<string>|null $parameters
+     */
     public function setParameters(?array $parameters): void
     {
         $this->parameters = $parameters;

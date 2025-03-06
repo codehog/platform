@@ -67,10 +67,6 @@
     display: inline-block;
 }
 
-.order-table-header-heading {
-    max-width: 290px;
-}
-
 .order-table-header-order-status {
     font-weight: $font-weight-bold;
 }
@@ -84,59 +80,6 @@
 .order-table-header-context-menu-wrapper,
 .order-table-header-heading {
     margin-top: $spacer-sm;
-}
-
-.order-table-header-context-menu {
-    $width: 35px;
-    $height: $width;
-
-    float: right;
-    border: 1px solid $sw-border-color;
-    border-radius: $border-radius;
-    width: $width;
-    height: $height;
-    padding: 0;
-
-    &::after {
-        display: none;
-    }
-
-    .icon {
-        position: relative;
-        margin: 5px;
-
-        > svg {
-            color: $sw-text-color;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-    }
-
-    &-content {
-        padding-left: 10px;
-        padding-right: 10px;
-    }
-}
-
-.order-table-header-context-menu-content-link {
-    display: block;
-    border: 0 none;
-    padding: 0;
-    width: 100%;
-    color: $sw-text-color;
-    background: none;
-    cursor: pointer;
-    text-align: left;
-
-    &:hover {
-        text-decoration: none;
-        color: $primary;
-    }
-
-    &:active {
-        outline: none;
-    }
 }
 
 .order-table-header-order-number {
@@ -195,10 +138,6 @@
     width: 100%;
 }
 
-.order-table-header-label {
-    display: none;
-}
-
 .payment-control input,
 .payment-control label {
     cursor: pointer;
@@ -229,7 +168,6 @@
 }
 
 .order-item-status-badge {
-
     /*
      * Set colors of the order status badge according to the order state.
      * The stylelint rule `selector-class-pattern` is disabled.
@@ -281,6 +219,12 @@
 
     .order-item-actions {
         text-align: right;
+    }
+}
+
+@include media-breakpoint-up(sm) {
+    .order-table-header-order-table-body .order-table-header-label {
+        @include visually-hidden();
     }
 }
 

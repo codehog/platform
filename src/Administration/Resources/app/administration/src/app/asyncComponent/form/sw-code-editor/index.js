@@ -7,10 +7,9 @@ import './sw-code-editor.scss';
 const utils = Shopware.Utils;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @description
  * Renders a code editor
@@ -26,6 +25,12 @@ export default {
     inject: [
         'feature',
         'userInputSanitizeService',
+    ],
+
+    emits: [
+        'mounted',
+        'update:value',
+        'blur',
     ],
 
     props: {
@@ -59,12 +64,18 @@ export default {
             type: String,
             required: false,
             default: 'text',
-            validValues: ['entity', 'text'],
+            validValues: [
+                'entity',
+                'text',
+            ],
             validator(value) {
                 if (!value.length) {
                     return true;
                 }
-                return ['entity', 'text'].includes(value);
+                return [
+                    'entity',
+                    'text',
+                ].includes(value);
             },
         },
 
@@ -72,19 +83,24 @@ export default {
             type: String,
             required: false,
             default: 'twig',
-            validValues: ['twig', 'text'],
+            validValues: [
+                'twig',
+                'text',
+            ],
             validator(value) {
                 if (!value.length) {
                     return true;
                 }
-                return ['twig', 'text'].includes(value);
+                return [
+                    'twig',
+                    'text',
+                ].includes(value);
             },
         },
 
         softWraps: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -108,6 +124,17 @@ export default {
             default: false,
         },
 
+        /**
+         * @description:
+         * If set to true, the component will show warning below the editor the content might be sanitized
+         * but does not call the sanitize API, the sanitization is done by the backend on saving
+         */
+        sanitizeInfoWarn: {
+            type: Boolean,
+            required: false,
+            default: false,
+        },
+
         sanitizeInput: {
             type: Boolean,
             required: false,
@@ -124,6 +151,12 @@ export default {
             type: Object,
             required: false,
             default: null,
+        },
+
+        placeholder: {
+            type: String,
+            required: false,
+            default: '',
         },
     },
 
@@ -151,11 +184,19 @@ export default {
         classes() {
             return {
                 'has--error': !!this.error,
+                [this.$attrs.class]: !!this.$attrs.class,
             };
         },
 
         enableHtmlSanitizer() {
             return Shopware.Context.app.config.settings.enableHtmlSanitizer;
+        },
+
+        attrsWithoutClass() {
+            return {
+                ...this.$attrs,
+                class: undefined,
+            };
         },
     },
 
@@ -175,7 +216,7 @@ export default {
         this.mountedComponent();
     },
 
-    destroyed() {
+    unmounted() {
         this.destroyedComponent();
     },
 
@@ -192,6 +233,8 @@ export default {
             if (this.setFocus) {
                 this.editor.focus();
             }
+
+            this.$emit('mounted');
         },
 
         destroyedComponent() {
@@ -202,7 +245,7 @@ export default {
             const value = this.editor.getValue();
 
             if (this.value !== value) {
-                this.$emit('input', value);
+                this.$emit('update:value', value);
             }
         },
 
@@ -231,7 +274,9 @@ export default {
                             this.editor.setValue(sanitizedValue?.preview ?? value, 1);
                             return this.editor.getValue();
                         }
-                    } catch (ignore) { /* api endpoint did not work, keep user entry */ }
+                    } catch (ignore) {
+                        /* api endpoint did not work, keep user entry */
+                    }
                 }
             }
             return value;
@@ -251,24 +296,30 @@ export default {
                 const textCompleterCloned = JSON.parse(JSON.stringify(textCompleter));
 
                 if (this.completionMode === 'entity') {
-                    textCompleterCloned.identifierRegexps = [/[\[\]\.a-zA-Z_0-9\$\-\u00A2-\uFFFF]/];
+                    textCompleterCloned.identifierRegexps = [
+                        /[\[\]\.a-zA-Z_0-9\$\-\u00A2-\uFFFF]/,
+                    ];
 
                     textCompleterCloned.getCompletions = function getComps(editor, session, pos, prefix, callback) {
-                        this.identifierRegexps = [/[\[\][a-zA-Z_0-9\$\-\u00A2-\uFFFF]/];
+                        this.identifierRegexps = [
+                            /[\[\][a-zA-Z_0-9\$\-\u00A2-\uFFFF]/,
+                        ];
                         callback(null, completerFunction(prefix));
-                        this.identifierRegexps = [/[\[\]\.a-zA-Z_0-9\$\-\u00A2-\uFFFF]/];
+                        this.identifierRegexps = [
+                            /[\[\]\.a-zA-Z_0-9\$\-\u00A2-\uFFFF]/,
+                        ];
                     };
 
                     textCompleterCloned.completerFunction = completerFunction;
                     this.editor.completers = [textCompleterCloned];
 
-                    const startCallback = (function startCall(e) {
+                    const startCallback = function startCall(e) {
                         if (e.command.name === 'insertstring') {
                             if (e.args !== '\n' && e.args !== ' ') {
                                 e.editor.execCommand('startAutocomplete', null);
                             }
                         }
-                    });
+                    };
 
                     this.editor.commands.on('afterExec', startCallback);
                 } else {

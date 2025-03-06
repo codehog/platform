@@ -1,17 +1,14 @@
 import template from './sw-mail-template-index.html.twig';
 import './sw-mail-template-index.scss';
 
-const { Mixin } = Shopware;
-
+/**
+ * @sw-package after-sales
+ */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
     inject: ['acl'],
-
-    mixins: [
-        Mixin.getByName('listing'),
-    ],
 
     data() {
         return {
@@ -27,7 +24,7 @@ export default {
 
     methods: {
         onChangeLanguage(languageId) {
-            Shopware.State.commit('context/setApiLanguageId', languageId);
+            Shopware.Store.get('context').setApiLanguageId(languageId);
             this.$refs.mailHeaderFooterList.getList();
             this.$refs.mailTemplateList.getList();
         },

@@ -5,7 +5,7 @@ import './sw-meteor-card.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  * @description A card is a flexible and extensible content container.
@@ -67,11 +67,19 @@ Component.register('sw-meteor-card', {
 
     computed: {
         hasTabs() {
-            return !!this.$slots.tabs || !!this.$scopedSlots.tabs;
+            return !!this.$slots.tabs;
         },
 
         hasToolbar() {
-            return !!this.$slots.toolbar || !!this.$scopedSlots.toolbar;
+            return !!this.$slots.toolbar;
+        },
+
+        hasContent() {
+            return !!this.$slots.default || !!this.$slots.grid;
+        },
+
+        hasDefaultSlot() {
+            return !!this.$slots.default;
         },
 
         hasHeader() {

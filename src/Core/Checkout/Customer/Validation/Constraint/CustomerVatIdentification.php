@@ -2,21 +2,18 @@
 
 namespace Shopware\Core\Checkout\Customer\Validation\Constraint;
 
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\Validator\Constraint;
-use Symfony\Component\Validator\Exception\MissingOptionsException;
 
-/**
- * @Annotation
- *
- * @Target({"PROPERTY", "METHOD", "ANNOTATION"})
- *
- * @deprecated tag:v6.6.0 - reason:remove-constraint-annotation The @Annotation & @Target annotations will be removed, it's not possible to use this constraint via annotations
- */
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerVatIdentification extends Constraint
 {
     final public const VAT_ID_FORMAT_NOT_CORRECT = '463d3548-1caf-11eb-adc1-0242ac120002';
+
+    protected const ERROR_NAMES = [
+        self::VAT_ID_FORMAT_NOT_CORRECT => 'VAT_ID_FORMAT_NOT_CORRECT',
+    ];
 
     public string $message = 'The format of vatId {{ vatId }} is not correct.';
 
@@ -25,19 +22,12 @@ class CustomerVatIdentification extends Constraint
     protected string $countryId;
 
     /**
-     * @var array<string, string>
-     */
-    protected static $errorNames = [
-        self::VAT_ID_FORMAT_NOT_CORRECT => 'VAT_ID_FORMAT_NOT_CORRECT',
-    ];
-
-    /**
      * @internal
      */
     public function __construct($options = null)
     {
         if (!\is_string($options['countryId'] ?? null)) {
-            throw new MissingOptionsException(sprintf('Option "countryId" must be given for constraint %s', self::class), ['countryId']);
+            throw CustomerException::missingOption('countryId', self::class);
         }
 
         parent::__construct($options);

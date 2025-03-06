@@ -12,7 +12,7 @@ use Shopware\Core\Framework\Log\Package;
 /**
  * @internal
  */
-#[Package('business-ops')]
+#[Package('after-sales')]
 class RemoveCustomerTagAction extends FlowAction implements DelayableAction
 {
     /**

@@ -9,13 +9,13 @@ use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
- * @internal only for use by the app-system, will be considered internal from v6.4.0 onward
+ * @internal only for use by the app-system
  */
 #[AsCommand(
     name: 'app:deactivate',
     description: 'Deactivates an app',
 )]
-#[Package('core')]
+#[Package('framework')]
 class DeactivateAppCommand extends AbstractAppActivationCommand
 {
     private const ACTION = 'deactivate';

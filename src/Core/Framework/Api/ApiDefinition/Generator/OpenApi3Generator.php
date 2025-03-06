@@ -20,7 +20,7 @@ use Shopware\Core\System\SalesChannel\Entity\SalesChannelDefinitionInterface;
  *
  * @phpstan-import-type OpenApiSpec from DefinitionService
  */
-#[Package('core')]
+#[Package('framework')]
 class OpenApi3Generator implements ApiDefinitionGeneratorInterface
 {
     final public const FORMAT = 'openapi-3';
@@ -54,7 +54,9 @@ class OpenApi3Generator implements ApiDefinitionGeneratorInterface
     {
         $forSalesChannel = $this->containsSalesChannelDefinition($definitions);
 
-        $openApi = new OpenApi([]);
+        $openApi = new OpenApi([
+            'openapi' => '3.1.0',
+        ]);
         $this->openApiBuilder->enrich($openApi, $api);
 
         ksort($definitions);
@@ -95,7 +97,8 @@ class OpenApi3Generator implements ApiDefinitionGeneratorInterface
         $schemaPaths = [$this->schemaPath];
 
         if (!empty($bundleName)) {
-            $schemaPaths = $this->bundleSchemaPathCollection->getSchemaPaths($api, $bundleName);
+            $schemaPaths = array_merge([$this->schemaPath . '/components', $this->schemaPath . '/tags'], $this->bundleSchemaPathCollection->getSchemaPaths($api, $bundleName));
+            $data['paths'] = [];
         } else {
             $schemaPaths = array_merge($schemaPaths, $this->bundleSchemaPathCollection->getSchemaPaths($api, $bundleName));
         }
@@ -126,7 +129,7 @@ class OpenApi3Generator implements ApiDefinitionGeneratorInterface
                 continue;
             }
 
-            if (preg_match('/_translation$/', $definition->getEntityName())) {
+            if (str_ends_with($definition->getEntityName(), '_translation')) {
                 continue;
             }
 

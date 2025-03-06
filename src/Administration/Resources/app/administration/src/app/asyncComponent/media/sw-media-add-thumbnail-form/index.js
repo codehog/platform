@@ -3,10 +3,15 @@ import './sw-media-add-thumbnail-form.scss';
 
 /**
  * @private
- * @package content
+ * @sw-package discovery
  */
 export default {
     template,
+
+    emits: [
+        'thumbnail-form-size-add',
+        'on-input',
+    ],
 
     props: {
         disabled: {
@@ -38,7 +43,10 @@ export default {
         },
 
         onAdd() {
-            this.$emit('thumbnail-form-size-add', { width: this.width, height: this.height });
+            this.$emit('thumbnail-form-size-add', {
+                width: this.width,
+                height: this.height,
+            });
             this.width = null;
             this.height = null;
         },

@@ -1,8 +1,6 @@
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_media_list_selection_v2 %}
 <div class="sw-media-list-selection-v2">
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_list_selection_v2_upload %}
     <sw-upload-listener
         :upload-tag="uploadId"
@@ -19,7 +17,6 @@
     />
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_media_list_selection_v2_grid %}
     <div
         ref="grid"
@@ -30,7 +27,7 @@
         {%  block sw_media_list_selection_v2_grid_items %}
         <sw-media-list-selection-item-v2
             v-for="(mediaItem, i) in mediaItems"
-            :key="i"
+            :key="mediaItem?.url"
             v-draggable="{ dragGroup: 'media-items', data: mediaItem, onDragEnter: onDeboundDragDrop }"
             v-droppable="{ dragGroup: 'media-items', data: mediaItem }"
             :item="mediaItem"

@@ -1,51 +1,66 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/module/sw-order/mixin/cart-notification.mixin';
-import swOrderCreateDetails from 'src/module/sw-order/view/sw-order-create-details';
-import Vuex from 'vuex';
-import orderStore from 'src/module/sw-order/state/order.store';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-order-create-details', swOrderCreateDetails);
+const contextState = {
+    id: 'context',
+    state: () => ({
+        api: {
+            languageId: '2fbb5fe2e29a4d70aa5854ce7ce3e20b',
+            systemLanguageId: '2fbb5fe2e29a4d70aa5854ce7ce3e20b',
+        },
+    }),
+};
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
-    localVue.directive('tooltip', {});
-    localVue.filter('currency', v => v);
-    return shallowMount(await Shopware.Component.build('sw-order-create-details'), {
-        localVue,
-        stubs: {
-            'sw-card-view': true,
-            'sw-card': {
-                template: `
-                    <div class="sw-card__content">
-                        <slot name="grid"></slot>
-                    </div>
-                `,
+    return mount(await wrapTestComponent('sw-order-create-details', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-card-view': true,
+                'mt-card': {
+                    template: `
+                        <div class="sw-card__content">
+                            <slot name="grid"></slot>
+                        </div>
+                    `,
+                },
+                'sw-loader': true,
+                'sw-order-create-promotion-modal': true,
+                'sw-order-customer-address-select': true,
+                'sw-entity-single-select': true,
+                'sw-container': true,
+                'mt-number-field': true,
+                'sw-datepicker': true,
+                'sw-text-field': true,
+                'sw-order-promotion-tag-field': true,
             },
-        },
-        provide: {
-            cartStoreService: {},
-            repositoryFactory: {
-                create: () => ({
-                    get: () => Promise.resolve(),
-                }),
+            provide: {
+                cartStoreService: {},
+                repositoryFactory: {
+                    create: () => ({
+                        get: () => Promise.resolve(),
+                    }),
+                },
             },
         },
     });
 }
 
-
 describe('src/module/sw-order/view/sw-order-create-details', () => {
     beforeAll(() => {
-        Shopware.State.registerModule('swOrder', orderStore);
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
         });
+
+        if (Shopware.Store.get('context')) {
+            Shopware.Store.unregister('context');
+        }
+
+        Shopware.Store.register(contextState);
     });
 
     it('should be show successful notification', async () => {
@@ -53,7 +68,7 @@ describe('src/module/sw-order/view/sw-order-create-details', () => {
 
         wrapper.vm.createNotificationSuccess = jest.fn();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             errors: {
@@ -79,7 +94,7 @@ describe('src/module/sw-order/view/sw-order-create-details', () => {
 
         wrapper.vm.createNotificationError = jest.fn();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             errors: {
@@ -105,7 +120,7 @@ describe('src/module/sw-order/view/sw-order-create-details', () => {
 
         wrapper.vm.createNotificationWarning = jest.fn();
 
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             errors: {
@@ -124,5 +139,24 @@ describe('src/module/sw-order/view/sw-order-create-details', () => {
         expect(wrapper.vm.createNotificationWarning).toHaveBeenCalled();
 
         wrapper.vm.createNotificationWarning.mockRestore();
+    });
+
+    it('should be set context language when language selected', async () => {
+        const wrapper = await createWrapper();
+        await wrapper.setData({
+            context: {
+                languageId: null,
+            },
+        });
+
+        expect(Shopware.Store.get('context').api.languageId).toBe('2fbb5fe2e29a4d70aa5854ce7ce3e20b');
+
+        await wrapper.setData({
+            context: {
+                languageId: '1234',
+            },
+        });
+
+        expect(Shopware.Store.get('context').api.languageId).toBe('1234');
     });
 });

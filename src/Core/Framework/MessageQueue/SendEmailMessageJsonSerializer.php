@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
  * That is a workaround for the issue with the SendEmailMessage class which is not json serializable.
  * See issue in symfony/symfony repository since 2019: https://github.com/symfony/symfony/issues/33394
  */
-#[Package('core')]
+#[Package('framework')]
 class SendEmailMessageJsonSerializer implements NormalizerInterface, DenormalizerInterface
 {
     /**
@@ -32,18 +32,11 @@ class SendEmailMessageJsonSerializer implements NormalizerInterface, Denormalize
 
     /**
      * @param array<string, mixed> $context
-     *
-     * @return mixed
      */
-    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = [])
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
         /** @var string $value */
         $value = $data[__CLASS__];
-
-        // @deprecated tag:v6.6.0 - Remove this workaround
-        if (str_starts_with($value, 'O:')) {
-            return unserialize(stripslashes($value));
-        }
 
         $value = base64_decode($value, true);
 
@@ -56,10 +49,8 @@ class SendEmailMessageJsonSerializer implements NormalizerInterface, Denormalize
 
     /**
      * @param array<string, mixed> $context
-     *
-     * @return mixed
      */
-    public function normalize(mixed $object, ?string $format = null, array $context = [])
+    public function normalize(mixed $object, ?string $format = null, array $context = []): float|array|\ArrayObject|bool|int|string|null
     {
         return [__CLASS__ => base64_encode(serialize($object))];
     }

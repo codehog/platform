@@ -3,6 +3,8 @@
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Validation;
 
 use Faker\Factory;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Customer\Validation\CustomerProfileValidationFactory;
 use Shopware\Core\Checkout\Customer\Validation\CustomerValidationFactory;
@@ -14,16 +16,13 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
- * @covers \Shopware\Core\Checkout\Customer\Validation\CustomerValidationFactory
- *
  * @internal
  */
-#[Package('customer-order')]
+#[Package('checkout')]
+#[CoversClass(CustomerValidationFactory::class)]
 class CustomerValidationFactoryTest extends TestCase
 {
-    /**
-     * @dataProvider getCreateTestData
-     */
+    #[DataProvider('getCreateTestData')]
     public function testCreate(
         DataValidationDefinition $profileDefinition,
         DataValidationDefinition $expected
@@ -61,7 +60,7 @@ class CustomerValidationFactoryTest extends TestCase
 
         // test merge
         $profileDefinition->add('email', new Type('string'));
-        $expected->set('email', new Type('string'), new NotBlank(), new Email());
+        $expected->set('email', new Type('string'), new NotBlank(), new Email(null, 'VIOLATION::INVALID_EMAIL_FORMAT_ERROR'));
 
         yield [$profileDefinition, $expected];
 
@@ -70,15 +69,15 @@ class CustomerValidationFactoryTest extends TestCase
             $profileDefinition = new DataValidationDefinition();
 
             $notBlankName = $faker->name();
-            $profileDefinition->add($notBlankName, new NotBlank());
+            $profileDefinition->add($notBlankName, new NotBlank(null, 'VIOLATION::FIRST_NAME_IS_BLANK_ERROR'));
 
             $emailName = $faker->name();
-            $profileDefinition->add($emailName, new Email());
+            $profileDefinition->add($emailName, new Email(null, 'VIOLATION::INVALID_EMAIL_FORMAT_ERROR'));
 
             $expected = new DataValidationDefinition('customer.create');
 
-            $expected->add($notBlankName, new NotBlank());
-            $expected->add($emailName, new Email());
+            $expected->add($notBlankName, new NotBlank(null, 'VIOLATION::FIRST_NAME_IS_BLANK_ERROR'));
+            $expected->add($emailName, new Email(null, 'VIOLATION::INVALID_EMAIL_FORMAT_ERROR'));
 
             self::addConstraints($expected);
 
@@ -91,7 +90,7 @@ class CustomerValidationFactoryTest extends TestCase
      */
     private static function addConstraints(DataValidationDefinition $definition): void
     {
-        $definition->add('email', new NotBlank(), new Email());
+        $definition->add('email', new NotBlank(), new Email(null, 'VIOLATION::INVALID_EMAIL_FORMAT_ERROR'));
         $definition->add('active', new Type('boolean'));
     }
 }

@@ -3,10 +3,9 @@ import template from './sw-collapse.html.twig';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description A container, which creates a collapsible list of items.
  * @status ready
  * @example-type static

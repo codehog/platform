@@ -29,6 +29,8 @@ use Symfony\Component\HttpFoundation\Request;
 #[Package('inventory')]
 class PropertyListingFilterHandler extends AbstractListingFilterHandler
 {
+    final public const FILTER_ENABLED_REQUEST_PARAM = 'property-filter';
+
     final public const PROPERTY_GROUP_IDS_REQUEST_PARAM = 'property-whitelist';
 
     /**
@@ -49,7 +51,7 @@ class PropertyListingFilterHandler extends AbstractListingFilterHandler
     {
         $groupIds = $request->request->all(self::PROPERTY_GROUP_IDS_REQUEST_PARAM);
 
-        if (!$request->request->get('property-filter', true) && empty($groupIds)) {
+        if (!$request->request->get(self::FILTER_ENABLED_REQUEST_PARAM, true) && empty($groupIds)) {
             return null;
         }
 
@@ -132,15 +134,13 @@ class PropertyListingFilterHandler extends AbstractListingFilterHandler
              FROM property_group_option
              WHERE id IN (:ids)',
             ['ids' => Uuid::fromHexToBytesList($ids)],
-            ['ids' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY]
         );
 
-        $grouped = FetchModeHelper::group($grouped);
+        $grouped = FetchModeHelper::group($grouped, static fn ($row): string => (string) $row['id']);
 
         $filters = [];
         foreach ($grouped as $options) {
-            $options = array_column($options, 'id');
-
             $filters[] = new OrFilter([
                 new EqualsAnyFilter('product.optionIds', $options),
                 new EqualsAnyFilter('product.propertyIds', $options),
@@ -184,7 +184,9 @@ class PropertyListingFilterHandler extends AbstractListingFilterHandler
         }
 
         /** @var list<string> $ids */
-        $ids = array_filter((array) $ids);
+        $ids = array_filter((array) $ids, function ($id) {
+            return Uuid::isValid((string) $id);
+        });
 
         return $ids;
     }

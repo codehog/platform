@@ -4,7 +4,7 @@ import './sw-context-menu-item.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  */
@@ -44,7 +44,12 @@ Component.register('sw-context-menu-item', {
                 if (!value.length) {
                     return true;
                 }
-                return ['success', 'danger', 'warning', 'headline'].includes(value);
+                return [
+                    'success',
+                    'danger',
+                    'warning',
+                    'headline',
+                ].includes(value);
             },
         },
     },
@@ -56,10 +61,6 @@ Component.register('sw-context-menu-item', {
                 'is--disabled': this.disabled && this.variant !== 'headline',
                 'sw-context-menu-item--icon': this.icon,
             };
-        },
-
-        contextListeners() {
-            return (this.disabled || this.variant === 'headline') ? {} : this.$listeners;
         },
     },
 });

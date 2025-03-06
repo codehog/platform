@@ -7,13 +7,11 @@ use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\Exception\CustomerNotLoggedInException;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
-use Shopware\Core\Checkout\Payment\PaymentMethodCollection;
-use Shopware\Core\Checkout\Payment\SalesChannel\AbstractPaymentMethodRoute;
-use Shopware\Core\Checkout\Shipping\SalesChannel\AbstractShippingMethodRoute;
-use Shopware\Core\Checkout\Shipping\ShippingMethodCollection;
+use Shopware\Core\Checkout\Customer\Validation\Constraint\CustomerZipCode;
+use Shopware\Core\Checkout\Gateway\SalesChannel\AbstractCheckoutGatewayRoute;
 use Shopware\Core\Content\Product\State;
+use Shopware\Core\Framework\Adapter\Translation\AbstractTranslator;
 use Shopware\Core\Framework\DataAbstractionLayer\Exception\InconsistentCriteriaIdsException;
-use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Validation\BuildValidationEvent;
 use Shopware\Core\Framework\Validation\DataBag\DataBag;
@@ -28,7 +26,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 /**
  * Do not use direct or indirect repository calls in a PageLoader. Always use a store-api route to get or put data.
  */
-#[Package('storefront')]
+#[Package('framework')]
 class CheckoutConfirmPageLoader
 {
     /**
@@ -37,11 +35,11 @@ class CheckoutConfirmPageLoader
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly StorefrontCartFacade $cartService,
-        private readonly AbstractShippingMethodRoute $shippingMethodRoute,
-        private readonly AbstractPaymentMethodRoute $paymentMethodRoute,
+        private readonly AbstractCheckoutGatewayRoute $checkoutGatewayRoute,
         private readonly GenericPageLoaderInterface $genericPageLoader,
         private readonly DataValidationFactoryInterface $addressValidationFactory,
-        private readonly DataValidator $validator
+        private readonly DataValidator $validator,
+        private readonly AbstractTranslator $translator
     ) {
     }
 
@@ -53,15 +51,15 @@ class CheckoutConfirmPageLoader
     {
         $page = $this->genericPageLoader->load($request, $context);
         $page = CheckoutConfirmPage::createFrom($page);
-
-        if ($page->getMetaInformation()) {
-            $page->getMetaInformation()->setRobots('noindex,follow');
-        }
-
-        $page->setPaymentMethods($this->getPaymentMethods($context));
-        $page->setShippingMethods($this->getShippingMethods($context));
+        $this->setMetaInformation($page);
 
         $cart = $this->cartService->get($context->getToken(), $context, false, true);
+
+        $response = $this->checkoutGatewayRoute->load($request, $cart, $context);
+
+        $page->setPaymentMethods($response->getPaymentMethods());
+        $page->setShippingMethods($response->getShippingMethods());
+
         $this->validateCustomerAddresses($cart, $context);
         $page->setCart($cart);
 
@@ -75,20 +73,12 @@ class CheckoutConfirmPageLoader
         return $page;
     }
 
-    private function getPaymentMethods(SalesChannelContext $context): PaymentMethodCollection
+    protected function setMetaInformation(CheckoutConfirmPage $page): void
     {
-        $request = new Request();
-        $request->query->set('onlyAvailable', '1');
-
-        return $this->paymentMethodRoute->load($request, $context, new Criteria())->getPaymentMethods();
-    }
-
-    private function getShippingMethods(SalesChannelContext $context): ShippingMethodCollection
-    {
-        $request = new Request();
-        $request->query->set('onlyAvailable', '1');
-
-        return $this->shippingMethodRoute->load($request, $context, new Criteria())->getShippingMethods();
+        $page->getMetaInformation()?->setRobots('noindex,follow');
+        $page->getMetaInformation()?->setMetaTitle(
+            $this->translator->trans('checkout.confirmMetaTitle') . ' | ' . $page->getMetaInformation()->getMetaTitle()
+        );
     }
 
     /**
@@ -114,8 +104,12 @@ class CheckoutConfirmPageLoader
         SalesChannelContext $context
     ): void {
         $validation = $this->addressValidationFactory->create($context);
+        if ($billingAddress) {
+            $validation->set('zipcode', new CustomerZipCode(['countryId' => $billingAddress->getCountryId()]));
+        }
+
         $validationEvent = new BuildValidationEvent($validation, new DataBag(), $context->getContext());
-        $this->eventDispatcher->dispatch($validationEvent);
+        $this->eventDispatcher->dispatch($validationEvent, $validationEvent->getName());
 
         if ($billingAddress === null) {
             return;
@@ -135,8 +129,12 @@ class CheckoutConfirmPageLoader
         SalesChannelContext $context
     ): void {
         $validation = $this->addressValidationFactory->create($context);
+        if ($shippingAddress) {
+            $validation->set('zipcode', new CustomerZipCode(['countryId' => $shippingAddress->getCountryId()]));
+        }
+
         $validationEvent = new BuildValidationEvent($validation, new DataBag(), $context->getContext());
-        $this->eventDispatcher->dispatch($validationEvent);
+        $this->eventDispatcher->dispatch($validationEvent, $validationEvent->getName());
 
         if ($shippingAddress === null) {
             return;

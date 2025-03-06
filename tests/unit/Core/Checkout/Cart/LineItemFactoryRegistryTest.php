@@ -2,10 +2,12 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartException;
+use Shopware\Core\Checkout\Cart\Event\BeforeLineItemQuantityChangedEvent;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\LineItemFactoryHandler\LineItemFactoryInterface;
 use Shopware\Core\Checkout\Cart\LineItemFactoryRegistry;
@@ -13,15 +15,14 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\DataValidator;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
-use Shopware\Tests\Unit\Core\Checkout\Cart\Common\Generator;
+use Shopware\Core\Test\Generator;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Cart\LineItemFactoryRegistry
  */
 #[Package('checkout')]
+#[CoversClass(LineItemFactoryRegistry::class)]
 class LineItemFactoryRegistryTest extends TestCase
 {
     private LineItemFactoryRegistry $service;
@@ -39,7 +40,7 @@ class LineItemFactoryRegistryTest extends TestCase
             $this->createMock(DataValidator::class),
             $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class)
         );
-        $this->context = Generator::createSalesChannelContext();
+        $this->context = Generator::generateSalesChannelContext();
     }
 
     public function testCreate(): void
@@ -119,6 +120,34 @@ class LineItemFactoryRegistryTest extends TestCase
         $this->factory->expects(static::once())->method('update')->with($lineItem, ['id' => $id, 'quantity' => 2, 'type' => LineItem::PRODUCT_LINE_ITEM_TYPE], $this->context);
 
         $this->service->updateLineItem($cart, ['id' => $id, 'quantity' => 2], $lineItem, $this->context);
+    }
+
+    public function testUpdateLineItemWithQuantityEventAndSetBeforeUpdateQuantity(): void
+    {
+        $id = Uuid::randomHex();
+        $lineItem = new LineItem($id, LineItem::PRODUCT_LINE_ITEM_TYPE, Uuid::randomHex(), 1);
+        $lineItem->setStackable(true);
+
+        $cart = new Cart('test');
+        $cart->add($lineItem);
+
+        $beforeUpdateQuantity = $lineItem->getQuantity();
+        $newQuantity = 2;
+
+        $this->factory->expects(static::once())->method('supports')->with('product')->willReturn(true);
+        $this->factory->expects(static::once())->method('update')->with($lineItem, ['id' => $id, 'quantity' => $newQuantity, 'type' => LineItem::PRODUCT_LINE_ITEM_TYPE], $this->context);
+
+        $this->eventDispatcher->expects(static::once())->method('dispatch');
+
+        $this->eventDispatcher->expects(static::once())->method('dispatch')->with(
+            static::callback(function (BeforeLineItemQuantityChangedEvent $event) use ($beforeUpdateQuantity) {
+                static::assertSame($beforeUpdateQuantity, $event->getBeforeUpdateQuantity());
+
+                return true;
+            })
+        );
+
+        $this->service->updateLineItem($cart, ['id' => $id, 'quantity' => $newQuantity], $lineItem, $this->context);
     }
 
     public function testUpdateLineItemWithUnsupportedType(): void

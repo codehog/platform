@@ -1,5 +1,5 @@
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
 
 import template from './sw-sales-channel-list.html.twig';
@@ -12,7 +12,11 @@ const { Criteria } = Shopware.Data;
 export default {
     template,
 
-    inject: ['repositoryFactory', 'acl', 'domainLinkService'],
+    inject: [
+        'repositoryFactory',
+        'acl',
+        'domainLinkService',
+    ],
 
     mixins: [
         Mixin.getByName('listing'),
@@ -37,38 +41,37 @@ export default {
 
     computed: {
         salesChannelColumns() {
-            const columns = [{
-                property: 'name',
-                dataIndex: 'name',
-                allowResize: true,
-                routerLink: 'sw.sales.channel.detail',
-                label: 'sw-sales-channel.list.columnName',
-                primary: true,
-            }, {
-                property: 'product_visibilities',
-                dataIndex: 'product_visibilities',
-                allowResize: true,
-                sortable: false,
-                label: 'sw-sales-channel.list.productsLabel',
-            }, {
-                property: 'status',
-                dataIndex: 'status',
-                allowResize: true,
-                sortable: false,
-                label: 'sw-sales-channel.list.columnStatus',
-            }, {
-                property: 'id',
-                dataIndex: 'id',
-                allowResize: true,
-                sortable: false,
-                label: 'sw-sales-channel.list.columnFavourite',
-                align: 'center',
-            }, {
-                property: 'createdAt',
-                dataIndex: 'createdAt',
-                allowResize: true,
-                label: 'sw-sales-channel.list.columnCreatedAt',
-            }];
+            const columns = [
+                {
+                    property: 'name',
+                    dataIndex: 'name',
+                    allowResize: true,
+                    routerLink: 'sw.sales.channel.detail',
+                    label: 'sw-sales-channel.list.columnName',
+                    primary: true,
+                },
+                {
+                    property: 'status',
+                    dataIndex: 'status',
+                    allowResize: true,
+                    sortable: false,
+                    label: 'sw-sales-channel.list.columnStatus',
+                },
+                {
+                    property: 'id',
+                    dataIndex: 'id',
+                    allowResize: true,
+                    sortable: false,
+                    label: 'sw-sales-channel.list.columnFavourite',
+                    align: 'center',
+                },
+                {
+                    property: 'createdAt',
+                    dataIndex: 'createdAt',
+                    allowResize: true,
+                    label: 'sw-sales-channel.list.columnCreatedAt',
+                },
+            ];
 
             columns.splice(1, 0, {
                 property: 'type.name',
@@ -91,16 +94,6 @@ export default {
             salesChannelCriteria.addSorting(Criteria.sort(this.sortBy, this.sortDirection, this.naturalSorting));
             salesChannelCriteria.addAssociation('type');
             salesChannelCriteria.addAssociation('domains');
-
-            salesChannelCriteria.addAggregation(
-                Criteria.terms(
-                    'sales_channel',
-                    'id',
-                    null,
-                    null,
-                    Criteria.count('visible_products', 'sales_channel.productVisibilities.id'),
-                ),
-            );
 
             return salesChannelCriteria;
         },
@@ -134,24 +127,11 @@ export default {
                 criteria.resetSorting();
             }
 
-            return this.salesChannelRepository.search(criteria)
-                .then(searchResult => {
-                    this.salesChannels = searchResult;
-                    this.setProductAggregations(searchResult.aggregations?.sales_channel?.buckets);
-                    this.total = searchResult.total;
-                    this.isLoading = false;
-                });
-        },
-
-        setProductAggregations(buckets) {
-            this.productsForSalesChannel = buckets.reduce((productsForSalesChannel, bucket) => ({
-                ...productsForSalesChannel,
-                [bucket.key]: bucket.visible_products?.count,
-            }), {});
-        },
-
-        getCountForSalesChannel(salesChannelId) {
-            return this.productsForSalesChannel[salesChannelId] ?? 0;
+            return this.salesChannelRepository.search(criteria).then((searchResult) => {
+                this.salesChannels = searchResult;
+                this.total = searchResult.total;
+                this.isLoading = false;
+            });
         },
 
         checkForDomainLink(salesChannel) {

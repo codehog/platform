@@ -14,9 +14,12 @@ use Shopware\Core\System\Language\LanguageDefinition;
 use Shopware\Core\System\Language\LanguageEntity;
 use Symfony\Contracts\Service\ResetInterface;
 
-#[Package('core')]
+#[Package('fundamentals@after-sales')]
 class LanguageSerializer extends EntitySerializer implements ResetInterface
 {
+    /**
+     * @var array<string, array{id: string, locale: array{id: string}}|null>
+     */
     private array $cacheLanguages = [];
 
     /**
@@ -26,11 +29,6 @@ class LanguageSerializer extends EntitySerializer implements ResetInterface
     {
     }
 
-    /**
-     * @param array|\Traversable $entity
-     *
-     * @return array|\Traversable
-     */
     public function deserialize(Config $config, EntityDefinition $definition, $entity)
     {
         $deserialized = parent::deserialize($config, $definition, $entity);
@@ -47,7 +45,7 @@ class LanguageSerializer extends EntitySerializer implements ResetInterface
             }
 
             if ($language) {
-                $deserialized = array_merge_recursive($deserialized, $language);
+                $deserialized = array_merge($deserialized, $language);
             }
         }
 
@@ -64,6 +62,9 @@ class LanguageSerializer extends EntitySerializer implements ResetInterface
         $this->cacheLanguages = [];
     }
 
+    /**
+     * @return array{id: string, locale: array{id: string}}|null
+     */
     private function getLanguageSerialized(string $code): ?array
     {
         if (\array_key_exists($code, $this->cacheLanguages)) {
@@ -79,7 +80,7 @@ class LanguageSerializer extends EntitySerializer implements ResetInterface
         if ($language instanceof LanguageEntity && $language->getLocale() !== null) {
             $this->cacheLanguages[$code] = [
                 'id' => $language->getId(),
-                'locale' => ['id' => $language->getLocale()->getId()],
+                'locale' => ['id' => $language->getLocaleId()],
             ];
         }
 

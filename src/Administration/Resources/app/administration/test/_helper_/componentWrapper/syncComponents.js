@@ -1,13 +1,15 @@
 /**
  * @private
- * @package admin
+ * @sw-package framework
  */
 export default [
     'sw-admin',
     'sw-admin-menu',
     'sw-button',
+    'sw-button-deprecated',
     'sw-button-process',
     'sw-card',
+    'sw-card-deprecated',
     'sw-card-section',
     'sw-card-view',
     'sw-container',
@@ -19,7 +21,6 @@ export default [
     'sw-entity-single-select',
     'sw-error-boundary',
     'sw-extension-component-section',
-    'sw-field',
     'sw-ignore-class',
     'sw-loader',
     'sw-modal',
@@ -51,4 +52,5 @@ export default [
     'sw-settings-product-feature-sets-detail',
     'sw-system-config',
     'sw-settings-search-searchable-content',
+    'sw-in-app-purchase-checkout',
 ];

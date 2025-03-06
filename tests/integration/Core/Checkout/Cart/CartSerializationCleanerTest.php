@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Integration\Core\Checkout\Cart;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartSerializationCleaner;
@@ -36,14 +37,13 @@ class CartSerializationCleanerTest extends TestCase
     use KernelTestBehaviour;
 
     /**
-     * @dataProvider cleanupCustomFieldsProvider
-     *
      * @param array<string, mixed> $payloads
      * @param array<string> $allowed
      */
+    #[DataProvider('cleanupCustomFieldsProvider')]
     public function testLineItemCustomFields(Cart $cart, array $payloads = [], array $allowed = []): void
     {
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $listener = $this->getMockBuilder(CallableClass::class)->getMock();
         $listener->expects(static::once())->method('__invoke');
@@ -71,9 +71,7 @@ class CartSerializationCleanerTest extends TestCase
         }
     }
 
-    /**
-     * @dataProvider cleanupCoversProvider
-     */
+    #[DataProvider('cleanupCoversProvider')]
     public function testLineItemCovers(Cart $cart, ?MediaEntity $expectedCover): void
     {
         $dispatcher = $this->createMock(EventDispatcher::class);

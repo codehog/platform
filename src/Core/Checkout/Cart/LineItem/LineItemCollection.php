@@ -42,7 +42,13 @@ class LineItemCollection extends Collection
         }
 
         if ($exists) {
-            $exists->setQuantity($lineItem->getQuantity() + $exists->getQuantity());
+            $newQuantity = $lineItem->getQuantity() + $exists->getQuantity();
+            if (\is_float($newQuantity)) {
+                // PHP int overflow automatically becomes float, obviously not a valid input
+                return;
+            }
+
+            $exists->setQuantity($newQuantity);
 
             return;
         }
@@ -52,7 +58,7 @@ class LineItemCollection extends Collection
 
     /**
      * @param int|string $key
-     * @param LineItem   $lineItem
+     * @param LineItem $lineItem
      */
     public function set($key, $lineItem): void
     {
@@ -126,7 +132,7 @@ class LineItemCollection extends Collection
     public function getPrices(): PriceCollection
     {
         return new PriceCollection(
-            \array_filter(array_map(static fn (LineItem $lineItem) => $lineItem->getPrice(), array_values($this->getElements())))
+            $this->fmap(static fn (LineItem $lineItem) => $lineItem->getPrice())
         );
     }
 
@@ -213,7 +219,7 @@ class LineItemCollection extends Collection
 
     public function getTotalQuantity(): int
     {
-        return $this->reduce(fn ($result, $item) => $result + $item->getQuantity(), 0);
+        return $this->reduce(fn (int $result, LineItem $item) => $result + $item->getQuantity(), 0);
     }
 
     protected function getKey(LineItem $element): string
@@ -227,7 +233,7 @@ class LineItemCollection extends Collection
     }
 
     /**
-     * @return array<mixed>
+     * @return list<LineItem>
      */
     private function buildFlat(LineItemCollection $lineItems): array
     {

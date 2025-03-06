@@ -16,7 +16,7 @@ use Shopware\Core\System\CustomField\CustomFieldTypes;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class CustomFieldGenerator implements DemodataGeneratorInterface
 {
     /**
@@ -58,17 +58,17 @@ class CustomFieldGenerator implements DemodataGeneratorInterface
             return;
         }
 
-        $console->comment('Set attributes for entities: ' . $sum);
+        $console->comment('Set custom fields for entities: ' . $sum);
         $console->progressStart($sum);
         foreach ($relations as $relation => $count) {
             if (!$count || $count < 1) {
                 continue;
             }
 
-            $console->comment('\nSet attributes for ' . $count . ' ' . $relation . ' entities');
+            $console->comment('\nSet custom fields for ' . $count . ' ' . $relation . ' entities');
 
             $rndSet = $this->getRandomSet();
-            $this->generateCustomFields($relation, $count, $rndSet['attributes'], $context);
+            $this->generateCustomFields($relation, $count, $rndSet['customFields'], $context);
 
             $console->progressAdvance($count);
         }
@@ -210,7 +210,7 @@ class CustomFieldGenerator implements DemodataGeneratorInterface
         $repo = $this->definitionRegistry->getRepository($entityName);
 
         $ids = $this->connection->fetchFirstColumn(
-            sprintf('SELECT LOWER(HEX(id)) FROM `%s` ORDER BY rand() LIMIT %d', $entityName, $count)
+            \sprintf('SELECT LOWER(HEX(id)) FROM `%s` ORDER BY rand() LIMIT %d', $entityName, $count)
         );
 
         $chunkSize = 50;

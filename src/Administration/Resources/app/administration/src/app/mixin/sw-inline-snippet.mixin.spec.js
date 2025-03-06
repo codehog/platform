@@ -1,28 +1,30 @@
+/**
+ * @sw-package framework
+ */
 import 'src/app/mixin/sw-inline-snippet.mixin';
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount({
-        template: `
+    return mount(
+        {
+            template: `
             <div class="sw-mock">
               <slot></slot>
             </div>
         `,
-        mixins: [
-            Shopware.Mixin.getByName('sw-inline-snippet'),
-        ],
-        data() {
-            return {
-                name: 'sw-mock-field',
-            };
+            mixins: [
+                Shopware.Mixin.getByName('sw-inline-snippet'),
+            ],
+            data() {
+                return {
+                    name: 'sw-mock-field',
+                };
+            },
         },
-    }, {
-        stubs: {},
-        mocks: {},
-        propsData: {},
-        provide: {},
-        attachTo: document.body,
-    });
+        {
+            attachTo: document.body,
+        },
+    );
 }
 
 describe('src/app/mixin/sw-inline-snippet.mixin.ts', () => {
@@ -37,7 +39,7 @@ describe('src/app/mixin/sw-inline-snippet.mixin.ts', () => {
 
     afterEach(async () => {
         if (wrapper) {
-            await wrapper.destroy();
+            await wrapper.unmount();
         }
 
         await flushPromises();

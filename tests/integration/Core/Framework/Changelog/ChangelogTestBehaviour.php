@@ -2,13 +2,16 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\Changelog;
 
+use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\Before;
 use Symfony\Component\Filesystem\Filesystem;
 
+/**
+ * @internal
+ */
 trait ChangelogTestBehaviour
 {
-    /**
-     * @before
-     */
+    #[Before]
     public function beforeChangelogTest(): void
     {
         $fs = new Filesystem();
@@ -22,9 +25,7 @@ trait ChangelogTestBehaviour
         );
     }
 
-    /**
-     * @after
-     */
+    #[After]
     public function afterChangelogTest(): void
     {
         (new Filesystem())

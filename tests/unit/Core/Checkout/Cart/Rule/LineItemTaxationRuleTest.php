@@ -2,6 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
@@ -9,19 +12,18 @@ use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Checkout\Cart\Rule\LineItemTaxationRule;
 use Shopware\Core\Framework\Log\Package;
-use Shopware\Core\Framework\Rule\Exception\UnsupportedOperatorException;
 use Shopware\Core\Framework\Rule\Rule;
+use Shopware\Core\Framework\Rule\RuleComparison;
+use Shopware\Core\Framework\Rule\RuleException;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
 
 /**
- * @covers \Shopware\Core\Checkout\Cart\Rule\LineItemTaxationRule
- *
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(LineItemTaxationRule::class)]
+#[Group('rules')]
 class LineItemTaxationRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -47,10 +49,9 @@ class LineItemTaxationRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider getLineItemScopeTestData
-     *
      * @param array<string> $taxIds
      */
+    #[DataProvider('getLineItemScopeTestData')]
     public function testIfMatchesCorrectWithLineItemScope(
         array $taxIds,
         string $operator,
@@ -83,10 +84,9 @@ class LineItemTaxationRuleTest extends TestCase
     }
 
     /**
-     * @dataProvider getCartRuleScopeTestData
-     *
      * @param array<string> $taxIds
      */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScope(
         array $taxIds,
         string $operator,
@@ -149,12 +149,12 @@ class LineItemTaxationRuleTest extends TestCase
 
     public function testNotAvailableOperatorIsUsed(): void
     {
+        $this->expectExceptionObject(RuleException::unsupportedOperator(Rule::OPERATOR_LT, RuleComparison::class));
+
         $this->rule->assign([
             'taxIds' => ['1', '2'],
             'operator' => Rule::OPERATOR_LT,
         ]);
-
-        $this->expectException(UnsupportedOperatorException::class);
 
         $this->rule->match(new LineItemScope(
             $this->createLineItemWithTaxId('3'),

@@ -26,7 +26,7 @@ use Shopware\Core\System\SystemConfig\SystemConfigService;
 /**
  * @internal
  */
-#[Package('merchant-services')]
+#[Package('fundamentals@after-sales')]
 class FirstRunWizardControllerTest extends TestCase
 {
     use EventDispatcherBehaviour;
@@ -37,7 +37,7 @@ class FirstRunWizardControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->frwController = $this->getContainer()->get(FirstRunWizardController::class);
+        $this->frwController = static::getContainer()->get(FirstRunWizardController::class);
     }
 
     public function testFrwStartFiresTrackingEventAndDispatchesStartedEvent(): void
@@ -45,10 +45,10 @@ class FirstRunWizardControllerTest extends TestCase
         $dispatchedEvent = null;
 
         // Response for request of TrackingEventClient::fireTrackingEvent()
-        $this->getRequestHandler()->append(new Response());
+        $this->getStoreRequestHandler()->append(new Response());
 
         $this->addEventListener(
-            $this->getContainer()->get('event_dispatcher'),
+            static::getContainer()->get('event_dispatcher'),
             FirstRunWizardStartedEvent::class,
             function (FirstRunWizardStartedEvent $event) use (&$dispatchedEvent): void {
                 $dispatchedEvent = $event;
@@ -59,7 +59,7 @@ class FirstRunWizardControllerTest extends TestCase
 
         static::assertInstanceOf(FirstRunWizardStartedEvent::class, $dispatchedEvent);
 
-        $lastRequest = $this->getRequestHandler()->getLastRequest();
+        $lastRequest = $this->getStoreRequestHandler()->getLastRequest();
         static::assertInstanceOf(Request::class, $lastRequest);
         static::assertEquals('POST', $lastRequest->getMethod());
         static::assertEquals('/swplatform/tracking/events', $lastRequest->getUri()->getPath());
@@ -105,7 +105,7 @@ class FirstRunWizardControllerTest extends TestCase
         $this->setFrwUserToken($context, 'frw-us3r-t0k3n');
 
         $this->addEventListener(
-            $this->getContainer()->get('event_dispatcher'),
+            static::getContainer()->get('event_dispatcher'),
             FirstRunWizardFinishedEvent::class,
             function (FirstRunWizardFinishedEvent $event) use (&$dispatchedEvent): void {
                 $dispatchedEvent = $event;
@@ -115,7 +115,7 @@ class FirstRunWizardControllerTest extends TestCase
         );
 
         // Response for request of TrackEventClient::fireTrackingEvent()
-        $this->getRequestHandler()->append(new Response());
+        $this->getStoreRequestHandler()->append(new Response());
 
         // Response for request of FirstRunWizardClient::upgradeAccessToken()
         $this->getFrwRequestHandler()->append(new Response(
@@ -145,7 +145,7 @@ class FirstRunWizardControllerTest extends TestCase
         );
         static::assertEquals(
             $shopSecret,
-            $this->getContainer()->get(SystemConfigService::class)->getString(StoreRequestOptionsProvider::CONFIG_KEY_STORE_SHOP_SECRET)
+            static::getContainer()->get(SystemConfigService::class)->getString(StoreRequestOptionsProvider::CONFIG_KEY_STORE_SHOP_SECRET)
         );
     }
 
@@ -194,13 +194,13 @@ class FirstRunWizardControllerTest extends TestCase
 
         static::assertEquals(
             'shopware.swag',
-            $this->getContainer()->get(SystemConfigService::class)->getString(StoreRequestOptionsProvider::CONFIG_KEY_STORE_LICENSE_DOMAIN)
+            static::getContainer()->get(SystemConfigService::class)->getString(StoreRequestOptionsProvider::CONFIG_KEY_STORE_LICENSE_DOMAIN)
         );
     }
 
     private function fetchUserConfig(string $configKey, string $valueKey): ?string
     {
-        $value = $this->getContainer()->get(Connection::class)->executeQuery(
+        $value = static::getContainer()->get(Connection::class)->executeQuery(
             'SELECT value FROM user_config WHERE `key` = :key',
             ['key' => $configKey]
         )->fetchOne();
@@ -216,7 +216,7 @@ class FirstRunWizardControllerTest extends TestCase
         $userId = $source->getUserId();
         static::assertIsString($userId);
 
-        $storeToken = $this->getContainer()->get(Connection::class)->executeQuery(
+        $storeToken = static::getContainer()->get(Connection::class)->executeQuery(
             'SELECT store_token FROM user WHERE `id` = :userId',
             ['userId' => Uuid::fromHexToBytes($userId)]
         )->fetchOne();

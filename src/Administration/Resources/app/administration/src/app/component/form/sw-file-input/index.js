@@ -7,9 +7,9 @@ const { fileSize } = Shopware.Utils.format;
 const utils = Shopware.Utils;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  * @description The <u>sw-file-input</u> component can be used wherever a file input is needed.
  * @example-type code-only
  * @component-example
@@ -25,14 +25,11 @@ Component.register('sw-file-input', {
 
     inject: ['feature'],
 
+    emits: ['update:value'],
+
     mixins: [
         Mixin.getByName('notification'),
     ],
-
-    model: {
-        prop: 'value',
-        event: 'change',
-    },
 
     props: {
         maxFileSize: {
@@ -53,7 +50,6 @@ Component.register('sw-file-input', {
             default: null,
         },
 
-        // FIXME: add property type and prop default value
         // eslint-disable-next-line vue/require-prop-types
         value: {
             required: false,
@@ -93,7 +89,10 @@ Component.register('sw-file-input', {
     methods: {
         mountedComponent() {
             if (this.$refs.dropzone) {
-                ['dragover', 'drop'].forEach((event) => {
+                [
+                    'dragover',
+                    'drop',
+                ].forEach((event) => {
                     window.addEventListener(event, this.stopEventPropagation, false);
                 });
                 this.$refs.dropzone.addEventListener('drop', this.onDrop);
@@ -126,13 +125,7 @@ Component.register('sw-file-input', {
         setSelectedFile(newFile) {
             this.selectedFile = newFile;
 
-            if (this.feature.isActive('VUE3')) {
-                this.$emit('update:value', this.selectedFile);
-
-                return;
-            }
-
-            this.$emit('change', this.selectedFile);
+            this.$emit('update:value', this.selectedFile);
         },
 
         checkFileSize(file) {
@@ -142,10 +135,14 @@ Component.register('sw-file-input', {
 
             this.createNotificationError({
                 title: this.$tc('global.default.error'),
-                message: this.$tc('global.sw-file-input.notification.invalidFileSize.message', 0, {
-                    name: file.name,
-                    limit: fileSize(this.maxFileSize),
-                }),
+                message: this.$tc(
+                    'global.sw-file-input.notification.invalidFileSize.message',
+                    {
+                        name: file.name,
+                        limit: fileSize(this.maxFileSize),
+                    },
+                    0,
+                ),
             });
             return false;
         },
@@ -157,10 +154,14 @@ Component.register('sw-file-input', {
 
             this.createNotificationError({
                 title: this.$tc('global.default.error'),
-                message: this.$tc('global.sw-file-input.notification.invalidFileType.message', 0, {
-                    name: file.name,
-                    supportedTypes: this.allowedMimeTypes.join(', '),
-                }),
+                message: this.$tc(
+                    'global.sw-file-input.notification.invalidFileType.message',
+                    {
+                        name: file.name,
+                        supportedTypes: this.allowedMimeTypes.join(', '),
+                    },
+                    0,
+                ),
             });
             return false;
         },

@@ -7,26 +7,16 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\EventDispatcher\Event;
 
-#[Package('core
-This event is also called on cached responses.')]
+/**
+ * This event is also called on cached responses.
+ */
+#[Package('framework')]
 class BeforeSendResponseEvent extends Event
 {
-    /**
-     * @var Request
-     */
-    protected $request;
-
-    /**
-     * @var Response
-     */
-    protected $response;
-
     public function __construct(
-        Request $request,
-        Response $response
+        protected Request $request,
+        protected Response $response
     ) {
-        $this->request = $request;
-        $this->response = $response;
     }
 
     public function getRequest(): Request

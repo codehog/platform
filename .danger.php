@@ -3,12 +3,8 @@
 use Danger\Config;
 use Danger\Context;
 use Danger\Platform\Github\Github;
-use Danger\Platform\Gitlab\Gitlab;
-use Danger\Rule\CommitRegex;
 use Danger\Rule\Condition;
-use Danger\Rule\DisallowRepeatedCommits;
 use Danger\Struct\File;
-use Danger\Struct\Gitlab\File as GitlabFile;
 
 const COMPOSER_PACKAGE_EXCEPTIONS = [
     '~' => [
@@ -16,18 +12,28 @@ const COMPOSER_PACKAGE_EXCEPTIONS = [
         '^php$' => 'PHP does not follow semantic versioning, therefore minor updates include breaks',
     ],
     'strict' => [
-        '^phpstan\/.*$' => 'Even patch updates for phpstan may lead to a red CI pipeline, because of new static analysis errors',
-        '^symplify\/phpstan-rules$'  => 'Even patch updates for phpstan may lead to a red CI pipeline, because of new static analysis errors',
+        '^phpstan\/phpstan.*$' => 'Even patch updates for PHPStan may lead to a red CI pipeline, because of new static analysis errors',
+        '^phpstan\/phpdoc-parser.*$' => 'Even patch updates for PHPStan plugins may lead to a red CI pipeline, because of no lock on their side',
+        '^friendsofphp\/php-cs-fixer$' => 'Even patch updates for PHP-CS-Fixer may lead to a red CI pipeline, because of new style issues',
+        '^symplify\/phpstan-rules$' => 'Even patch updates for PHPStan plugins may lead to a red CI pipeline, because of new static analysis errors',
+        '^rector\/type-perfect$' => 'Even patch updates for PHPStan plugins may lead to a red CI pipeline, because of new static analysis errors',
+        '^phpat\/phpat$' => 'Even patch updates for PHPStan plugins may lead to a red CI pipeline, because of new static analysis errors',
         '^dompdf\/dompdf$' => 'Patch updates of dompdf have let to a lot of issues in the past, therefore it is pinned.',
+        '^scssphp\/scssphp$' => 'Patch updates of scssphp might lead to UI breaks, therefore it is pinned.',
         '^shopware\/conflicts$' => 'The shopware conflicts packages should be required in any version, so use `*` constraint',
         '^shopware\/core$' => 'The shopware core packages should be required in any version, so use `*` constraint, the version constraint will be automatically synced during the release process',
         '^ext-.*$' => 'PHP extension version ranges should be required in any version, so use `*` constraint',
     ],
 ];
 
+const BaseTestClasses = [
+    'RuleTestCase',
+    'TestCase',
+    'MiddlewareTestCase',
+];
+
 return (new Config())
     ->useThreadOn(Config::REPORT_LEVEL_WARNING)
-    ->useRule(new DisallowRepeatedCommits())
     ->useRule(function (Context $context): void {
         $files = $context->platform->pullRequest->getFiles();
 
@@ -35,52 +41,26 @@ return (new Config())
             $context->warning('The Pull Request doesn\'t contain any changelog file');
         }
     })
-    ->useRule(new Condition(
-        function (Context $context) {
-            return $context->platform instanceof Gitlab;
-        },
-        [
-            function (Context $context): void {
-                $labels = array_map('strtolower', $context->platform->pullRequest->labels);
 
-                if ($context->platform->raw['squash'] === true && in_array('github', $labels, true)) {
-                    $context->failure('GitHub PRs are not allowed to be squashed');
-                }
-            },
-        ]
-    ))
     ->useRule(new Condition(
         function (Context $context) {
             $labels = array_map('strtolower', $context->platform->pullRequest->labels);
 
-            return $context->platform instanceof Gitlab && !\in_array('github', $labels, true);
+            return !\in_array('skip-danger-phpstan-baseline', $labels, true);
         },
         [
             function (Context $context): void {
-                $files = $context->platform->pullRequest->getFiles();
-
-                /** @var Gitlab $gitlab */
-                $gitlab = $context->platform;
-
-                $phpstanBaseline = new GitlabFile(
-                    $gitlab->client,
-                    $_SERVER['CI_PROJECT_ID'],
-                    'phpstan-baseline.neon',
-                    $gitlab->raw['sha']
-                );
-
-                $fileNames = $files->map(fn (File $f) => $f->name);
-
                 $filesWithIgnoredErrors = [];
-                foreach ($fileNames as $fileName) {
-                    if (str_contains($phpstanBaseline->getContent(), 'path: ' . $fileName)) {
+                $phpstanBaseline = $context->platform->pullRequest->getFile('phpstan-baseline.neon')->getContent();
+                foreach ($context->platform->pullRequest->getFiles()->map(fn (File $f) => $f->name) as $fileName) {
+                    if (str_contains($phpstanBaseline, 'path: ' . $fileName)) {
                         $filesWithIgnoredErrors[] = $fileName;
                     }
                 }
 
                 if ($filesWithIgnoredErrors) {
                     $context->failure(
-                        'Some files you touched in your MR contain ignored phpstan errors. Please be nice and fix all ignored errors for the following files:<br>'
+                        'Some files you touched in your MR contain ignored PHPStan errors. Please be nice and fix all ignored errors for the following files:<br>'
                         . implode('<br>', $filesWithIgnoredErrors)
                     );
                 }
@@ -115,7 +95,7 @@ return (new Config())
                     $context->failure(
                         'Do not use direct repository calls in the Frontend Layer (Controller, Page, Pagelet).'
                         . ' Use Store-Api Routes instead.<br/>'
-                        . print_r($errorFiles, true)
+                        . implode('<br>', $errorFiles)
                     );
                 }
             },
@@ -128,199 +108,94 @@ return (new Config())
             $context->warning('You updated the shopware.yaml, please consider to update the config-schema.json');
         }
     })
-    ->useRule(new Condition(
-        function (Context $context) {
-            return $context->platform instanceof Gitlab;
-        },
-        [
-            function (Context $context): void {
-                $files = $context->platform->pullRequest->getFiles();
-
-                $relevant = $files->matches('src/Core/*.php')->count() > 0
-                    || $files->matches('src/Elasticsearch/*.php')->count() > 0
-                    || $files->matches('src/Storefront/Migration/')->count() > 0;
-
-                if (!$relevant) {
-                    return;
-                }
-
-                $labels = ['core__component'];
-                if ($files->matches('src/**/Cart/')->count() > 0) {
-                    $labels[] = 'core__cart';
-                }
-                if ($files->matches('src/**/*Definition.php')->count() > 0) {
-                    $labels[] = 'core__definition';
-                }
-                if ($files->matches('src/**/*Route.php')->count() > 0) {
-                    $labels[] = 'core__store-api';
-                }
-                if ($files->matches('src/**/Migration/**/Migration*.php')->count() > 0) {
-                    $labels[] = 'core__migration';
-                }
-                if ($files->matches('src/Elasticsearch/')->count() > 0) {
-                    $labels[] = 'core__elasticsearch';
-                }
-                if ($files->matches('src/**/DataAbstractionLayer/')->count() > 0) {
-                    $labels[] = 'core__dal';
-                }
-
-                $context->platform->addLabels(...$labels);
-            },
-        ]
-    ))->useRule(new Condition(
-        function (Context $context) {
-            return $context->platform instanceof Gitlab;
-        },
-        [
-            function (Context $context): void {
-                $files = $context->platform->pullRequest->getFiles();
-
-                $bcChange = $files->matches('.bc-exclude.php')->count() > 0;
-
-                if (!$bcChange) {
-                    return;
-                }
-
-                $context->platform->addLabels('bc_exclude_php');
-            },
-        ]
-    ))
-    ->useRule(function (Context $context): void {
-        // The title is not important here as we import the pull requests and prefix them
-        if ($context->platform->pullRequest->projectIdentifier === 'shopware/platform') {
-            return;
-        }
-
-        if (!preg_match('/(?m)^((WIP:\s)|^(Draft:\s)|^(DRAFT:\s))?NEXT-\d*\s-\s\w/', $context->platform->pullRequest->title)) {
-            $context->failure(sprintf('The title `%s` does not match our requirements. Example: NEXT-00000 - My Title', $context->platform->pullRequest->title));
-        }
-    })
-    ->useRule(new Condition(
-        function (Context $context) {
-            return $context->platform instanceof Gitlab;
-        },
-        [
-            function (Context $context): void {
-                $labels = $context->platform->pullRequest->labels;
-
-                if (in_array('E2E:skip', $labels, true) || in_array('unit:skip', $labels, true)) {
-                    $context->notice('You skipped some tests. Reviewers be carefully with this');
-                }
-            },
-            function (Context $context): void {
-                $files = $context->platform->pullRequest->getFiles();
-                $hasStoreApiModified = false;
-
-                /** @var File $file */
-                foreach ($files->getElements() as $file) {
-                    if (str_contains($file->name, 'SalesChannel') && str_contains($file->name, 'Route.php') && !str_contains($file->name, '/Test/')) {
-                        $hasStoreApiModified = true;
-                    }
-                }
-
-                if ($hasStoreApiModified) {
-                    $context->warning('Store-API Route has been modified. @Reviewers please review carefully!');
-                    $context->platform->addLabels('Security-Audit Required');
-                }
-            },
-        ]
-    ))
-    ->useRule(new Condition(
-        function (Context $context) {
-            return $context->platform instanceof Github && $context->platform->pullRequest->projectIdentifier === 'shopwareBoostDay/platform';
-        },
-        [
-            new CommitRegex(
-                '/(?m)(?mi)^NEXT-\d*\s-\s[A-Z].*,\s*fixes\s*shopwareBoostday\/platform#\d*$/m',
-                'The commit title `###MESSAGE###` does not match our requirements. Example: "NEXT-00000 - My Title, fixes shopwareBoostday/platform#1234"'
-            ),
-        ]
-    ))
     ->useRule(function (Context $context): void {
         function checkMigrationForBundle(string $bundle, Context $context): void
         {
             $files = $context->platform->pullRequest->getFiles();
 
-            $migrationFiles = $files->filterStatus(File::STATUS_ADDED)->matches('src/Core/Migration/V*/Migration*.php');
-            $migrationTestFiles = $files->filterStatus(File::STATUS_ADDED)->matches('tests/migration/Core/V*/*.php');
+            $migrationFiles = $files->filterStatus(File::STATUS_ADDED)->matches(sprintf('src/%s/Migration/V*/Migration*.php', $bundle));
+            $migrationTestFiles = $files->filterStatus(File::STATUS_ADDED)->matches(sprintf('tests/migration/%s/V*/*.php', $bundle));
 
             if ($migrationFiles->count() && !$migrationTestFiles->count()) {
                 $context->failure('Please add tests for your new Migration file');
             }
         }
 
-        checkMigrationForBundle('Core', $context);
         checkMigrationForBundle('Administration', $context);
+        checkMigrationForBundle('Core', $context);
+        checkMigrationForBundle('Elasticsearch', $context);
         checkMigrationForBundle('Storefront', $context);
     })
     ->useRule(function (Context $context): void {
-        $files = $context->platform->pullRequest->getFiles();
+        $newSqlHeredocs = $context->platform->pullRequest->getFiles()->filterStatus(File::STATUS_MODIFIED)->matchesContent('/<<<SQL/');
 
-        $newSqlHeredocs = $files->filterStatus(File::STATUS_MODIFIED)->matchesContent('/<<<SQL/');
-
-        if ($newSqlHeredocs->count() > 0) {
-            $errorFiles = [];
-            foreach ($newSqlHeredocs as $file) {
-                if ($file->name !== '.danger.php') {
-                    $errorFiles[] = $file->name . '<br/>';
-                }
-            }
-
-            if (count($errorFiles) === 0) {
-                return;
-            }
-
-            $context->failure(
-                'Please use [Nowdoc](https://www.php.net/manual/de/language.types.string.php#language.types.string.syntax.nowdoc)'
-                . ' for SQL (&lt;&lt;&lt;\'SQL\') instead of Heredoc (&lt;&lt;&lt;SQL)<br/>'
-                . print_r($errorFiles, true)
-            );
+        if ($newSqlHeredocs->count() <= 0) {
+            return;
         }
+
+        $errorFiles = [];
+        foreach ($newSqlHeredocs as $file) {
+            if ($file->name !== '.danger.php') {
+                $errorFiles[] = $file->name . '<br/>';
+            }
+        }
+
+        if (count($errorFiles) === 0) {
+            return;
+        }
+
+        $context->failure(
+            'Please use [Nowdoc](https://www.php.net/manual/de/language.types.string.php#language.types.string.syntax.nowdoc)'
+            . ' for SQL (&lt;&lt;&lt;\'SQL\') instead of Heredoc (&lt;&lt;&lt;SQL)<br/>'
+            . implode('<br>', $errorFiles)
+        );
     })
     ->useRule(function (Context $context): void {
-        $files = $context->platform->pullRequest->getFiles();
-
-        $changedTemplates = $files->filterStatus(File::STATUS_MODIFIED)->matches('src/Storefront/Resources/views/*.twig')
+        $changedTemplates = $context->platform->pullRequest->getFiles()
+            ->filterStatus(File::STATUS_MODIFIED)
+            ->matches('src/Storefront/Resources/views/*.twig')
             ->getElements();
 
-        if (count($changedTemplates) > 0) {
-            $patched = [];
-            foreach ($changedTemplates as $file) {
-                preg_match_all('/\- .*? (\{% block (.*?) %\})+/', $file->patch, $removedBlocks);
-                preg_match_all('/\+ .*? (\{% block (.*?) %\})+/', $file->patch, $addedBlocks);
-                if (!isset($removedBlocks[2]) || !is_array($removedBlocks[2])) {
-                    $removedBlocks[2] = [];
-                }
-                if (!isset($addedBlocks[2]) || !is_array($addedBlocks[2])) {
-                    $addedBlocks[2] = [];
-                }
-
-                $remaining = array_diff_assoc($removedBlocks[2], $addedBlocks[2]);
-
-                if (count($remaining) > 0) {
-                    $patched[] = print_r($remaining, true) . '<br/>';
-                }
-            }
-
-            if (count($patched) === 0) {
-                return;
-            }
-
-            $context->warning(
-                'You probably moved or deleted a twig block. This is likely a hard break. Please check your template'
-                . ' changes and make sure that deleted blocks are already deprecated. <br/>'
-                . 'If you are sure everything is fine with your changes, you can resolve this warning.<br/>'
-                . 'Moved or deleted block: <br/>'
-                . print_r($patched, true)
-            );
+        if (count($changedTemplates) <= 0) {
+            return;
         }
+
+        $patched = [];
+        foreach ($changedTemplates as $file) {
+            preg_match_all('/-.*?(\{% block (.*?) %})+/', $file->patch, $removedBlocks);
+            preg_match_all('/\+.*?(\{% block (.*?) %})+/', $file->patch, $addedBlocks);
+            if (!isset($removedBlocks[2]) || !is_array($removedBlocks[2])) {
+                $removedBlocks[2] = [];
+            }
+            if (!isset($addedBlocks[2]) || !is_array($addedBlocks[2])) {
+                $addedBlocks[2] = [];
+            }
+
+            $remaining = array_diff_assoc($removedBlocks[2], $addedBlocks[2]);
+
+            if (count($remaining) > 0) {
+                foreach ($remaining as $item) {
+                    $patched[] = $item;
+                }
+            }
+        }
+
+        if (count($patched) === 0) {
+            return;
+        }
+
+        $context->warning(
+            'You probably moved or deleted a twig block. This is likely a hard break. Please check your template'
+            . ' changes and make sure that deleted blocks are already deprecated.<br/>'
+            . 'If you are sure everything is fine with your changes, you can resolve this warning.<br/>'
+            . 'Moved or deleted block:<br/>'
+            . implode('<br>', $patched)
+        );
     })
     ->useRule(function (Context $context): void {
-        $files = $context->platform->pullRequest->getFiles();
-
         $invalidFiles = [];
 
-        foreach ($files as $file) {
+        foreach ($context->platform->pullRequest->getFiles() as $file) {
             if (str_starts_with($file->name, '.run/')) {
                 continue;
             }
@@ -332,8 +207,8 @@ return (new Config())
 
         if (count($invalidFiles) > 0) {
             $context->failure(
-                'The following filenames contain invalid special characters, please use only alphanumeric characters, dots, dashes and underscores: <br/>'
-                . print_r($invalidFiles, true)
+                'The following filenames contain invalid special characters, please use only alphanumeric characters, dots, dashes and underscores:<br/>'
+                . implode('<br>', $invalidFiles)
             );
         }
     })
@@ -356,8 +231,126 @@ return (new Config())
 
         if (count($addedLegacyTests) > 0) {
             $context->failure(
-                'Don\'t add new testcases in the `/src` folder, for new tests write "real" unit tests under `tests/unit` and if needed a few meaningful integration tests under `tests/integration`: <br/>'
-                . print_r($addedLegacyTests, true)
+                'Don\'t add new testcases in the `/src` folder, for new tests write "real" unit tests under `tests/unit` and if needed a few meaningful integration tests under `tests/integration`:<br/>'
+                . implode('<br>', $addedLegacyTests)
+            );
+        }
+    })
+    ->useRule(function (Context $context): void {
+        $addedUnitTests = $context->platform->pullRequest->getFiles()
+            ->filter(fn (File $file) => in_array($file->status, [File::STATUS_ADDED, File::STATUS_MODIFIED], true))
+            ->matches('tests/unit/**/*Test.php');
+
+        $addedSrcFiles = $context->platform->pullRequest->getFiles()->filterStatus(File::STATUS_ADDED)->matches('src/**/*.php');
+        $missingUnitTests = [];
+        $unitTestsName = [];
+
+        // prepare phpunit code coverage exclude lists
+        $phpUnitConfig = __DIR__ . '/phpunit.xml.dist';
+        $excludedDirs = [];
+        $excludedFiles = [];
+        $dom = new DOMDocument();
+
+        if ($dom->load($phpUnitConfig)) {
+            $xpath = new DOMXPath($dom);
+            foreach ($xpath->query('//source/exclude/directory') as $dirDomElement) {
+                $excludedDirs[] = [
+                    'path' => rtrim($dirDomElement->nodeValue, '/') . '/',
+                    'suffix' => $dirDomElement->getAttribute('suffix') ?: '',
+                ];
+            }
+
+            foreach ($xpath->query('//source/exclude/file') as $fileDomElements) {
+                $excludedFiles[] = $fileDomElements->nodeValue;
+            }
+        } else {
+            $context->warning(sprintf('Was not able to load phpunit config file %s. Please check configuration.', $phpUnitConfig));
+        }
+
+        foreach ($addedUnitTests as $file) {
+            $content = $file->getContent();
+
+            preg_match('/\s+extends\s+(?<class>\w+)/', $content, $matches);
+
+            if (isset($matches['class']) && in_array($matches['class'], BaseTestClasses, true)) {
+                $fqcn = str_replace('.php', '', $file->name);
+                $className = explode('/', $fqcn);
+
+                $unitTestsName[] = end($className);
+            }
+        }
+
+        foreach ($addedSrcFiles as $file) {
+            $content = $file->getContent();
+
+            $fqcn = str_replace('.php', '', $file->name);
+            $className = explode('/', $fqcn);
+            $class = end($className);
+
+            if (\str_contains($content, '* @codeCoverageIgnore')) {
+                continue;
+            }
+
+            if (\str_contains($content, 'abstract class ' . $class)) {
+                continue;
+            }
+
+            if (\str_contains($content, 'interface ' . $class)) {
+                continue;
+            }
+
+            if (\str_contains($content, 'trait ' . $class)) {
+                continue;
+            }
+
+            if (\str_starts_with($class, 'Migration1')) {
+                continue;
+            }
+
+            // process phpunit code coverage exclude lists
+            if (in_array($file->name, $excludedFiles, true)) {
+                continue;
+            }
+
+            $dir = dirname($file->name);
+            $fileName = basename($file->name);
+
+            foreach ($excludedDirs as $excludedDir) {
+                if (str_starts_with($dir, $excludedDir['path']) && str_ends_with($fileName, $excludedDir['suffix'])) {
+                    continue 2;
+                }
+            }
+
+            $ignoreSuffixes = [
+                'Entity',
+                'Collection',
+                'Struct',
+                'Field',
+                'Test',
+                'Definition',
+                'Event',
+            ];
+
+            $ignored = false;
+
+            foreach ($ignoreSuffixes as $ignoreSuffix) {
+                if (\str_ends_with($class, $ignoreSuffix)) {
+                    $ignored = true;
+
+                    break;
+                }
+            }
+
+            if (!$ignored && !\in_array($class . 'Test', $unitTestsName, true)) {
+                $missingUnitTests[] = $file->name;
+            }
+        }
+
+        if (\count($missingUnitTests) > 0) {
+            $context->warning(
+                'Please be kind and add unit tests for your new code in these files: <br/><br/>'
+                . implode('<br/>', $missingUnitTests)
+                . '<br/><br/>If you are sure everything is fine with your changes, you can resolve this warning. <br /> You can run `composer make:coverage` to generate dummy unit tests for files that are not covered'
             );
         }
     })
@@ -365,19 +358,29 @@ return (new Config())
     ->useRule(function (Context $context): void {
         $composerFiles = $context->platform->pullRequest->getFiles()->matches('**/composer.json');
 
+        if ($root = $context->platform->pullRequest->getFiles()->matches('composer.json')->first()) {
+            $composerFiles->add($root);
+        }
+
         foreach ($composerFiles as $composerFile) {
-            if ($composerFile->status === File::STATUS_REMOVED || str_contains($composerFile->name, 'src/WebInstaller')) {
+            if ($composerFile->status === File::STATUS_REMOVED
+                || str_contains((string) $composerFile->name, 'src/WebInstaller')
+                || str_contains((string) $composerFile->name, '/Test/')
+            ) {
                 continue;
             }
 
             $composerContent = json_decode($composerFile->getContent(), true);
-            /** @var array<string, string> $requirements */
             $requirements = array_merge(
                 $composerContent['require'] ?? [],
                 $composerContent['require-dev'] ?? []
             );
 
             foreach ($requirements as $package => $constraint) {
+                if (str_contains($package, 'polyfill')) {
+                    continue;
+                }
+
                 foreach (COMPOSER_PACKAGE_EXCEPTIONS['~'] as $exceptionPackage => $exceptionMessage) {
                     if (preg_match('/' . $exceptionPackage . '/', $package)) {
                         if (!str_contains($constraint, '~')) {
@@ -420,11 +423,6 @@ return (new Config())
                     );
                 }
             }
-        }
-    })
-    ->after(function (Context $context): void {
-        if ($context->platform instanceof Github && $context->hasFailures()) {
-            $context->platform->addLabels('Incomplete');
         }
     })
 ;

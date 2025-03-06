@@ -1,3 +1,6 @@
+/**
+ * @sw-package fundamentals@after-sales
+ */
 import 'src/app/decorator/condition-type-data-provider.decorator';
 import RuleConditionService from 'src/app/service/rule-condition.service';
 

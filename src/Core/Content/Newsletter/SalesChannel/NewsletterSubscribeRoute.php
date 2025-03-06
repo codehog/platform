@@ -2,21 +2,22 @@
 
 namespace Shopware\Core\Content\Newsletter\SalesChannel;
 
+use Shopware\Core\Checkout\Customer\Service\EmailIdnConverter;
+use Shopware\Core\Content\Newsletter\Aggregate\NewsletterRecipient\NewsletterRecipientDefinition;
 use Shopware\Core\Content\Newsletter\Aggregate\NewsletterRecipient\NewsletterRecipientEntity;
 use Shopware\Core\Content\Newsletter\Event\NewsletterConfirmEvent;
 use Shopware\Core\Content\Newsletter\Event\NewsletterRegisterEvent;
 use Shopware\Core\Content\Newsletter\Event\NewsletterSubscribeUrlEvent;
 use Shopware\Core\Content\Newsletter\NewsletterException;
-use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\MultiFilter;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\RateLimiter\Exception\RateLimitExceededException;
 use Shopware\Core\Framework\RateLimiter\RateLimiter;
+use Shopware\Core\Framework\Util\Hasher;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\BuildValidationEvent;
 use Shopware\Core\Framework\Validation\DataBag\DataBag;
@@ -26,9 +27,10 @@ use Shopware\Core\Framework\Validation\DataValidator;
 use Shopware\Core\System\SalesChannel\Aggregate\SalesChannelDomain\SalesChannelDomainEntity;
 use Shopware\Core\System\SalesChannel\NoContentResponse;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\System\SalesChannel\StoreApiCustomFieldMapper;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -39,7 +41,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  * @phpstan-type SubscribeRequest array{email: string, storefrontUrl: string, option: string, firstName?: string, lastName?: string, zipCode?: string, city?: string, street?: string, salutationId?: string}
  */
 #[Route(defaults: ['_routeScope' => ['store-api']])]
-#[Package('buyers-experience')]
+#[Package('after-sales')]
 class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
 {
     final public const STATUS_NOT_SET = 'notSet';
@@ -81,7 +83,8 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly SystemConfigService $systemConfigService,
         private readonly RateLimiter $rateLimiter,
-        private readonly RequestStack $requestStack
+        private readonly RequestStack $requestStack,
+        private readonly StoreApiCustomFieldMapper $customFieldMapper
     ) {
     }
 
@@ -102,6 +105,8 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
             $validateStorefrontUrl = false;
         }
 
+        EmailIdnConverter::encodeDataBag($dataBag);
+
         $validator = $this->getOptInValidator($dataBag, $context, $validateStorefrontUrl);
 
         $this->validator->validate($dataBag->all(), $validator);
@@ -110,10 +115,6 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
             try {
                 $this->rateLimiter->ensureAccepted(RateLimiter::NEWSLETTER_FORM, $request->getClientIp());
             } catch (RateLimitExceededException $e) {
-                if (!Feature::isActive('v6.6.0.0')) {
-                    throw $e;
-                }
-
                 throw NewsletterException::newsletterThrottled($e->getWaitTime());
             }
         }
@@ -129,7 +130,8 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
             'street',
             'salutationId',
             'option',
-            'storefrontUrl'
+            'storefrontUrl',
+            'customFields'
         );
 
         $recipientId = $this->getNewsletterRecipientId($data['email'], $context);
@@ -146,31 +148,34 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
         }
 
         $data = $this->completeData($data, $context);
+        if ($dataBag->get('customFields') instanceof RequestDataBag) {
+            $data['customFields'] = $this->customFieldMapper->map(
+                NewsletterRecipientDefinition::ENTITY_NAME,
+                $dataBag->get('customFields')
+            );
+        }
 
         $this->newsletterRecipientRepository->upsert([$data], $context->getContext());
 
-        $recipient = $this->getNewsletterRecipient('email', $data['email'], $context->getContext());
+        $recipient = $this->getNewsletterRecipient('email', $data['email'], $context);
 
         if (!$this->isNewsletterDoi($context)) {
-            $event = new NewsletterConfirmEvent($context->getContext(), $recipient, $context->getSalesChannel()->getId());
+            $event = new NewsletterConfirmEvent($context->getContext(), $recipient, $context->getSalesChannelId());
             $this->eventDispatcher->dispatch($event);
 
             return new NoContentResponse();
         }
 
-        $hashedEmail = hash('sha1', $data['email']);
+        $hashedEmail = Hasher::hash($data['email'], 'sha1');
         $url = $this->getSubscribeUrl($context, $hashedEmail, $data['hash'], $data, $recipient);
 
-        $event = new NewsletterRegisterEvent($context->getContext(), $recipient, $url, $context->getSalesChannel()->getId());
+        $event = new NewsletterRegisterEvent($context->getContext(), $recipient, $url, $context->getSalesChannelId());
         $this->eventDispatcher->dispatch($event);
 
         return new NoContentResponse();
     }
 
-    /**
-     * @deprecated tag:v6.6.0 - reason:visibility-change - will be private in v6.6.0
-     */
-    public function isNewsletterDoi(SalesChannelContext $context): ?bool
+    private function isNewsletterDoi(SalesChannelContext $context): bool
     {
         if ($context->getCustomerId() === null) {
             return $this->systemConfigService->getBool('core.newsletter.doubleOptIn', $context->getSalesChannelId());
@@ -220,8 +225,8 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
         $id = $this->getNewsletterRecipientId($data['email'], $context);
 
         $data['id'] = $id ?: Uuid::randomHex();
-        $data['languageId'] = $context->getContext()->getLanguageId();
-        $data['salesChannelId'] = $context->getSalesChannel()->getId();
+        $data['languageId'] = $context->getLanguageId();
+        $data['salesChannelId'] = $context->getSalesChannelId();
         $data['status'] = $this->getOptionSelection($context)[$data['option']];
         $data['hash'] = Uuid::randomHex();
 
@@ -234,7 +239,7 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
         $criteria->addFilter(
             new MultiFilter(MultiFilter::CONNECTION_AND, [
                 new EqualsFilter('email', $email),
-                new EqualsFilter('salesChannelId', $context->getSalesChannel()->getId()),
+                new EqualsFilter('salesChannelId', $context->getSalesChannelId()),
             ]),
         );
         $criteria->setLimit(1);
@@ -257,15 +262,16 @@ class NewsletterSubscribeRoute extends AbstractNewsletterSubscribeRoute
         ];
     }
 
-    private function getNewsletterRecipient(string $identifier, string $value, Context $context): NewsletterRecipientEntity
+    private function getNewsletterRecipient(string $identifier, string $value, SalesChannelContext $context): NewsletterRecipientEntity
     {
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter($identifier, $value));
+        $criteria->addFilter(new EqualsFilter('salesChannelId', $context->getSalesChannelId()));
         $criteria->addAssociation('salutation');
         $criteria->setLimit(1);
 
         /** @var NewsletterRecipientEntity|null $newsletterRecipient */
-        $newsletterRecipient = $this->newsletterRecipientRepository->search($criteria, $context)->getEntities()->first();
+        $newsletterRecipient = $this->newsletterRecipientRepository->search($criteria, $context->getContext())->getEntities()->first();
 
         if (!$newsletterRecipient) {
             throw NewsletterException::recipientNotFound($identifier, $value);

@@ -18,7 +18,7 @@ use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 /**
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class InstallerKernel extends HttpKernel
 {
     use MicroKernelTrait;
@@ -74,7 +74,7 @@ class InstallerKernel extends HttpKernel
         /** @var string $dir */
         $dir = $r->getFileName();
         if (!file_exists($dir)) {
-            throw new \LogicException(sprintf('Cannot auto-detect project dir for kernel of class "%s".', $r->name));
+            throw new \LogicException(\sprintf('Cannot auto-detect project dir for kernel of class "%s".', $r->name));
         }
 
         $dir = $rootDir = \dirname($dir);

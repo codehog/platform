@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import registerAsyncComponents from 'src/app/asyncComponent/asyncComponents';
@@ -7,6 +7,8 @@ import registerAsyncComponents from 'src/app/asyncComponent/asyncComponents';
 const componentNames = [
     'sw-code-editor',
     'sw-chart',
+    'sw-help-center-v2',
+    'sw-help-sidebar',
     'sw-datepicker',
     'sw-image-slider',
     'sw-media-add-thumbnail-form',
@@ -31,6 +33,7 @@ const componentNames = [
     'sw-sidebar-media-item',
     'sw-ai-copilot-badge',
     'sw-ai-copilot-warning',
+    'sw-string-filter',
 ];
 
 describe('src/app/asyncComponent/asyncComponent', () => {

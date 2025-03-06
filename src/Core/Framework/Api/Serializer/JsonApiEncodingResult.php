@@ -4,38 +4,32 @@ namespace Shopware\Core\Framework\Api\Serializer;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 class JsonApiEncodingResult implements \JsonSerializable
 {
     /**
      * @var Record[]
      */
-    protected $data = [];
+    protected array $data = [];
 
     /**
      * @var Record[]
      */
-    protected $included = [];
+    protected array $included = [];
 
     /**
      * @var array<string, int>
      */
-    protected $keyCollection = [];
+    protected array $keyCollection = [];
+
+    protected bool $single = false;
 
     /**
-     * @var bool
+     * @var array<string, mixed>
      */
-    protected $single = false;
+    protected array $metaData = [];
 
-    /**
-     * @var array<mixed>
-     */
-    protected $metaData = [];
-
-    /**
-     * @var string
-     */
-    protected $baseUrl;
+    protected string $baseUrl;
 
     public function __construct(string $baseUrl)
     {
@@ -137,7 +131,7 @@ class JsonApiEncodingResult implements \JsonSerializable
     }
 
     /**
-     * @param array<mixed> $metaData
+     * @param array<string, mixed> $metaData
      */
     public function setMetaData(array $metaData): void
     {
@@ -145,7 +139,7 @@ class JsonApiEncodingResult implements \JsonSerializable
     }
 
     /**
-     * @return array<mixed>
+     * @return array<string, mixed>
      */
     public function getMetaData(): array
     {
@@ -171,12 +165,12 @@ class JsonApiEncodingResult implements \JsonSerializable
             if ($value['data'] === null) {
                 continue;
             }
-            $recordA->addExtension($key, $value);
+            $recordA->addExtension((string) $key, $value);
         }
 
         foreach ($recordB->getLinks() as $key => $value) {
             if (!empty($value)) {
-                $recordA->addLink($key, $value);
+                $recordA->addLink((string) $key, $value);
             }
         }
     }

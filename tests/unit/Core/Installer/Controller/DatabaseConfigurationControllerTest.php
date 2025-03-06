@@ -3,13 +3,14 @@
 namespace Shopware\Tests\Unit\Core\Installer\Controller;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Installer\Controller\DatabaseConfigurationController;
+use Shopware\Core\Installer\Controller\InstallerController;
 use Shopware\Core\Installer\Database\BlueGreenDeploymentService;
-use Shopware\Core\Maintenance\System\Exception\DatabaseSetupException;
+use Shopware\Core\Maintenance\MaintenanceException;
 use Shopware\Core\Maintenance\System\Service\DatabaseConnectionFactory;
-use Shopware\Core\Maintenance\System\Service\JwtCertificateGenerator;
 use Shopware\Core\Maintenance\System\Service\SetupDatabaseAdapter;
 use Shopware\Core\Maintenance\System\Struct\DatabaseConnectionInformation;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -24,10 +25,9 @@ use Twig\Environment;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Installer\Controller\DatabaseConfigurationController
- * @covers \Shopware\Core\Installer\Controller\InstallerController
  */
+#[CoversClass(DatabaseConfigurationController::class)]
+#[CoversClass(InstallerController::class)]
 class DatabaseConfigurationControllerTest extends TestCase
 {
     use InstallerControllerTestTrait;
@@ -37,8 +37,6 @@ class DatabaseConfigurationControllerTest extends TestCase
     private MockObject&TranslatorInterface $translator;
 
     private MockObject&BlueGreenDeploymentService $blueGreenDeploymentService;
-
-    private MockObject&JwtCertificateGenerator $jwtCertificateGenerator;
 
     private MockObject&SetupDatabaseAdapter $setupDatabaseAdapter;
 
@@ -53,7 +51,6 @@ class DatabaseConfigurationControllerTest extends TestCase
         $this->twig = $this->createMock(Environment::class);
         $this->translator = $this->createMock(TranslatorInterface::class);
         $this->blueGreenDeploymentService = $this->createMock(BlueGreenDeploymentService::class);
-        $this->jwtCertificateGenerator = $this->createMock(JwtCertificateGenerator::class);
         $this->setupDatabaseAdapter = $this->createMock(SetupDatabaseAdapter::class);
         $this->connectionFactory = $this->createMock(DatabaseConnectionFactory::class);
         $this->router = $this->createMock(RouterInterface::class);
@@ -61,10 +58,8 @@ class DatabaseConfigurationControllerTest extends TestCase
         $this->controller = new DatabaseConfigurationController(
             $this->translator,
             $this->blueGreenDeploymentService,
-            $this->jwtCertificateGenerator,
             $this->setupDatabaseAdapter,
             $this->connectionFactory,
-            __DIR__
         );
         $this->controller->setContainer($this->getInstallerContainer($this->twig, ['router' => $this->router]));
     }
@@ -109,10 +104,6 @@ class DatabaseConfigurationControllerTest extends TestCase
             ->method('getTableCount')
             ->with($connection, 'test')
             ->willReturn(0);
-
-        $this->jwtCertificateGenerator->expects(static::once())
-            ->method('generate')
-            ->with(__DIR__ . '/config/jwt/private.pem', __DIR__ . '/config/jwt/public.pem');
 
         $this->twig->expects(static::never())->method('render');
 
@@ -163,9 +154,6 @@ class DatabaseConfigurationControllerTest extends TestCase
             ->with($connection, 'test')
             ->willReturn(12);
 
-        $this->jwtCertificateGenerator->expects(static::never())
-            ->method('generate');
-
         $request = Request::create('/installer/database-configuration', 'POST', ['databaseName' => 'test']);
         $session = new Session(new MockArraySessionStorage());
         $request->setSession($session);
@@ -201,10 +189,6 @@ class DatabaseConfigurationControllerTest extends TestCase
             ->method('getTableCount')
             ->with($connection)
             ->willReturn(0);
-
-        $this->jwtCertificateGenerator->expects(static::once())
-            ->method('generate')
-            ->with(__DIR__ . '/config/jwt/private.pem', __DIR__ . '/config/jwt/public.pem');
 
         $this->twig->expects(static::never())->method('render');
 
@@ -245,9 +229,6 @@ class DatabaseConfigurationControllerTest extends TestCase
         $this->setupDatabaseAdapter->expects(static::never())
             ->method('createDatabase');
 
-        $this->jwtCertificateGenerator->expects(static::never())
-            ->method('generate');
-
         $request = Request::create('/installer/database-configuration', 'POST');
         $session = new Session(new MockArraySessionStorage());
         $request->setSession($session);
@@ -272,21 +253,18 @@ class DatabaseConfigurationControllerTest extends TestCase
 
         $this->translator->expects(static::once())
             ->method('trans')
-            ->with('shopware.installer.database-configuration_error_required_fields')
+            ->with('shopware.installer.database-configuration_invalid_requirements')
             ->willReturn('translated error');
 
         $this->connectionFactory->expects(static::once())
             ->method('getConnection')
-            ->willThrowException(new DatabaseSetupException(''));
+            ->willThrowException(MaintenanceException::dbVersionMismatch('', '', '', ''));
 
         $this->blueGreenDeploymentService->expects(static::never())
             ->method('setEnvironmentVariable');
 
         $this->setupDatabaseAdapter->expects(static::never())
             ->method('createDatabase');
-
-        $this->jwtCertificateGenerator->expects(static::never())
-            ->method('generate');
 
         $request = Request::create('/installer/database-configuration', 'POST');
         $session = new Session(new MockArraySessionStorage());
@@ -304,14 +282,35 @@ class DatabaseConfigurationControllerTest extends TestCase
 
         $this->connectionFactory->expects(static::once())
             ->method('getConnection')
-            ->willThrowException(new \Exception());
+            ->willThrowException(new \Exception('some error'));
 
         $this->setupDatabaseAdapter->expects(static::never())->method('getExistingDatabases');
         $this->setupDatabaseAdapter->expects(static::never())->method('getTableCount');
 
         $response = $this->controller->databaseInformation($request);
-        static::assertSame(Response::HTTP_OK, $response->getStatusCode());
-        static::assertSame('{}', $response->getContent());
+        static::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+        static::assertSame('{"error":"some error"}', $response->getContent());
+    }
+
+    public function testDatabaseInformationRouteWithWrongMysqlVersion(): void
+    {
+        $request = Request::create('/installer/database-information', 'POST');
+
+        $this->connectionFactory->expects(static::once())
+            ->method('getConnection')
+            ->willThrowException(MaintenanceException::dbVersionMismatch('', '', '', ''));
+
+        $this->translator->expects(static::once())
+            ->method('trans')
+            ->with('shopware.installer.database-configuration_invalid_requirements')
+            ->willReturn('translated error');
+
+        $this->setupDatabaseAdapter->expects(static::never())->method('getExistingDatabases');
+        $this->setupDatabaseAdapter->expects(static::never())->method('getTableCount');
+
+        $response = $this->controller->databaseInformation($request);
+        static::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+        static::assertSame('{"error":"translated error"}', $response->getContent());
     }
 
     public function testDatabaseInformationRoute(): void

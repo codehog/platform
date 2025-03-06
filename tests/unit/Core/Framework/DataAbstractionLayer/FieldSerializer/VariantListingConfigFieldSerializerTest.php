@@ -2,13 +2,14 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer\FieldSerializer;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\DataAbstractionLayer\VariantListingConfig;
 use Shopware\Core\Content\Product\ProductDefinition;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\DataAbstractionLayerException;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
-use Shopware\Core\Framework\DataAbstractionLayer\Field\JsonField;
+use Shopware\Core\Framework\DataAbstractionLayer\Field\ManyToOneAssociationField;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\VariantListingConfigField;
 use Shopware\Core\Framework\DataAbstractionLayer\FieldSerializer\VariantListingConfigFieldSerializer;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\WriteCommandQueue;
@@ -22,9 +23,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\FieldSerializer\VariantListingConfigFieldSerializer
  */
+#[CoversClass(VariantListingConfigFieldSerializer::class)]
 class VariantListingConfigFieldSerializerTest extends TestCase
 {
     protected VariantListingConfigFieldSerializer $serializer;
@@ -77,7 +77,7 @@ class VariantListingConfigFieldSerializerTest extends TestCase
 
     public function testEncodeThrowExceptionOnWrongField(): void
     {
-        $field = new JsonField('variant_listing_config', 'variantListingConfig');
+        $field = new ManyToOneAssociationField('test', 'test', 'test');
         $existence = new EntityExistence('test', ['someId' => 'foo'], true, false, false, []);
         $keyPair = new KeyValuePair('someId', null, false);
         $bag = new WriteParameterBag(
@@ -125,7 +125,7 @@ class VariantListingConfigFieldSerializerTest extends TestCase
     }
 
     /**
-     * @param array<string, int|string|array<string, bool|string>|null>  $data
+     * @param array<string, int|string|array<string, bool|string>|null> $data
      *
      * @throws \JsonException
      *

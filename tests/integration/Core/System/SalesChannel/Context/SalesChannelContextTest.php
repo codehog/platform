@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\System\SalesChannel\Context;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Exception\CustomerNotLoggedInException;
 use Shopware\Core\Framework\Context;
@@ -25,7 +26,7 @@ use Shopware\Core\Test\TestDefaults;
 /**
  * @internal
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
 class SalesChannelContextTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -660,7 +661,7 @@ class SalesChannelContextTest extends TestCase
 
         $salesChannelContext = $this->createSalesChannelContext([], [SalesChannelContextService::SHIPPING_METHOD_ID => $shippingMethodIdNoExits]);
 
-        $repository = $this->getContainer()->get('sales_channel.repository');
+        $repository = static::getContainer()->get('sales_channel.repository');
         /** @var SalesChannelEntity $salesChannel */
         $salesChannel = $repository->search(new Criteria([$salesChannelContext->getSalesChannelId()]), $salesChannelContext->getContext())->first();
 
@@ -668,9 +669,7 @@ class SalesChannelContextTest extends TestCase
         static::assertNotSame($shippingMethodIdNoExits, $salesChannelContext->getSalesChannel()->getShippingMethodId());
     }
 
-    /**
-     * @dataProvider ensureLoginProvider
-     */
+    #[DataProvider('ensureLoginProvider')]
     public function testEnsureLogin(bool $login, bool $isGuest, bool $allowGuest, bool $shouldThrow): void
     {
         $options = [];
@@ -734,7 +733,7 @@ class SalesChannelContextTest extends TestCase
     protected function getValidCountryIds(int $limit): array
     {
         /** @var EntityRepository $repository */
-        $repository = $this->getContainer()->get('country.repository');
+        $repository = static::getContainer()->get('country.repository');
 
         $criteria = (new Criteria())->setLimit($limit);
 
@@ -747,7 +746,7 @@ class SalesChannelContextTest extends TestCase
     protected function createCountryState(string $countryId): string
     {
         /** @var EntityRepository $repository */
-        $repository = $this->getContainer()->get('country_state.repository');
+        $repository = static::getContainer()->get('country_state.repository');
         $id = Uuid::randomHex();
 
         $repository->create(
@@ -765,10 +764,10 @@ class SalesChannelContextTest extends TestCase
     private function createSalesChannelContext(array $taxData = [], array $options = []): SalesChannelContext
     {
         if ($taxData !== []) {
-            $this->getContainer()->get('tax.repository')->create($taxData, Context::createDefaultContext());
+            static::getContainer()->get('tax.repository')->create($taxData, Context::createDefaultContext());
         }
 
-        $salesChannelContextFactory = $this->getContainer()->get(SalesChannelContextFactory::class);
+        $salesChannelContextFactory = static::getContainer()->get(SalesChannelContextFactory::class);
 
         $token = Uuid::randomHex();
 
@@ -778,7 +777,7 @@ class SalesChannelContextTest extends TestCase
     private function loadTaxRuleTypes(): TaxRuleTypeCollection
     {
         /** @var TaxRuleTypeCollection $collection */
-        $collection = $this->getContainer()->get('tax_rule_type.repository')->search(new Criteria(), Context::createDefaultContext())->getEntities();
+        $collection = static::getContainer()->get('tax_rule_type.repository')->search(new Criteria(), Context::createDefaultContext())->getEntities();
 
         return $collection;
     }
@@ -793,7 +792,7 @@ class SalesChannelContextTest extends TestCase
         ?array $countryState = null,
         bool $isGuest = false
     ): void {
-        $customerRepository = $this->getContainer()->get('customer.repository');
+        $customerRepository = static::getContainer()->get('customer.repository');
         $salutationId = $this->getValidSalutationId();
 
         $billingAddress = [
@@ -826,7 +825,6 @@ class SalesChannelContextTest extends TestCase
             'salesChannelId' => TestDefaults::SALES_CHANNEL,
             'defaultShippingAddress' => $shippingAddress,
             'defaultBillingAddress' => $billingAddress,
-            'defaultPaymentMethodId' => $this->getAvailablePaymentMethod()->getId(),
             'groupId' => TestDefaults::FALLBACK_CUSTOMER_GROUP,
             'email' => Uuid::randomHex() . '@example.com',
             'guest' => $isGuest,

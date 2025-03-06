@@ -3,13 +3,13 @@
     "visibility": {
       "textHeadline": "Sichtbarkeit je Verkaufskanal festlegen",
       "placeholderVisibility": "Verkaufskanäle zuweisen ...",
+      "columnSalesChannel": "Verkaufskanal",
       "columnAll": "Sichtbar",
       "columnSearchOnly": "In Produktlisten ausblenden",
-      "columnLinkOnly": "In Produktlisten und der Suche ausblenden",
+      "columnLinkOnly": "In Produktlisten und Suche ausblenden",
       "visibilityModalDescription": "Mit der Option “In Produktlisten ausblenden” wird das Produkt von Übersichtslisten, sowie Produkt-Slidern und Cross Sellings ausgeblendet. Mit der Option “In Produktlisten und der Suche ausblenden” wird das Produkt auch über die Suche nicht mehr angezeigt. Augeblendete Produkte können immer noch über die URL erreicht werden.",
       "linkAdvancedVisibility": "Sichtbarkeit für ausgewählte Verkaufskanäle einstellen",
       "labelVisibility": "Sichtbarkeit",
-      "closeModal": "Übernehmen",
       "bodyVisibility": "Füge Verkaufskanäle hinzu, die dieses Produkt anzeigen. Über den unten stehenden Link kannst Du die Sichtbarkeit des Produktes in Deinen Storefront-Verkausfkanälen weiter beeinflussen.",
       "errorMessage": "Die Standardkonfiguration des Verkaufskanals konnte nicht geladen werden."
     },
@@ -127,6 +127,7 @@
       "placeholderHeight": "z.B. 200 ...",
       "placeholderLength": "z.B.100 ...",
       "placeholderWeight": "z.B. 0,4 ...",
+      "placeholderTime": "z.B. 31 ...",
       "placeholderStock": "Gib den Lagerbestand ein ...",
       "placeholderMinPurchase": "Mindestabnahme ...",
       "placeholderMaxPurchase": "Maximalabnahme ...",
@@ -181,7 +182,7 @@
       "cardTitleReviews": "Bewertungen"
     },
     "reviewForm": {
-      "labelStatus": "Sichtbar",
+      "labelStatus": "Freigegeben",
       "labelCreatedAt": "Erstellt am",
       "labelPoints": "Sterne",
       "labelTitle": "Titel",
@@ -190,12 +191,11 @@
       "modal": {
         "confirmTitle": "Bewertung löschen",
         "confirmText": "Möchten Sie diese Bewertung wirklich löschen?",
-        "buttonCancel": "Abbrechen",
         "buttonDelete": "Löschen"
       },
       "messageEmptyTitle": "Produkt noch nicht bewertet",
-      "messageEmptySubline": "Du kannst Bewertungen anderer Produkte durchsuchen.",
-      "emptyStateButton": "Andere Bewertungen öffnen"
+      "messageEmptySubline": "Sieh Dir stattdessen die Bewertungen anderer Produkte an.",
+      "emptyStateButton": "Zu den Bewertungen"
     },
     "prices": {
       "cardTitlePriceRule": "Neue Preisregel",
@@ -220,7 +220,6 @@
       "textProductOverview": "Produkte",
       "buttonAddProduct": "Produkt anlegen",
       "buttonAddDownloadableProduct": "Digitales Produkt anlegen",
-      "buttonCancel": "Abbrechen",
       "buttonDuplicate": "Duplizieren",
       "buttonDelete": "Löschen",
       "columnName": "Name",
@@ -265,7 +264,6 @@
     },
     "detail": {
       "textHeadline": "Neues Produkt",
-      "buttonCancel": "Abbrechen",
       "buttonSave": "Speichern",
       "buttonSaveDuplicate": "Speichern und duplizieren",
       "buttonSaveAndNew": "Speichern und neues erstellen",
@@ -287,7 +285,9 @@
       "errorHeadline": "Fehler",
       "errorNoImage": "\"{file}\" ist kein Bild.",
       "errorMediaItemDuplicated": "Medium \"{fileName}\" bereits verwendet.",
-      "coverSubline": "Cover"
+      "coverSubline": "Cover",
+      "spatialSubline": "3D",
+      "arSubline": "AR"
     },
     "advancedPrices": {
       "deletionNotPossibleMessage": "Es muss immer mindestens eine Preisstaffel vorhanden sein. Versuche alternativ, die gesamte Preisregel zu löschen.",
@@ -322,6 +322,7 @@
       "buttonAddProperty": "Eigenschaft konfigurieren",
       "buttonAddProperties": "Eigenschaften konfigurieren",
       "titleEmptyState": "Diesem Produkt sind noch keine Eigenschaften zugewiesen worden.",
+      "titleEmptyStateList": "Keine Eigenschaften gefunden.",
       "columnProperty": "Eigenschaft",
       "columnValue": "Eigenschaftsausprägung",
       "placeholderSearchAddedProperties": "Hinzugefügte Eigenschaften durchsuchen ...",
@@ -342,7 +343,6 @@
       "generateVariationsButton": "Varianten speichern",
       "nextModalButton": "Weiter",
       "deleteVariationsButton": "Alle Varianten löschen",
-      "cancelVariationsButton": "Abbrechen",
       "backVariationsButton": "Zurück",
       "configuratorCardTitle": "Varianten generieren",
       "generatedVariationCardTitle": "Varianten",
@@ -372,7 +372,6 @@
       "generatedListContextMenuDelete": "Löschen",
       "generatedListDeleteModalMessage": "Möchtest Du die Variante löschen?",
       "generatedListDeleteModalMessagePlural": "Möchten Sie diese Varianten löschen?",
-      "generatedListDeleteModalButtonCancel": "Abbrechen",
       "generatedListDeleteModalButtonDelete": "Löschen",
       "generatedListMessageSaveSuccess": "Die Variante wurde gespeichert.",
       "generatedListMessageSaveError": "Die Variante konnte nicht gespeichert werden.",
@@ -409,13 +408,13 @@
         "singleRestrictionSeperation": "Und",
         "deleteCombination": "Löschen",
         "isOneFrom": "ist eine von",
-        "cancel": "Abbrechen",
         "save": "Speichern",
         "searchPlaceholder": "Durchsuche Ausprägungen ...",
         "singleRestrictionAddTitle": "Ausprägungen ausschließen",
         "surchargeNotice": "Änderungen an den Auf-/Abschlägen haben keine Auswirkungen auf bereits generierte Varianten. Bitte nutze die Varianten-Detailseite um Änderungen an den Preisen vorzunehmen.",
         "digitalVariantSwitch": "Alle zu digitalen Varianten machen",
-        "removeAllButton": "Von allen Varianten entfernen"
+        "removeAllButton": "Von allen Varianten entfernen",
+        "addVariantsOnly": "Nur Varianten hinzufügen"
       },
       "deliveryModal": {
         "modalHeadline": "Varianten-Ausspielung in der Storefront",
@@ -433,7 +432,6 @@
         "listingExplanationModeMainProduct": "Wähle eine Variante, die auf der Produktdetailseite vorausgewählt wird.",
         "listingLabelModeExpanded": "Auffächern der Eigenschaften in Produktliste",
         "listingPlaceholderSelectMainVariant": "Wähle eine Variante ...",
-        "cancel": "Abbrechen",
         "save": "Speichern"
       }
     },
@@ -468,22 +466,29 @@
       "productStreamType": "Dynamische Produktgruppe",
       "productListType": "Manuelle Zuweisung",
       "deleteConfirmTitle": "Cross Selling löschen",
-      "deleteConfirmText": "Möchtest Du die Cross Selling-Konfiguration wirklich löschen?",
-      "deleteButtonCancel": "Zurück",
+      "deleteConfirmText": "Möchtest Du die Cross-Selling-Konfiguration wirklich löschen?",
       "deleteButtonDelete": "Löschen",
       "linkOpenStreamPreview": "Vorschau öffnen",
       "emptyStateDescription": "Für dieses Produkt existiert noch keine Cross-Selling-Konfiguration.",
+      "inheritedEmptyStateDescription": "Dieses Produkt hat vererbte Cross Sellings vom Hauptprodukt.",
+      "notInheritedEmptyStateDescription": "Du kannst jetzt benutzerdefinierte Cross-Selling-Konfigurationen für diese Variante verwenden.",
       "assignEmptyStateDescription": "Das Cross Selling muss zunächst gespeichert werden, bevor Du Produkte hinzufügen kannst.",
-      "assignPlaceholder": "Durchsuche Produkte ..."
+      "assignPlaceholder": "Durchsuche Produkte ...",
+      "linkCrossSellingsOfParent": "Zeige die Cross Sellings des Hauptprodukts",
+      "inheritSwitchLabel": "Nutze die Cross Sellings des Hauptprodukts",
+      "buttonRestoreCrossSellingInheritance": "Vererbung wiederherstellen",
+      "restoreInheritanceConfirmTitle": "Cross Selling Vererbung wiederherstellen",
+      "restoreInheritanceConfirmText": "Möchtest Du die Cross-Selling-Vererbung wirklich wiederherstellen? Alle Cross-Selling-Konfigurationen dieser Variante werden dabei gelöscht.",
+      "restoreInheritanceButtonRestore": "Vererbung wiederherstellen"
     },
     "featureSets": {
       "cardTitle": "Wesentliche Merkmale",
       "descriptionTitle": "Wesentliche Merkmale",
-      "descriptionBody": "Wesentliche Merkmale helfen Dir, relevante Merkmale Deiner Produkte festzulegen. Diese Merkmale werden hervorgehoben im Warenkorb und Checkout dargestellt.",
-      "configInformation": "Lege zuerst Vorlagen für {0} an und weise sie dann dem Produkt mittels des Auswahlfeldes unten hinzu.",
+      "descriptionBody": "Wesentliche Merkmale helfen Dir, relevante Merkmale Deiner Produkte festzulegen. Diese Merkmale werden hervorgehoben im Warenkorb und an der Kasse dargestellt.",
+      "configInformation": "Lege zuerst Templates für {0} an und weise sie dann dem Produkt mittels des Auswahlfeldes unten hinzu.",
       "linkFeatureSetsConfig": "Wesentliche Merkmale",
-      "templateSelectFieldLabel": "Vorlagen",
-      "templateSelectFieldPlaceholder": "Wähle eine Vorlage aus ..."
+      "templateSelectFieldLabel": "Templates",
+      "templateSelectFieldPlaceholder": "Wähle ein Template aus ..."
     },
     "layoutAssignment": {
       "title": "Standardwert",

@@ -12,7 +12,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * @internal
  */
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
 class CategoryCriteriaSubscriber implements EventSubscriberInterface
 {
     /**

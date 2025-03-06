@@ -2,19 +2,20 @@
 
 namespace Shopware\Tests\Unit\Core\System\SystemConfig\Command;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\SystemConfig\Command\ConfigGet;
+use Shopware\Core\Test\Stub\SystemConfigService\StaticSystemConfigService;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Unit\Common\Stubs\SystemConfigService\StaticSystemConfigService;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\System\SystemConfig\Command\ConfigGet
  */
-#[Package('system-settings')]
+#[Package('framework')]
+#[CoversClass(ConfigGet::class)]
 class ConfigGetCommandTest extends TestCase
 {
     private ConfigGet $configGetCommand;
@@ -24,9 +25,7 @@ class ConfigGetCommandTest extends TestCase
         $this->configGetCommand = $this->getConfigGetCommand();
     }
 
-    /**
-     * @dataProvider configFormatJsonProvider
-     */
+    #[DataProvider('configFormatJsonProvider')]
     public function testConfigGetJson(string $key, string $format, string $output): void
     {
         $commandOutput = $this->executeCommand($key, $format);
@@ -41,9 +40,7 @@ class ConfigGetCommandTest extends TestCase
         yield 'test array and json-pretty format' => ['foo.bar', 'json-pretty', '{"testBoolFalse":false,"testInt":123,"testBoolTrue":true,"testString":"test"}'];
     }
 
-    /**
-     * @dataProvider configFormatScalarProvider
-     */
+    #[DataProvider('configFormatScalarProvider')]
     public function testConfigGetScalar(string $key, string $output): void
     {
         $commandOutput = $this->executeCommand($key, 'scalar');
@@ -59,9 +56,7 @@ class ConfigGetCommandTest extends TestCase
         yield 'test int' => ['foo.bar.testInt', '123'];
     }
 
-    /**
-     * @dataProvider configFormatDefaultProvider
-     */
+    #[DataProvider('configFormatDefaultProvider')]
     public function testConfigGetDefault(string $key, string $output): void
     {
         $commandOutput = $this->executeCommand($key);
@@ -75,24 +70,6 @@ class ConfigGetCommandTest extends TestCase
         yield 'test 1D array nested' => ['foo', "bar\n    testBoolFalse => false\n    testBoolTrue => true\n    testInt => 123\n    testString => test"];
         yield 'test single value true' => ['foo.bar.testBoolTrue', 'foo.bar.testBoolTrue => true'];
         yield 'test single value int' => ['foo.bar.testInt', 'foo.bar.testInt => 123'];
-    }
-
-    /**
-     * @dataProvider configFormatLegacyProvider
-     */
-    public function testConfigGetLegacy(string $key, string $output): void
-    {
-        $commandOutput = $this->executeCommand($key, 'legacy');
-        static::assertEquals(addslashes($commandOutput), addslashes($output));
-    }
-
-    public static function configFormatLegacyProvider(): \Generator
-    {
-        // config key, output
-        yield 'test 1d array value' => ['foo.bar', "1\n123\ntest"];
-        yield 'test true' => ['foo.bar.testBoolTrue', '1'];
-        yield 'test false' => ['foo.bar.testBoolFalse', ''];
-        yield 'test int' => ['foo.bar.testInt', '123'];
     }
 
     private function executeCommand(string $key, string $format = 'default'): string

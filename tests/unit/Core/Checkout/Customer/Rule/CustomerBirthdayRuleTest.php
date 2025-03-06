@@ -2,12 +2,18 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Checkout\Customer\Rule\CustomerBirthdayRule;
+use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\Framework\Rule\RuleConfig;
@@ -18,14 +24,11 @@ use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @group rules
- *
- * @covers \Shopware\Core\Checkout\Customer\Rule\CustomerBirthdayRule
  */
+#[Package('fundamentals@after-sales')]
+#[CoversClass(CustomerBirthdayRule::class)]
+#[Group('rules')]
 class CustomerBirthdayRuleTest extends TestCase
 {
     private CustomerBirthdayRule $rule;
@@ -61,9 +64,7 @@ class CustomerBirthdayRuleTest extends TestCase
         static::assertEquals(new Choice($operators), $constraints['operator'][1]);
     }
 
-    /**
-     * @dataProvider getMatchBirthdayValues
-     */
+    #[DataProvider('getMatchBirthdayValues')]
     public function testBirthdayRuleMatching(bool $expected, ?string $customerBirthday, ?string $birthdayValue, string $operator): void
     {
         $customer = new CustomerEntity();
@@ -98,7 +99,11 @@ class CustomerBirthdayRuleTest extends TestCase
         $scope = $this->createScope($customer);
         $this->rule->assign(['birthday' => null, 'operator' => Rule::OPERATOR_EQ]);
 
-        $this->expectException(UnsupportedValueException::class);
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
         $this->rule->match($scope);
     }
 

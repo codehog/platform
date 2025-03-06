@@ -2,14 +2,12 @@ import template from './sw-language-info.html.twig';
 import './sw-language-info.scss';
 
 const { Component } = Shopware;
-const { mapState } = Shopware.Component.getComponentHelper();
 const { warn } = Shopware.Utils.debug;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description
  * Renders information text about the current language
  * @status ready
@@ -39,7 +37,6 @@ Component.register('sw-language-info', {
         changeLanguageOnParentClick: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -52,11 +49,17 @@ Component.register('sw-language-info', {
     },
 
     computed: {
-        ...mapState('context', {
-            languageId: state => state.api.languageId,
-            systemLanguageId: state => state.api.systemLanguageId,
-            language: state => state.api.language,
-        }),
+        languageId() {
+            return Shopware.Store.get('context').api.languageId;
+        },
+
+        systemLanguageId() {
+            return Shopware.Store.get('context').api.systemLanguageId;
+        },
+
+        language() {
+            return Shopware.Store.get('context').api.language;
+        },
 
         languageRepository() {
             return this.repositoryFactory.create('language');
@@ -71,8 +74,10 @@ Component.register('sw-language-info', {
             if (this.isNewEntity) {
                 return this.$tc(
                     'sw-language-info.infoTextNewEntity',
+                    {
+                        entityDescription: this.entityDescription,
+                    },
                     0,
-                    { entityDescription: this.entityDescription },
                 );
             }
 
@@ -84,11 +89,11 @@ Component.register('sw-language-info', {
             if (this.language.parentId !== null && this.language.parentId.length > 0) {
                 return this.$tc(
                     'sw-language-info.infoTextChildLanguage',
-                    0,
                     {
                         entityDescription: this.entityDescription,
                         language: this.language.name,
                     },
+                    0,
                 );
             }
 
@@ -100,11 +105,11 @@ Component.register('sw-language-info', {
             // Actual language is a root language with the system default language as fallback
             return this.$tc(
                 'sw-language-info.infoTextRootLanguage',
-                0,
                 {
                     entityDescription: this.entityDescription,
                     language: this.language.name,
                 },
+                0,
             );
         },
 
@@ -117,7 +122,7 @@ Component.register('sw-language-info', {
         // Watch the id because of ajax loading
         'language.name': {
             handler() {
-                this.refreshParentLanguage().catch(error => warn(error));
+                this.refreshParentLanguage().catch((error) => warn(error));
             },
         },
     },
@@ -142,7 +147,7 @@ Component.register('sw-language-info', {
                 return;
             }
 
-            this.$root.$emit('on-change-language-clicked', this.parentLanguage.id);
+            Shopware.Utils.EventBus.emit('on-change-language-clicked', this.parentLanguage.id);
         },
     },
 });

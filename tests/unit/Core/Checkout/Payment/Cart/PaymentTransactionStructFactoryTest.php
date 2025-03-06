@@ -2,20 +2,19 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Payment\Cart;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
-use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Payment\Cart\AbstractPaymentTransactionStructFactory;
 use Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStructFactory;
+use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 
 /**
- * @covers \Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStructFactory
- *
  * @internal
  */
 #[Package('checkout')]
+#[CoversClass(PaymentTransactionStructFactory::class)]
 class PaymentTransactionStructFactoryTest extends TestCase
 {
     public function testDecorated(): void
@@ -28,7 +27,7 @@ class PaymentTransactionStructFactoryTest extends TestCase
 
     public function testDecoration(): void
     {
-        $factory = new class() extends PaymentTransactionStructFactory {
+        $factory = new class extends PaymentTransactionStructFactory {
             public function getDecorated(): AbstractPaymentTransactionStructFactory
             {
                 return new static();
@@ -37,66 +36,27 @@ class PaymentTransactionStructFactoryTest extends TestCase
 
         static::assertInstanceOf(PaymentTransactionStructFactory::class, $factory->getDecorated());
 
-        $transaction = new OrderTransactionEntity();
-        $order = new OrderEntity();
+        $struct = $factory->build('transaction-id', Context::createDefaultContext(), 'https://return.url');
 
-        $struct = $factory->sync($transaction, $order);
-
-        static::assertSame($transaction, $struct->getOrderTransaction());
-        static::assertSame($order, $struct->getOrder());
+        static::assertSame('transaction-id', $struct->getOrderTransactionId());
+        static::assertSame('https://return.url', $struct->getReturnUrl());
     }
 
-    public function testSync(): void
+    public function testBuild(): void
     {
         $factory = new PaymentTransactionStructFactory();
+        $struct = $factory->build('transaction-id', Context::createDefaultContext(), 'https://return.url');
 
-        $transaction = new OrderTransactionEntity();
-        $order = new OrderEntity();
-
-        $struct = $factory->sync($transaction, $order);
-
-        static::assertSame($transaction, $struct->getOrderTransaction());
-        static::assertSame($order, $struct->getOrder());
+        static::assertSame('transaction-id', $struct->getOrderTransactionId());
+        static::assertSame('https://return.url', $struct->getReturnUrl());
     }
 
-    public function testAsync(): void
+    public function testRefund(): void
     {
         $factory = new PaymentTransactionStructFactory();
+        $struct = $factory->refund('refund-id', 'transaction-id');
 
-        $transaction = new OrderTransactionEntity();
-        $order = new OrderEntity();
-        $returnUrl = 'https://return.url';
-
-        $struct = $factory->async($transaction, $order, $returnUrl);
-
-        static::assertSame($transaction, $struct->getOrderTransaction());
-        static::assertSame($order, $struct->getOrder());
-        static::assertSame($returnUrl, $struct->getReturnUrl());
-    }
-
-    public function testPrepared(): void
-    {
-        $factory = new PaymentTransactionStructFactory();
-
-        $transaction = new OrderTransactionEntity();
-        $order = new OrderEntity();
-
-        $struct = $factory->prepared($transaction, $order);
-
-        static::assertSame($transaction, $struct->getOrderTransaction());
-        static::assertSame($order, $struct->getOrder());
-    }
-
-    public function testRecurring(): void
-    {
-        $factory = new PaymentTransactionStructFactory();
-
-        $transaction = new OrderTransactionEntity();
-        $order = new OrderEntity();
-
-        $struct = $factory->recurring($transaction, $order);
-
-        static::assertSame($transaction, $struct->getOrderTransaction());
-        static::assertSame($order, $struct->getOrder());
+        static::assertSame('refund-id', $struct->getRefundId());
+        static::assertSame('transaction-id', $struct->getOrderTransactionId());
     }
 }

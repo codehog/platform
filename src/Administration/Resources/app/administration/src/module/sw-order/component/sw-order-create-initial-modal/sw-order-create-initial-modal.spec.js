@@ -1,9 +1,9 @@
-import Vuex from 'vuex';
-import { createLocalVue, shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import 'src/module/sw-order/mixin/cart-notification.mixin';
-import swOrderCreateInitialModal from 'src/module/sw-order/component/sw-order-create-initial-modal';
-import 'src/app/component/base/sw-button';
-import orderStore from 'src/module/sw-order/state/order.store';
+
+/**
+ * @sw-package checkout
+ */
 
 const lineItem = {
     label: 'Product',
@@ -20,40 +20,43 @@ const cartResponse = {
 
 const cartToken = 'is-exactly-32-chars-as-required-';
 
-Shopware.Component.register('sw-order-create-initial-modal', swOrderCreateInitialModal);
+let stubs = {};
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
-
-    return shallowMount(await Shopware.Component.build('sw-order-create-initial-modal'), {
-        localVue,
-        stubs: {
-            'sw-modal': {
-                template: `
-                    <div class="sw-modal">
-                        <slot name="default"></slot>
-                        <slot name="modal-footer"></slot>
-                    </div>`,
-            },
-            'sw-container': {
-                template: '<div class="sw-container"><slot></slot></div>',
-            },
-            'sw-tabs': {
-                data() {
-                    return { active: 'customer' };
-                },
-                template: '<div class="sw-tabs"><slot></slot><slot name="content" v-bind="{ active }"></slot></div>',
-            },
-            'sw-tabs-item': true,
-            'sw-order-customer-grid': true,
-            'sw-order-line-items-grid-sales-channel': true,
-            'sw-order-create-options': true,
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-icon': true,
-            'sw-loader': true,
+    stubs = {
+        'sw-modal': {
+            template: `
+                <div class="sw-modal">
+                    <slot name="default"></slot>
+                    <slot name="modal-footer"></slot>
+                </div>`,
         },
-    });
+        'sw-container': {
+            template: '<div class="sw-container"><slot></slot></div>',
+        },
+        'sw-tabs': {
+            data() {
+                return { active: 'customer' };
+            },
+            template: '<div class="sw-tabs"><slot></slot><slot name="content" v-bind="{ active }"></slot></div>',
+        },
+        'sw-tabs-item': true,
+        'sw-order-customer-grid': true,
+        'sw-order-line-items-grid-sales-channel': true,
+        'sw-order-create-options': true,
+        'sw-loader': true,
+        'router-link': true,
+    };
+    return mount(
+        await wrapTestComponent('sw-order-create-initial-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs,
+            },
+        },
+    );
 }
 
 const tabs = [
@@ -66,12 +69,13 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
         Shopware.Service().register('cartStoreService', () => {
             return {
                 cancelCart: () => Promise.resolve({}),
-                saveLineItem: () => Promise.resolve({
-                    data: {
-                        ...cartResponse.data,
-                        lineItems: [{ ...lineItem }],
-                    },
-                }),
+                saveLineItem: () =>
+                    Promise.resolve({
+                        data: {
+                            ...cartResponse.data,
+                            lineItems: [{ ...lineItem }],
+                        },
+                    }),
                 removeLineItems: () => Promise.resolve(cartResponse),
                 disableAutomaticPromotions: () => Promise.resolve(cartResponse),
                 addMultipleLineItems: () => Promise.resolve(cartResponse),
@@ -84,12 +88,10 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
                 updateContext: () => Promise.resolve({}),
             };
         });
-
-        Shopware.State.registerModule('swOrder', orderStore);
     });
 
     afterEach(() => {
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: null,
             lineItems: [],
             deliveries: [],
@@ -99,63 +101,58 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
     it('should disabled other tabs if customer is not selected', async () => {
         const wrapper = await createWrapper();
 
-        tabs.forEach(tab => {
+        tabs.forEach((tab) => {
             expect(wrapper.find(tab).attributes().disabled).toBeTruthy();
         });
     });
 
     it('should enable other tabs if customer is selected', async () => {
-        Shopware.State.commit('swOrder/setCustomer', {
+        Shopware.Store.get('swOrder').setCustomer({
             id: '1234',
         });
 
         const wrapper = await createWrapper();
 
-        tabs.forEach(tab => {
+        tabs.forEach((tab) => {
             expect(wrapper.find(tab).attributes().disabled).toBeUndefined();
         });
     });
 
     it('should show tab content correctly', async () => {
-        Shopware.State.commit('swOrder/setCustomer', {
+        Shopware.Store.get('swOrder').setCustomer({
             id: '1234',
         });
         const wrapper = await createWrapper();
 
-        expect(wrapper.find('sw-order-customer-grid-stub')
-            .attributes('style')).toBeUndefined();
+        expect(wrapper.find('sw-order-customer-grid-stub').attributes('style')).toBeUndefined();
 
-        expect(wrapper.find('sw-order-line-items-grid-sales-channel-stub')
-            .attributes('style')).toBe('display: none;');
+        expect(wrapper.findComponent('sw-order-line-items-grid-sales-channel-stub').attributes('style')).toBe(
+            'display: none;',
+        );
 
-        expect(wrapper.find('sw-order-create-options-stub')
-            .exists()).toBeFalsy();
+        expect(wrapper.find('sw-order-create-options-stub').isVisible()).toBeFalsy();
 
-        await wrapper.find('.sw-tabs').setData({
+        await wrapper.findComponent(stubs['sw-tabs']).setData({
             active: 'products',
         });
 
-        expect(wrapper.find('sw-order-customer-grid-stub')
-            .attributes('style')).toBe('display: none;');
+        expect(wrapper.find('sw-order-customer-grid-stub').isVisible()).toBeFalsy();
 
-        expect(wrapper.find('sw-order-line-items-grid-sales-channel-stub')
-            .attributes('style')).toBeFalsy();
+        expect(wrapper.findComponent('sw-order-line-items-grid-sales-channel-stub').attributes('style')).toBeFalsy();
 
-        expect(wrapper.find('sw-order-create-options-stub')
-            .exists()).toBeFalsy();
+        expect(wrapper.find('sw-order-create-options-stub').isVisible()).toBeFalsy();
 
-        await wrapper.find('.sw-tabs').setData({
+        await wrapper.findComponent(stubs['sw-tabs']).setData({
             active: 'options',
         });
 
-        expect(wrapper.find('sw-order-customer-grid-stub')
-            .attributes('style')).toBe('display: none;');
+        expect(wrapper.find('sw-order-customer-grid-stub').isVisible()).toBeFalsy();
 
-        expect(wrapper.find('sw-order-line-items-grid-sales-channel-stub')
-            .attributes('style')).toBe('display: none;');
+        expect(wrapper.findComponent('sw-order-line-items-grid-sales-channel-stub').attributes('style')).toBe(
+            'display: none;',
+        );
 
-        expect(wrapper.find('sw-order-create-options-stub')
-            .exists()).toBeTruthy();
+        expect(wrapper.find('sw-order-create-options-stub').exists()).toBeTruthy();
     });
 
     it('should emit modal-close when click cancel button', async () => {
@@ -167,7 +164,7 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
     });
 
     it('should cancel cart when click cancel button', async () => {
-        Shopware.State.commit('swOrder/setCartToken', cartToken);
+        Shopware.Store.get('swOrder').setCartToken(cartToken);
 
         const wrapper = await createWrapper();
         const spyCancelCart = jest.spyOn(wrapper.vm, 'cancelCart');
@@ -181,7 +178,7 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
     it('should be able to save line item', async () => {
         const wrapper = await createWrapper();
 
-        const productGrid = wrapper.find('sw-order-line-items-grid-sales-channel-stub');
+        const productGrid = wrapper.findComponent('sw-order-line-items-grid-sales-channel-stub');
         productGrid.vm.$emit('on-save-item', lineItem);
 
         await flushPromises();
@@ -192,7 +189,7 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
     it('should be able to remove line item', async () => {
         const wrapper = await createWrapper();
 
-        const productGrid = wrapper.find('sw-order-line-items-grid-sales-channel-stub');
+        const productGrid = wrapper.findComponent('sw-order-line-items-grid-sales-channel-stub');
         productGrid.vm.$emit('on-remove-items', ['product1']);
 
         await flushPromises();
@@ -203,13 +200,13 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
     it('should able to get disable auto promotion value when it is toggled', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.find('.sw-tabs').setData({
+        await wrapper.findComponent(stubs['sw-tabs']).setData({
             active: 'options',
         });
 
         expect(wrapper.vm.disabledAutoPromotion).toBeFalsy();
 
-        const optionsView = wrapper.find('sw-order-create-options-stub');
+        const optionsView = wrapper.findComponent('sw-order-create-options-stub');
         optionsView.vm.$emit('auto-promotion-toggle', true);
 
         expect(wrapper.vm.disabledAutoPromotion).toBeTruthy();
@@ -218,51 +215,59 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
     it('should able to get promotion codes change', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.find('.sw-tabs').setData({
+        await wrapper.findComponent(stubs['sw-tabs']).setData({
             active: 'options',
         });
 
         expect(wrapper.vm.promotionCodes).toEqual([]);
 
-        const optionsView = wrapper.find('sw-order-create-options-stub');
-        optionsView.vm.$emit('promotions-change', ['DISCOUNT', 'XMAS']);
+        const optionsView = wrapper.findComponent('sw-order-create-options-stub');
+        optionsView.vm.$emit('promotions-change', [
+            'DISCOUNT',
+            'XMAS',
+        ]);
 
-        expect(wrapper.vm.promotionCodes).toEqual(['DISCOUNT', 'XMAS']);
+        expect(wrapper.vm.promotionCodes).toEqual([
+            'DISCOUNT',
+            'XMAS',
+        ]);
     });
 
     it('should able to get shipping cost change', async () => {
         const wrapper = await createWrapper();
 
-        await wrapper.find('.sw-tabs').setData({
+        await wrapper.findComponent(stubs['sw-tabs']).setData({
             active: 'options',
         });
 
         expect(wrapper.vm.shippingCosts).toBeNull();
 
-        const optionsView = wrapper.find('sw-order-create-options-stub');
+        const optionsView = wrapper.findComponent('sw-order-create-options-stub');
         optionsView.vm.$emit('shipping-cost-change', 100);
 
         expect(wrapper.vm.shippingCosts).toBe(100);
     });
 
     it('should able to preview order', async () => {
-        Shopware.State.commit('swOrder/setCart', {
+        Shopware.Store.get('swOrder').setCart({
             token: cartToken,
             lineItems: [],
-            deliveries: [{
-                shippingCosts: {
-                    totalPrice: 50,
+            deliveries: [
+                {
+                    shippingCosts: {
+                        totalPrice: 50,
+                    },
                 },
-            }],
+            ],
         });
 
         const wrapper = await createWrapper();
 
-        await wrapper.find('.sw-tabs').setData({
+        await wrapper.findComponent(stubs['sw-tabs']).setData({
             active: 'options',
         });
 
-        const optionsView = wrapper.find('sw-order-create-options-stub');
+        const optionsView = wrapper.findComponent('sw-order-create-options-stub');
         optionsView.vm.$emit('auto-promotion-toggle', true);
         optionsView.vm.$emit('promotions-change', ['DISCOUNT']);
         optionsView.vm.$emit('shipping-cost-change', 100);
@@ -287,7 +292,7 @@ describe('src/module/sw-order/view/sw-order-create-initial-modal', () => {
             shippingAddressId: '',
         });
 
-        Shopware.State.commit('swOrder/setContext', {
+        Shopware.Store.get('swOrder').setContext({
             context: {
                 currencyId: 'euro',
                 languageIdChain: [

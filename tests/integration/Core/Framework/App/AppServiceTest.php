@@ -4,11 +4,11 @@ namespace Shopware\Tests\Integration\Core\Framework\App;
 
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\App\Aggregate\ActionButton\ActionButtonEntity;
-use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\AppService;
 use Shopware\Core\Framework\App\Lifecycle\AppLifecycle;
 use Shopware\Core\Framework\App\Lifecycle\AppLifecycleIterator;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppInstallParameters;
 use Shopware\Core\Framework\App\Manifest\Manifest;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -16,6 +16,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Test\AppSystemTestBehaviour;
 use Symfony\Component\Finder\Finder;
 
 /**
@@ -36,15 +37,15 @@ class AppServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->appRepository = $this->getContainer()->get('app.repository');
-        $this->actionButtonRepository = $this->getContainer()->get('app_action_button.repository');
+        $this->appRepository = static::getContainer()->get('app.repository');
+        $this->actionButtonRepository = static::getContainer()->get('app_action_button.repository');
 
         $this->appService = new AppService(
             new AppLifecycleIterator(
                 $this->appRepository,
                 $this->getAppLoader(__DIR__ . '/Manifest/_fixtures/test')
             ),
-            $this->getContainer()->get(AppLifecycle::class)
+            static::getContainer()->get(AppLifecycle::class)
         );
 
         $this->context = Context::createDefaultContext();
@@ -52,15 +53,14 @@ class AppServiceTest extends TestCase
 
     public function testRefreshInstallsNewApp(): void
     {
-        $this->appService->doRefreshApps(true, $this->context);
+        $this->appService->doRefreshApps(new AppInstallParameters(), $this->context);
 
-        /** @var AppCollection $apps */
         $apps = $this->appRepository->search(new Criteria(), $this->context)->getEntities();
 
         static::assertCount(1, $apps);
         $first = $apps->first();
         static::assertInstanceOf(AppEntity::class, $first);
-        static::assertEquals('test', $first->getName());
+        static::assertSame('test', $first->getName());
 
         $this->assertDefaultActionButtons();
     }
@@ -85,7 +85,6 @@ class AppServiceTest extends TestCase
             ],
             'integration' => [
                 'label' => 'test',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],
@@ -94,16 +93,15 @@ class AppServiceTest extends TestCase
             ],
         ]], $this->context);
 
-        $this->appService->doRefreshApps(true, $this->context);
+        $this->appService->doRefreshApps(new AppInstallParameters(), $this->context);
 
-        /** @var AppCollection $apps */
         $apps = $this->appRepository->search(new Criteria(), $this->context)->getEntities();
 
         static::assertCount(1, $apps);
         $first = $apps->first();
         static::assertInstanceOf(AppEntity::class, $first);
-        static::assertEquals('test', $first->getName());
-        static::assertEquals('1.0.0', $first->getVersion());
+        static::assertSame('test', $first->getName());
+        static::assertSame('1.0.0', $first->getVersion());
         static::assertNotEquals('test', $first->getTranslation('label'));
 
         $this->assertDefaultActionButtons();
@@ -119,7 +117,6 @@ class AppServiceTest extends TestCase
             'accessToken' => 'test',
             'integration' => [
                 'label' => 'test',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],
@@ -128,17 +125,16 @@ class AppServiceTest extends TestCase
             ],
         ]], $this->context);
 
-        $this->appService->doRefreshApps(true, $this->context);
+        $this->appService->doRefreshApps(new AppInstallParameters(), $this->context);
 
-        /** @var AppCollection $apps */
         $apps = $this->appRepository->search(new Criteria(), $this->context)->getEntities();
 
         static::assertCount(1, $apps);
         $first = $apps->first();
         static::assertInstanceOf(AppEntity::class, $first);
-        static::assertEquals('test', $first->getName());
-        static::assertEquals('1.0.0', $first->getVersion());
-        static::assertEquals('test', $first->getTranslation('label'));
+        static::assertSame('test', $first->getName());
+        static::assertSame('1.0.0', $first->getVersion());
+        static::assertSame('test', $first->getTranslation('label'));
     }
 
     public function testRefreshDeletesApp(): void
@@ -162,7 +158,6 @@ class AppServiceTest extends TestCase
             ],
             'integration' => [
                 'label' => 'test',
-                'writeAccess' => false,
                 'accessKey' => 'test',
                 'secretAccessKey' => 'test',
             ],
@@ -173,7 +168,7 @@ class AppServiceTest extends TestCase
 
         static::assertCount(1, $this->appRepository->searchIds(new Criteria(), $this->context)->getIds());
 
-        $this->appService->doRefreshApps(true, $this->context);
+        $this->appService->doRefreshApps(new AppInstallParameters(), $this->context);
 
         $apps = $this->appRepository->searchIds(new Criteria([$appId]), $this->context)->getIds();
         static::assertCount(0, $apps);
@@ -204,7 +199,6 @@ class AppServiceTest extends TestCase
                 ],
                 'integration' => [
                     'label' => 'test',
-                    'writeAccess' => false,
                     'accessKey' => 'test',
                     'secretAccessKey' => 'test',
                 ],
@@ -229,7 +223,6 @@ class AppServiceTest extends TestCase
                 ],
                 'integration' => [
                     'label' => 'test',
-                    'writeAccess' => false,
                     'accessKey' => 'test',
                     'secretAccessKey' => 'test',
                 ],
@@ -244,17 +237,17 @@ class AppServiceTest extends TestCase
                 $this->appRepository,
                 $this->getAppLoader(__DIR__ . '/Manifest/_fixtures')
             ),
-            $this->getContainer()->get(AppLifecycle::class)
+            static::getContainer()->get(AppLifecycle::class)
         );
         $refreshableApps = $appService->getRefreshableAppInfo($this->context);
 
-        static::assertCount(9, $refreshableApps->getToBeInstalled());
+        static::assertCount(7, $refreshableApps->getToBeInstalled());
         static::assertCount(1, $refreshableApps->getToBeUpdated());
         static::assertCount(1, $refreshableApps->getToBeDeleted());
 
         static::assertInstanceOf(Manifest::class, array_values($refreshableApps->getToBeInstalled())[0]);
         static::assertInstanceOf(Manifest::class, array_values($refreshableApps->getToBeUpdated())[0]);
-        static::assertEquals('deleteTest', array_values($refreshableApps->getToBeDeleted())[0]);
+        static::assertSame('deleteTest', array_values($refreshableApps->getToBeDeleted())[0]);
     }
 
     public function testInstallFailureDoesNotAffectAllApps(): void
@@ -275,15 +268,15 @@ class AppServiceTest extends TestCase
                 $this->appRepository,
                 $this->getAppLoader($appDir)
             ),
-            $this->getContainer()->get(AppLifecycle::class)
+            static::getContainer()->get(AppLifecycle::class)
         );
 
-        $fails = $appService->doRefreshApps(true, $this->context);
+        $fails = $appService->doRefreshApps(new AppInstallParameters(), $this->context);
         $apps = $this->appRepository->search(new Criteria(), $this->context)->getEntities();
 
-        static::assertCount(13, $manifests); // 2 are not parsable
-        static::assertCount(7, $apps);
-        static::assertCount(3, $fails);
+        static::assertCount(8, $manifests); // 2 are not parsable
+        static::assertCount(6, $apps);
+        static::assertCount(2, $fails);
     }
 
     private function assertDefaultActionButtons(): void
@@ -291,9 +284,7 @@ class AppServiceTest extends TestCase
         $actionButtons = $this->actionButtonRepository->search(new Criteria(), $this->context)->getEntities();
         static::assertCount(2, $actionButtons);
 
-        /** @var ActionButtonEntity[] $actionButtons */
-        $actionButtons = $actionButtons->getElements();
-        $actionNames = \array_map(fn (ActionButtonEntity $actionButton) => $actionButton->getAction(), $actionButtons);
+        $actionNames = $actionButtons->map(fn (ActionButtonEntity $actionButton) => $actionButton->getAction());
 
         static::assertContains('viewOrder', $actionNames);
         static::assertContains('doStuffWithProducts', $actionNames);

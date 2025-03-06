@@ -7,55 +7,34 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\DataAbstractionLayer\Version\Aggregate\VersionCommit\VersionCommitEntity;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 class VersionCommitDataEntity extends Entity
 {
     use EntityIdTrait;
 
-    /**
-     * @var int
-     */
-    protected $autoIncrement;
+    protected int $autoIncrement;
+
+    protected string $versionCommitId;
+
+    protected string $entityName;
 
     /**
-     * @var string
+     * @var array{id: string, versionId: string}
      */
-    protected $versionCommitId;
+    protected array $entityId;
+
+    protected string $action;
 
     /**
-     * @var string
+     * @var array<string, mixed>|null
      */
-    protected $entityName;
+    protected ?array $payload = null;
 
-    /**
-     * @var array
-     */
-    protected $entityId;
+    protected ?VersionCommitEntity $commit = null;
 
-    /**
-     * @var string
-     */
-    protected $action;
+    protected ?string $userId = null;
 
-    /**
-     * @var array|null
-     */
-    protected $payload;
-
-    /**
-     * @var VersionCommitEntity|null
-     */
-    protected $commit;
-
-    /**
-     * @var string|null
-     */
-    protected $userId;
-
-    /**
-     * @var string|null
-     */
-    protected $integrationId;
+    protected ?string $integrationId = null;
 
     public function getAutoIncrement(): int
     {
@@ -87,11 +66,17 @@ class VersionCommitDataEntity extends Entity
         $this->entityName = $entityName;
     }
 
+    /**
+     * @return array{id: string, versionId: string}
+     */
     public function getEntityId(): array
     {
         return $this->entityId;
     }
 
+    /**
+     * @param array{id: string, versionId: string} $entityId
+     */
     public function setEntityId(array $entityId): void
     {
         $this->entityId = $entityId;
@@ -107,11 +92,17 @@ class VersionCommitDataEntity extends Entity
         $this->action = $action;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getPayload(): ?array
     {
         return $this->payload;
     }
 
+    /**
+     * @param array<string, mixed>|null $payload
+     */
     public function setPayload(?array $payload): void
     {
         $this->payload = $payload;

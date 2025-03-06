@@ -12,10 +12,10 @@ use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(defaults: ['_routeScope' => ['api']])]
-#[Package('system-settings')]
+#[Package('fundamentals@framework')]
 class AuthController extends AbstractController
 {
     /**
@@ -26,11 +26,6 @@ class AuthController extends AbstractController
         private readonly PsrHttpFactory $psrHttpFactory,
         private readonly RateLimiter $rateLimiter
     ) {
-    }
-
-    #[Route(path: '/api/oauth/authorize', name: 'api.oauth.authorize', defaults: ['auth_required' => false], methods: ['POST'])]
-    public function authorize(Request $request): void
-    {
     }
 
     #[Route(path: '/api/oauth/token', name: 'api.oauth.token', defaults: ['auth_required' => false], methods: ['POST'])]

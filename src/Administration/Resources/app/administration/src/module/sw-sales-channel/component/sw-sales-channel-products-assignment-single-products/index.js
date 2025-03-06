@@ -1,5 +1,5 @@
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
 
 import template from './sw-sales-channel-products-assignment-single-products.html.twig';
@@ -13,6 +13,8 @@ Component.register('sw-sales-channel-products-assignment-single-products', {
     template,
 
     inject: ['repositoryFactory'],
+
+    emits: ['selection-change'],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -54,9 +56,11 @@ Component.register('sw-sales-channel-products-assignment-single-products', {
             }
 
             criteria.addAssociation('visibilities.salesChannel');
-            criteria.addFilter(Criteria.not('and', [
-                Criteria.equals('product.visibilities.salesChannelId', this.salesChannel.id),
-            ]));
+            criteria.addFilter(
+                Criteria.not('and', [
+                    Criteria.equals('product.visibilities.salesChannelId', this.salesChannel.id),
+                ]),
+            );
             criteria.addFilter(Criteria.equals('parentId', null));
 
             return criteria;
@@ -90,7 +94,8 @@ Component.register('sw-sales-channel-products-assignment-single-products', {
         getProducts() {
             this.isLoading = true;
 
-            return this.productRepository.search(this.productCriteria)
+            return this.productRepository
+                .search(this.productCriteria)
                 .then((products) => {
                     this.products = products;
                     this.total = products.total;
@@ -126,9 +131,7 @@ Component.register('sw-sales-channel-products-assignment-single-products', {
             this.page = data.page;
             this.limit = data.limit;
             this.products.criteria.sortings.forEach(({ field, naturalSorting, order }) => {
-                this.productCriteria.addSorting(
-                    Criteria.sort(field, order, naturalSorting),
-                );
+                this.productCriteria.addSorting(Criteria.sort(field, order, naturalSorting));
             });
 
             this.getProducts();

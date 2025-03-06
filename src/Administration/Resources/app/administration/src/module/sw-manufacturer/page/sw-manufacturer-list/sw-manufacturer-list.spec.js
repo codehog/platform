@@ -1,55 +1,48 @@
-/*
- * @package inventory
+/**
+ * @sw-package inventory
  */
 
 import { mount } from '@vue/test-utils';
-import swManufacturerList from 'src/module/sw-manufacturer/page/sw-manufacturer-list';
 import { searchRankingPoint } from 'src/app/service/search-ranking.service';
 import Criteria from 'src/core/data/criteria.data';
 
-Shopware.Component.register('sw-manufacturer-list', swManufacturerList);
-
 async function createWrapper(privileges = []) {
-    return mount(await Shopware.Component.build('sw-manufacturer-list'), {
-        stubs: {
-            'sw-page': {
-                template: '<div><slot name="smart-bar-actions"></slot><slot name="content">CONTENT</slot></div>',
-            },
-            'sw-entity-listing': {
-                props: ['items', 'allowEdit', 'allowDelete'],
-                template: `
-                    <div>
-                        <template v-for="item in items">
-                            <slot name="actions" v-bind="{ item }"></slot>
-                        </template>
-                    </div>`,
-            },
-            'sw-empty-state': true,
-            'sw-button': true,
-            'sw-loader': true,
-            'router-link': true,
-        },
-        provide: {
-            acl: {
-                can: key => (key ? privileges.includes(key) : true),
-            },
-            stateStyleDataProviderService: {},
-            repositoryFactory: {
-                create: () => ({ search: () => Promise.resolve([]) }),
-            },
-            searchRankingService: {
-                getSearchFieldsByEntity: () => {
-                    return Promise.resolve({
-                        name: searchRankingPoint.HIGH_SEARCH_RANKING,
-                    });
+    return mount(await wrapTestComponent('sw-manufacturer-list', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-page': {
+                    template: '<div><slot name="smart-bar-actions"></slot><slot name="content">CONTENT</slot></div>',
                 },
-                buildSearchQueriesForEntity: (searchFields, term, criteria) => {
-                    return criteria;
+                'sw-entity-listing': true,
+                'sw-empty-state': true,
+                'sw-loader': true,
+                'router-link': true,
+                'sw-search-bar': true,
+                'sw-language-switch': true,
+                'sw-media-preview-v2': true,
+            },
+            provide: {
+                acl: {
+                    can: (key) => (key ? privileges.includes(key) : true),
+                },
+                stateStyleDataProviderService: {},
+                repositoryFactory: {
+                    create: () => ({ search: () => Promise.resolve([]) }),
+                },
+                searchRankingService: {
+                    getSearchFieldsByEntity: () => {
+                        return Promise.resolve({
+                            name: searchRankingPoint.HIGH_SEARCH_RANKING,
+                        });
+                    },
+                    buildSearchQueriesForEntity: (searchFields, term, criteria) => {
+                        return criteria;
+                    },
                 },
             },
-        },
-        mocks: {
-            $route: { query: '' },
+            mocks: {
+                $route: { query: '' },
+            },
         },
     });
 }
@@ -71,7 +64,7 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-list', () => {
         const wrapper = await createWrapper();
         const addButton = wrapper.find('.sw-manufacturer-list__add-manufacturer');
 
-        expect(addButton.attributes().disabled).toBe('true');
+        expect(addButton.attributes('disabled')).toBeDefined();
     });
 
     it('should be able to inline edit', async () => {
@@ -82,7 +75,7 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-list', () => {
 
         const entityListing = wrapper.find('.sw-manufacturer-list__grid');
         expect(entityListing.exists()).toBeTruthy();
-        expect(entityListing.props().allowEdit).toBeTruthy();
+        expect(entityListing.attributes('allow-inline-edit')).toBe('true');
     });
 
     it('should not be able to inline edit', async () => {
@@ -91,7 +84,7 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-list', () => {
 
         const entityListing = wrapper.find('.sw-manufacturer-list__grid');
         expect(entityListing.exists()).toBeTruthy();
-        expect(entityListing.props().allowEdit).toBeFalsy();
+        expect(entityListing.attributes('allow-inline-edit')).toBeFalsy();
     });
 
     it('should be able to inline delete', async () => {
@@ -102,7 +95,7 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-list', () => {
 
         const entityListing = wrapper.find('.sw-manufacturer-list__grid');
         expect(entityListing.exists()).toBeTruthy();
-        expect(entityListing.props().allowDelete).toBeTruthy();
+        expect(entityListing.attributes('allow-delete')).toBe('true');
     });
 
     it('should not be able to inline delete', async () => {
@@ -111,7 +104,7 @@ describe('src/module/sw-manufacturer/page/sw-manufacturer-list', () => {
 
         const entityListing = wrapper.find('.sw-manufacturer-list__grid');
         expect(entityListing.exists()).toBeTruthy();
-        expect(entityListing.props().allowDelete).toBeFalsy();
+        expect(entityListing.attributes('allow-delete')).toBeFalsy();
     });
 
     it('should add query score to the criteria', async () => {

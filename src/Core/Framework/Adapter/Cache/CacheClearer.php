@@ -3,8 +3,11 @@
 namespace Shopware\Core\Framework\Adapter\Cache;
 
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
 use Shopware\Core\DevOps\Environment\EnvironmentHelper;
+use Shopware\Core\Framework\Adapter\AdapterException;
 use Shopware\Core\Framework\Adapter\Cache\Message\CleanupOldCacheFolders;
+use Shopware\Core\Framework\Adapter\Cache\ReverseProxy\AbstractReverseProxyGateway;
 use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\Cache\PruneableInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -15,7 +18,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 /**
  * @final
  */
-#[Package('core')]
+#[Package('framework')]
 class CacheClearer
 {
     /**
@@ -26,22 +29,32 @@ class CacheClearer
     public function __construct(
         private readonly array $adapters,
         private readonly CacheClearerInterface $cacheClearer,
+        private readonly ?AbstractReverseProxyGateway $reverseProxyCache,
+        private readonly CacheInvalidator $invalidator,
         private readonly Filesystem $filesystem,
         private readonly string $cacheDir,
         private readonly string $environment,
         private readonly bool $clusterMode,
-        private readonly MessageBusInterface $messageBus
+        private readonly MessageBusInterface $messageBus,
+        private readonly LoggerInterface $logger
     ) {
     }
 
-    public function clear(): void
+    public function clear(bool $clearHttp = true): void
     {
         foreach ($this->adapters as $adapter) {
             $adapter->clear();
         }
 
+        try {
+            $this->invalidator->invalidateExpired();
+        } catch (\Throwable $e) {
+            // redis not available atm (in pipeline or build process)
+            $this->logger->critical('Could not clear cache: ' . $e->getMessage());
+        }
+
         if (!is_writable($this->cacheDir)) {
-            throw new \RuntimeException(sprintf('Unable to write in the "%s" directory', $this->cacheDir));
+            throw AdapterException::cacheDirectoryError($this->cacheDir);
         }
 
         $this->cacheClearer->clear($this->cacheDir);
@@ -56,6 +69,10 @@ class CacheClearer
         $this->cleanupUrlGeneratorCacheFiles();
 
         $this->cleanupOldContainerCacheDirectories();
+
+        if ($clearHttp) {
+            $this->reverseProxyCache?->banAll();
+        }
     }
 
     public function clearContainerCache(): void
@@ -130,6 +147,16 @@ class CacheClearer
 
         if ($remove !== []) {
             $this->filesystem->remove($remove);
+        }
+    }
+
+    public function clearHttpCache(): void
+    {
+        $this->reverseProxyCache?->banAll();
+
+        // if reverse proxy is not enabled, clear the http pool
+        if ($this->reverseProxyCache === null) {
+            $this->adapters['http']->clear();
         }
     }
 

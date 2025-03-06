@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-login.html.twig';
@@ -8,7 +8,8 @@ import './sw-login.scss';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
+ * @sw-package framework
  */
 Component.register('sw-login', {
     template,
@@ -22,6 +23,7 @@ Component.register('sw-login', {
 
     data() {
         return {
+            shouldRenderDOM: false,
             isLoading: false,
             isLoginSuccess: false,
             isLoginError: false,
@@ -41,6 +43,17 @@ Component.register('sw-login', {
 
             return `${modulName} | ${adminName}`;
         },
+    },
+
+    beforeMount() {
+        const refreshAfterLogout = sessionStorage.getItem('refresh-after-logout');
+
+        if (refreshAfterLogout) {
+            sessionStorage.removeItem('refresh-after-logout');
+            window.location.reload();
+        } else {
+            this.shouldRenderDOM = true;
+        }
     },
 
     methods: {

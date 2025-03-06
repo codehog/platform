@@ -4,7 +4,7 @@ import './sw-product-image.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  * @description Component which renders an image.
@@ -16,10 +16,33 @@ const { Component } = Shopware;
 Component.register('sw-product-image', {
     template,
 
+    emits: [
+        'sw-product-image-cover',
+        'sw-product-image-delete',
+    ],
+
     props: {
         mediaId: {
             type: String,
             required: true,
+        },
+
+        /**
+         * @experimental stableVersion:v6.8.0 feature:SPATIAL_BASES
+         */
+        isSpatial: {
+            type: Boolean,
+            required: false,
+            default: false,
+        },
+
+        /**
+         * @experimental stableVersion:v6.8.0 feature:SPATIAL_BASES
+         */
+        isArReady: {
+            type: Boolean,
+            required: false,
+            default: false,
         },
 
         isCover: {
@@ -37,7 +60,6 @@ Component.register('sw-product-image', {
         showCoverLabel: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -48,6 +70,7 @@ Component.register('sw-product-image', {
             return {
                 'is--placeholder': this.isPlaceholder,
                 'is--cover': this.isCover && this.showCoverLabel,
+                'is--spatial': this.isSpatial,
             };
         },
     },

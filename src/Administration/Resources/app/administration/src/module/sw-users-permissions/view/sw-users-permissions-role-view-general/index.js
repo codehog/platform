@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@framework
  */
 import template from './sw-users-permissions-role-view-general.html.twig';
 

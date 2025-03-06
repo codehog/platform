@@ -9,7 +9,10 @@ use Shopware\Core\Framework\Rule\RuleComparison;
 use Shopware\Core\Framework\Rule\RuleConstraints;
 use Shopware\Core\Framework\Rule\RuleScope;
 
-#[Package('business-ops')]
+/**
+ * @final
+ */
+#[Package('fundamentals@after-sales')]
 class LineItemRule extends Rule
 {
     final public const RULE_NAME = 'cartLineItem';

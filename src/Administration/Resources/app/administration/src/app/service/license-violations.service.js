@@ -1,10 +1,9 @@
-const { Application } = Shopware;
+const { Application, Store } = Shopware;
 
 /**
- * @package merchant-services
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
+ * @sw-package framework
  */
-// eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default function createLicenseViolationsService(storeService) {
     /** {VueInstance|null} applicationRoot  */
     let applicationRoot = null;
@@ -35,7 +34,17 @@ export default function createLicenseViolationsService(storeService) {
     };
 
     function checkForLicenseViolations() {
-        const topLevelDomain = window.location.hostname.split('.').pop();
+        const hostname = window.location.hostname;
+
+        if (hostname === '[::1]' || hostname === '127.0.0.1') {
+            return Promise.resolve({
+                warnings: [],
+                violations: [],
+                other: [],
+            });
+        }
+
+        const hostnameParts = hostname.split('.').pop();
         const allowlistDomains = [
             'localhost',
             'test',
@@ -48,7 +57,7 @@ export default function createLicenseViolationsService(storeService) {
         ];
 
         // if the user is on a allowlisted domain
-        if (allowlistDomains.includes(topLevelDomain)) {
+        if (allowlistDomains.includes(hostnameParts)) {
             return Promise.resolve({
                 warnings: [],
                 violations: [],
@@ -64,18 +73,17 @@ export default function createLicenseViolationsService(storeService) {
             return handleResponse(cachedViolations);
         }
 
-        return fetchLicenseViolations()
-            .then((response) => {
-                if (!response) {
-                    return Promise.reject();
-                }
+        return fetchLicenseViolations().then((response) => {
+            if (!response) {
+                return Promise.reject();
+            }
 
-                const licenseViolations = response.filter((i) => i.extensions.licenseViolation);
+            const licenseViolations = response.filter((i) => i.extensions.licenseViolation);
 
-                saveViolationsToCache(licenseViolations);
+            saveViolationsToCache(licenseViolations);
 
-                return handleResponse(licenseViolations);
-            });
+            return handleResponse(licenseViolations);
+        });
     }
 
     function handleResponse(response) {
@@ -83,8 +91,10 @@ export default function createLicenseViolationsService(storeService) {
             violations: response.filter((violation) => violation.extensions.licenseViolation.type.level === 'violation'),
             warnings: response.filter((violation) => violation.extensions.licenseViolation.type.level === 'warning'),
             other: response.filter((violation) => {
-                return violation.extensions.licenseViolation.type.level !== 'violation'
-                    && violation.extensions.licenseViolation.type.level !== 'warning';
+                return (
+                    violation.extensions.licenseViolation.type.level !== 'violation' &&
+                    violation.extensions.licenseViolation.type.level !== 'warning'
+                );
             }),
         };
 
@@ -195,7 +205,7 @@ export default function createLicenseViolationsService(storeService) {
             method: () => ignorePlugin(warning.name, getIgnoredPlugins()),
         };
 
-        getApplicationRootReference().$store.dispatch('notification/createGrowlNotification', {
+        Store.get('notification').createGrowlNotification({
             title: plugin.label,
             message: warning.text,
             autoClose: false,

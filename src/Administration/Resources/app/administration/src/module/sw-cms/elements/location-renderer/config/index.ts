@@ -6,7 +6,7 @@ const { Component, Mixin } = Shopware;
 
 /**
  * @private
- * @package buyers-experience
+ * @sw-package discovery
  */
 Component.register('sw-cms-el-config-location-renderer', {
     template,
@@ -24,7 +24,12 @@ Component.register('sw-cms-el-config-location-renderer', {
 
     computed: {
         src(): string {
-            return this.elementData.appData.baseUrl;
+            // Add this.element.id to the url as a query param
+            const url = new URL(this.elementData.appData.baseUrl);
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+            url.searchParams.set('elementId', this.element.id);
+
+            return url.toString();
         },
 
         configLocation(): string {
@@ -66,13 +71,13 @@ Component.register('sw-cms-el-config-location-renderer', {
         },
 
         emitChanges(content: unknown) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            if (content !== this.element.config.content.value) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                this.element.config.content.value = content;
-
-                this.$emit('element-update', this.element);
+            if (content === this.element.config.content.value) {
+                return;
             }
+
+            this.element.config.content.value = content as string;
+
+            this.$emit('element-update', this.element);
         },
     },
 });

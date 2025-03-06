@@ -3,7 +3,10 @@
 namespace Shopware\Tests\Integration\Core\Checkout\Customer\SalesChannel;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Checkout\Customer\CustomerCollection;
 use Shopware\Core\Checkout\Customer\CustomerDefinition;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Framework\Context;
@@ -13,23 +16,22 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Sorting\FieldSorting;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
-use Shopware\Core\Framework\Test\TestCaseBase\KernelLifecycleManager;
-use Shopware\Core\Framework\Test\TestDataCollection;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\PlatformRequest;
+use Shopware\Core\System\Salutation\SalutationCollection;
 use Shopware\Core\System\Salutation\SalutationDefinition;
+use Shopware\Core\Test\Integration\PaymentHandler\TestPaymentHandler;
+use Shopware\Core\Test\Integration\Traits\CustomerTestTrait;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Payment\Handler\MockPaymentHandler\AsyncTestPaymentHandler;
-use Shopware\Tests\Integration\Core\Checkout\Payment\Handler\MockPaymentHandler\SyncTestPaymentHandler;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal
- *
- * @group store-api
  */
-#[Package('customer-order')]
+#[Package('checkout')]
+#[Group('store-api')]
 class ChangeProfileRouteTest extends TestCase
 {
     use CustomerTestTrait;
@@ -37,18 +39,18 @@ class ChangeProfileRouteTest extends TestCase
 
     private KernelBrowser $browser;
 
-    private TestDataCollection $ids;
+    private IdsCollection $ids;
 
     /**
-     * @var EntityRepository
+     * @var EntityRepository<CustomerCollection>
      */
-    private $customerRepository;
+    private EntityRepository $customerRepository;
 
     private string $customerId;
 
     protected function setUp(): void
     {
-        $this->ids = new TestDataCollection();
+        $this->ids = new IdsCollection();
 
         $this->createData();
 
@@ -56,7 +58,7 @@ class ChangeProfileRouteTest extends TestCase
             'id' => $this->ids->create('sales-channel'),
         ]);
         $this->assignSalesChannelContext($this->browser);
-        $this->customerRepository = $this->getContainer()->get('customer.repository');
+        $this->customerRepository = static::getContainer()->get('customer.repository');
 
         $email = Uuid::randomHex() . '@example.com';
         $this->customerId = $this->createCustomer('shopware', $email);
@@ -188,7 +190,7 @@ class ChangeProfileRouteTest extends TestCase
 
     public function testChangeProfileWithExistingNotSpecifiedSalutation(): void
     {
-        $connection = KernelLifecycleManager::getConnection();
+        $connection = static::getContainer()->get(Connection::class);
 
         $salutations = $connection->fetchAllKeyValue('SELECT salutation_key, id FROM salutation');
         static::assertArrayHasKey(SalutationDefinition::NOT_SPECIFIED, $salutations);
@@ -210,12 +212,10 @@ class ChangeProfileRouteTest extends TestCase
 
     public function testChangeProfileToNotSpecifiedWithoutExistingSalutation(): void
     {
-        $connection = KernelLifecycleManager::getConnection();
+        $connection = static::getContainer()->get(Connection::class);
 
         $connection->executeStatement(
-            '
-					DELETE FROM salutation WHERE salutation_key = :salutationKey
-				',
+            'DELETE FROM salutation WHERE salutation_key = :salutationKey',
             ['salutationKey' => SalutationDefinition::NOT_SPECIFIED]
         );
 
@@ -234,6 +234,7 @@ class ChangeProfileRouteTest extends TestCase
 
         $response = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
 
+        static::assertArrayHasKey('success', $response);
         static::assertTrue($response['success']);
     }
 
@@ -351,12 +352,11 @@ class ChangeProfileRouteTest extends TestCase
     }
 
     /**
-     * @dataProvider dataProviderVatIds
-     *
-     * @param array<string, boolean> $constraint
+     * @param array<string, bool> $constraint
      * @param array<string|null>|null $vatIds
      * @param array<string>|null $expectedVatIds
      */
+    #[DataProvider('dataProviderVatIds')]
     public function testChangeVatIdsOfCommercialAccount(?array $vatIds, array $constraint, bool $shouldBeValid, ?array $expectedVatIds): void
     {
         if (isset($constraint['required']) && $constraint['required']) {
@@ -463,7 +463,7 @@ class ChangeProfileRouteTest extends TestCase
             );
 
         /** @var array<string, string> $newsletterRecipient */
-        $newsletterRecipient = $this->getContainer()->get(Connection::class)
+        $newsletterRecipient = static::getContainer()->get(Connection::class)
             ->fetchAssociative('SELECT * FROM newsletter_recipient WHERE status = "direct" AND email = ?', [$response['email']]);
 
         static::assertSame($newsletterRecipient['first_name'], $response['firstName']);
@@ -482,7 +482,7 @@ class ChangeProfileRouteTest extends TestCase
             );
 
         /** @var array<string, string> $newsletterRecipient */
-        $newsletterRecipient = $this->getContainer()->get(Connection::class)
+        $newsletterRecipient = static::getContainer()->get(Connection::class)
             ->fetchAssociative('SELECT * FROM newsletter_recipient WHERE status = "direct" AND email = ?', [$response['email']]);
 
         static::assertEquals($newsletterRecipient['first_name'], 'FirstName');
@@ -492,7 +492,7 @@ class ChangeProfileRouteTest extends TestCase
     public function testChangeWithAllowedAccountType(): void
     {
         /** @var string[] $accountTypes */
-        $accountTypes = $this->getContainer()->getParameter('customer.account_types');
+        $accountTypes = static::getContainer()->getParameter('customer.account_types');
         static::assertIsArray($accountTypes);
         $accountType = $accountTypes[array_rand($accountTypes)];
 
@@ -569,7 +569,7 @@ class ChangeProfileRouteTest extends TestCase
     public function testChangeWithWrongAccountType(): void
     {
         /** @var string[] $accountTypes */
-        $accountTypes = $this->getContainer()->getParameter('customer.account_types');
+        $accountTypes = static::getContainer()->getParameter('customer.account_types');
         static::assertIsArray($accountTypes);
         $notAllowedAccountType = implode('', $accountTypes);
         $changeData = [
@@ -635,8 +635,8 @@ class ChangeProfileRouteTest extends TestCase
      */
     private function getValidSalutationIds(): array
     {
-        /** @var EntityRepository $repository */
-        $repository = $this->getContainer()->get('salutation.repository');
+        /** @var EntityRepository<SalutationCollection> $repository */
+        $repository = static::getContainer()->get('salutation.repository');
 
         $criteria = (new Criteria())
             ->addSorting(new FieldSorting('salutationKey'));
@@ -653,8 +653,9 @@ class ChangeProfileRouteTest extends TestCase
             [
                 'id' => $this->ids->create('payment'),
                 'name' => $this->ids->get('payment'),
+                'technicalName' => 'payment_test',
                 'active' => true,
-                'handlerIdentifier' => AsyncTestPaymentHandler::class,
+                'handlerIdentifier' => TestPaymentHandler::class,
                 'availabilityRule' => [
                     'id' => Uuid::randomHex(),
                     'name' => 'asd',
@@ -664,8 +665,9 @@ class ChangeProfileRouteTest extends TestCase
             [
                 'id' => $this->ids->create('payment2'),
                 'name' => $this->ids->get('payment2'),
+                'technicalName' => 'payment_test2',
                 'active' => true,
-                'handlerIdentifier' => AsyncTestPaymentHandler::class,
+                'handlerIdentifier' => TestPaymentHandler::class,
                 'availabilityRule' => [
                     'id' => Uuid::randomHex(),
                     'name' => 'asd',
@@ -674,7 +676,7 @@ class ChangeProfileRouteTest extends TestCase
             ],
         ];
 
-        $this->getContainer()->get('payment_method.repository')
+        static::getContainer()->get('payment_method.repository')
             ->create($data, Context::createDefaultContext());
     }
 
@@ -691,63 +693,39 @@ class ChangeProfileRouteTest extends TestCase
             $password = Uuid::randomHex();
         }
 
-        $this->getContainer()->get('customer.repository')->create([
-            [
-                'id' => $customerId,
-                'salesChannelId' => TestDefaults::SALES_CHANNEL,
-                'defaultShippingAddress' => [
-                    'id' => $addressId,
-                    'firstName' => 'Max',
-                    'lastName' => 'Mustermann',
-                    'street' => 'Musterstraße 1',
-                    'city' => 'Schöppingen',
-                    'zipcode' => '12345',
-                    'salutationId' => $this->getValidSalutationId(),
-                    'countryId' => $this->getValidCountryId($this->ids->create('sales-channel')),
-                ],
-                'defaultBillingAddressId' => $addressId,
-                'defaultPaymentMethod' => [
-                    'name' => 'Invoice',
-                    'active' => true,
-                    'description' => 'Default payment method',
-                    'handlerIdentifier' => SyncTestPaymentHandler::class,
-                    'availabilityRule' => [
-                        'id' => Uuid::randomHex(),
-                        'name' => 'true',
-                        'priority' => 0,
-                        'conditions' => [
-                            [
-                                'type' => 'cartCartAmount',
-                                'value' => [
-                                    'operator' => '>=',
-                                    'amount' => 0,
-                                ],
-                            ],
-                        ],
-                    ],
-                    'salesChannels' => [
-                        [
-                            'id' => TestDefaults::SALES_CHANNEL,
-                        ],
-                    ],
-                ],
-                'groupId' => TestDefaults::FALLBACK_CUSTOMER_GROUP,
-                'email' => $email,
-                'password' => $password,
+        $customer = [
+            'id' => $customerId,
+            'salesChannelId' => TestDefaults::SALES_CHANNEL,
+            'defaultShippingAddress' => [
+                'id' => $addressId,
                 'firstName' => 'Max',
                 'lastName' => 'Mustermann',
-                'guest' => $guest,
+                'street' => 'Musterstraße 1',
+                'city' => 'Schöppingen',
+                'zipcode' => '12345',
                 'salutationId' => $this->getValidSalutationId(),
-                'customerNumber' => '12345',
+                'countryId' => $this->getValidCountryId($this->ids->create('sales-channel')),
             ],
-        ], Context::createDefaultContext());
+            'defaultBillingAddressId' => $addressId,
+
+            'groupId' => TestDefaults::FALLBACK_CUSTOMER_GROUP,
+            'email' => $email,
+            'password' => $password,
+            'firstName' => 'Max',
+            'lastName' => 'Mustermann',
+            'guest' => $guest,
+            'salutationId' => $this->getValidSalutationId(),
+            'customerNumber' => '12345',
+        ];
+
+        $this->customerRepository->create([$customer], Context::createDefaultContext());
 
         return $customerId;
     }
 
     private function setVatIdOfTheCountryToValidateFormat(): void
     {
-        $this->getContainer()->get(Connection::class)
+        static::getContainer()->get(Connection::class)
             ->executeStatement(
                 'UPDATE `country` SET `check_vat_id_pattern` = 1, `vat_id_pattern` = "(DE)?[0-9]{9}"
                  WHERE id = :id',
@@ -759,7 +737,7 @@ class ChangeProfileRouteTest extends TestCase
 
     private function setVatIdOfTheCountryToBeRequired(): void
     {
-        $this->getContainer()->get(Connection::class)
+        static::getContainer()->get(Connection::class)
             ->executeStatement(
                 'UPDATE `country` SET `vat_id_required` = 1
                  WHERE id = :id',

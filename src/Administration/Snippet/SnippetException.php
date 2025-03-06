@@ -6,7 +6,7 @@ use Shopware\Core\Framework\HttpException;
 use Shopware\Core\Framework\Log\Package;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('administration')]
+#[Package('discovery')]
 class SnippetException extends HttpException
 {
     final public const SNIPPET_DUPLICATED_FIRST_LEVEL_KEY_EXCEPTION = 'SNIPPET__DUPLICATED_FIRST_LEVEL_KEY';
@@ -14,7 +14,7 @@ class SnippetException extends HttpException
     final public const SNIPPET_DEFAULT_LANGUAGE_NOT_GIVEN_EXCEPTION = 'SNIPPET__DEFAULT_LANGUAGE_NOT_GIVEN';
 
     /**
-     * @param list<string> $duplicatedKeys
+     * @param array<string> $duplicatedKeys
      */
     public static function duplicatedFirstLevelKey(array $duplicatedKeys): self
     {
@@ -27,7 +27,7 @@ class SnippetException extends HttpException
     }
 
     /**
-     * @param list<string> $keys
+     * @param array<string> $keys
      */
     public static function extendOrOverwriteCore(array $keys): self
     {

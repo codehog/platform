@@ -12,16 +12,15 @@ use Shopware\Core\Checkout\Customer\SalesChannel\AbstractLogoutRoute;
 use Shopware\Core\Checkout\Order\Exception\EmptyCartException;
 use Shopware\Core\Checkout\Order\OrderException;
 use Shopware\Core\Checkout\Order\SalesChannel\OrderService;
-use Shopware\Core\Checkout\Payment\Exception\InvalidOrderException;
-use Shopware\Core\Checkout\Payment\Exception\PaymentProcessException;
-use Shopware\Core\Checkout\Payment\Exception\UnknownPaymentMethodException;
 use Shopware\Core\Checkout\Payment\PaymentException;
-use Shopware\Core\Checkout\Payment\PaymentService;
+use Shopware\Core\Checkout\Payment\PaymentProcessor;
+use Shopware\Core\Content\Flow\FlowException;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\Exception\ConstraintViolationException;
 use Shopware\Core\Profiling\Profiler;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\System\StateMachine\Exception\IllegalTransitionException;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Shopware\Storefront\Checkout\Cart\Error\PaymentMethodChangedError;
 use Shopware\Storefront\Checkout\Cart\Error\ShippingMethodChangedError;
@@ -39,14 +38,14 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * @internal
  * Do not use direct or indirect repository calls in a controller. Always use a store-api route to get or put datas
  */
 #[Route(defaults: ['_routeScope' => ['storefront']])]
-#[Package('storefront')]
+#[Package('framework')]
 class CheckoutController extends StorefrontController
 {
     private const REDIRECTED_FROM_SAME_ROUTE = 'redirected';
@@ -60,11 +59,11 @@ class CheckoutController extends StorefrontController
         private readonly CheckoutConfirmPageLoader $confirmPageLoader,
         private readonly CheckoutFinishPageLoader $finishPageLoader,
         private readonly OrderService $orderService,
-        private readonly PaymentService $paymentService,
+        private readonly PaymentProcessor $paymentProcessor,
         private readonly OffcanvasCartPageLoader $offcanvasCartPageLoader,
         private readonly SystemConfigService $config,
         private readonly AbstractLogoutRoute $logoutRoute,
-        private readonly AbstractCartLoadRoute $cartLoadRoute
+        private readonly AbstractCartLoadRoute $cartLoadRoute,
     ) {
     }
 
@@ -141,7 +140,7 @@ class CheckoutController extends StorefrontController
         try {
             $page = $this->finishPageLoader->load($request, $context);
         } catch (OrderException $exception) {
-            $this->addFlash(self::DANGER, $this->trans('error.' . $exception->getErrorCode()));
+            $this->addFlash(self::DANGER, $this->trans('error.' . $exception->getErrorCode(), $exception->getParameters()));
 
             return $this->redirectToRoute('frontend.checkout.cart.page');
         }
@@ -184,11 +183,11 @@ class CheckoutController extends StorefrontController
             );
 
             return $this->forwardToRoute('frontend.checkout.confirm.page');
-        } catch (UnknownPaymentMethodException|CartException $e) {
+        } catch (PaymentException|CartException $e) {
             if ($e->getErrorCode() === CartException::CART_PAYMENT_INVALID_ORDER_STORED_CODE && $e->getParameter('orderId')) {
                 return $this->forwardToRoute('frontend.checkout.finish.page', ['orderId' => $e->getParameter('orderId'), 'changedPayment' => false, 'paymentFailed' => true]);
             }
-            $message = $this->trans('error.' . $e->getErrorCode());
+            $message = $this->trans('error.' . $e->getErrorCode(), $e->getParameters());
             $this->addFlash('danger', $message);
 
             return $this->forwardToRoute('frontend.checkout.confirm.page');
@@ -198,10 +197,10 @@ class CheckoutController extends StorefrontController
             $finishUrl = $this->generateUrl('frontend.checkout.finish.page', ['orderId' => $orderId]);
             $errorUrl = $this->generateUrl('frontend.account.edit-order.page', ['orderId' => $orderId]);
 
-            $response = Profiler::trace('handle-payment', fn (): ?RedirectResponse => $this->paymentService->handlePaymentByOrder($orderId, $data, $context, $finishUrl, $errorUrl));
+            $response = Profiler::trace('handle-payment', fn (): ?RedirectResponse => $this->paymentProcessor->pay($orderId, $request, $context, $finishUrl, $errorUrl));
 
             return $response ?? new RedirectResponse($finishUrl);
-        } catch (PaymentProcessException|InvalidOrderException|PaymentException|UnknownPaymentMethodException) {
+        } catch (PaymentException|IllegalTransitionException|FlowException) {
             return $this->forwardToRoute('frontend.checkout.finish.page', ['orderId' => $orderId, 'changedPayment' => false, 'paymentFailed' => true]);
         }
     }

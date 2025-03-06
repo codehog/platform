@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Promotion\Util;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Promotion\PromotionEntity;
 use Shopware\Core\Checkout\Promotion\PromotionException;
@@ -11,13 +12,13 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
 
 /**
  * @internal
  */
-#[Package('buyers-experience')]
+#[Package('checkout')]
 class PromotionCodeServiceTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -27,7 +28,7 @@ class PromotionCodeServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->codesService = $this->getContainer()->get(PromotionCodeService::class);
+        $this->codesService = static::getContainer()->get(PromotionCodeService::class);
     }
 
     public function testGetFixedCode(): void
@@ -38,9 +39,7 @@ class PromotionCodeServiceTest extends TestCase
         static::assertMatchesRegularExpression('/([A-Z]\d){4}/', $code);
     }
 
-    /**
-     * @dataProvider codePreviewDataProvider
-     */
+    #[DataProvider('codePreviewDataProvider')]
     public function testGetCodePreview(string $codePattern, string $expectedRegex): void
     {
         $actualCode = $this->codesService->getPreview($codePattern);
@@ -80,9 +79,7 @@ class PromotionCodeServiceTest extends TestCase
         static::assertCount(0, $codeList);
     }
 
-    /**
-     * @dataProvider generateIndividualCodesDataProvider
-     */
+    #[DataProvider('generateIndividualCodesDataProvider')]
     public function testGenerateIndividualCodesWithValidRequirements(int $requestedAmount): void
     {
         $pattern = 'PREFIX_%s%d%s%d_SUFFIX';
@@ -109,9 +106,7 @@ class PromotionCodeServiceTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider generateIndividualCodesWithInsufficientPatternDataProvider
-     */
+    #[DataProvider('generateIndividualCodesWithInsufficientPatternDataProvider')]
     public function testGenerateIndividualCodesWithInsufficientPattern(int $requestedCodeAmount): void
     {
         // Only has 10 possibilities -> 6 or more requested codes would be invalid
@@ -135,9 +130,9 @@ class PromotionCodeServiceTest extends TestCase
 
     public function testReplaceIndividualCodes(): void
     {
-        $promotionRepository = $this->getContainer()->get('promotion.repository');
-        $codeRepository = $this->getContainer()->get('promotion_individual_code.repository');
-        $salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $promotionRepository = static::getContainer()->get('promotion.repository');
+        $codeRepository = static::getContainer()->get('promotion_individual_code.repository');
+        $salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
         $context = $salesChannelContext->getContext();
 
@@ -170,8 +165,8 @@ class PromotionCodeServiceTest extends TestCase
 
     public function testReplaceIndividualCodesWithDuplicatePattern(): void
     {
-        $promotionRepository = $this->getContainer()->get('promotion.repository');
-        $salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $promotionRepository = static::getContainer()->get('promotion.repository');
+        $salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $id = Uuid::randomHex();
@@ -195,8 +190,8 @@ class PromotionCodeServiceTest extends TestCase
             'useIndividualCodes' => true,
             'individualCodePattern' => $pattern,
         ];
-        $promotionRepository = $this->getContainer()->get('promotion.repository');
-        $salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $promotionRepository = static::getContainer()->get('promotion.repository');
+        $salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $this->createPromotionWithCustomData($data, $promotionRepository, $salesChannelContext);
@@ -220,9 +215,9 @@ class PromotionCodeServiceTest extends TestCase
 
     private function addCodesAndAssertCount(string $id, int $newCodeAmount, int $expectedCodeAmount): void
     {
-        $salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)
+        $salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)
             ->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
-        $promotionRepository = $this->getContainer()->get('promotion.repository');
+        $promotionRepository = static::getContainer()->get('promotion.repository');
         $criteria = (new Criteria())
             ->addAssociation('individualCodes');
 

@@ -15,7 +15,7 @@ use Shopware\Core\Framework\MessageQueue\ScheduledTask\ScheduledTaskDefinition;
 use Shopware\Core\Framework\MessageQueue\ScheduledTask\ScheduledTaskEntity;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class TaskRegistry
 {
     /**
@@ -49,7 +49,7 @@ class TaskRegistry
             ->search(new Criteria(), $context)
             ->getEntities();
 
-        $this->upsertTasks($alreadyRegisteredTasks);
+        $this->upsertTasks($alreadyRegisteredTasks, $context);
 
         $deletionPayload = $this->getDeletionPayload($alreadyRegisteredTasks);
 
@@ -58,12 +58,12 @@ class TaskRegistry
         }
     }
 
-    private function upsertTasks(ScheduledTaskCollection $alreadyRegisteredTasks): void
+    private function upsertTasks(ScheduledTaskCollection $alreadyRegisteredTasks, Context $context): void
     {
         $updates = [];
         foreach ($this->tasks as $task) {
             if (!$task instanceof ScheduledTask) {
-                throw new \RuntimeException(sprintf(
+                throw new \RuntimeException(\sprintf(
                     'Tried to register "%s" as scheduled task, but class does not extend ScheduledTask',
                     $task::class
                 ));
@@ -76,12 +76,12 @@ class TaskRegistry
                 continue;
             }
 
-            $this->insertTask($task);
+            $this->insertTask($task, $context);
         }
 
         $updates = array_values(array_filter($updates));
         if (\count($updates) > 0) {
-            $this->scheduledTaskRepository->update($updates, Context::createDefaultContext());
+            $this->scheduledTaskRepository->update($updates, $context);
         }
     }
 
@@ -131,7 +131,7 @@ class TaskRegistry
 
         $nextExecutionTimeString = $taskEntity->getNextExecutionTime()->format(Defaults::STORAGE_DATE_TIME_FORMAT);
         $nextExecutionTime = new \DateTimeImmutable($nextExecutionTimeString);
-        $newNextExecutionTime = $nextExecutionTime->modify(sprintf('+%d seconds', $taskEntity->getRunInterval()));
+        $newNextExecutionTime = $nextExecutionTime->modify(\sprintf('+%d seconds', $taskEntity->getRunInterval()));
 
         if ($newNextExecutionTime < $now) {
             return $now;
@@ -140,7 +140,7 @@ class TaskRegistry
         return $newNextExecutionTime;
     }
 
-    private function insertTask(ScheduledTask $task): void
+    private function insertTask(ScheduledTask $task, Context $context): void
     {
         $validTask = $task->shouldRun($this->parameterBag);
 
@@ -153,7 +153,7 @@ class TaskRegistry
                     'defaultRunInterval' => $task->getDefaultInterval(),
                     'status' => $validTask ? ScheduledTaskDefinition::STATUS_SCHEDULED : ScheduledTaskDefinition::STATUS_SKIPPED,
                 ],
-            ], Context::createDefaultContext());
+            ], $context);
         } catch (UniqueConstraintViolationException) {
             // this can happen if the function runs multiple times simultaneously
             // we just care that the task is registered afterward so we can safely ignore the error

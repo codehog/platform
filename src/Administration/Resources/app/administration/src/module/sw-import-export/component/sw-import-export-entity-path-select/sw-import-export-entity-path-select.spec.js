@@ -1,203 +1,79 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@after-sales
  */
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/form/select/base/sw-select-base';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/form/field-base/sw-field-error';
-import 'src/app/component/form/select/base/sw-select-result-list';
-import 'src/app/component/utils/sw-popover';
-import 'src/app/component/form/select/base/sw-select-result';
-import 'src/app/component/base/sw-highlight-text';
-import swImportExportEntityPathSelect from 'src/module/sw-import-export/component/sw-import-export-entity-path-select';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-import-export-entity-path-select', swImportExportEntityPathSelect);
-
-const EntityDefinitionFactory = require('src/core/factory/entity-definition.factory').default;
-
-describe('module/sw-import-export/components/sw-import-export-entity-path-select', () => {
-    let wrapper;
-
-    beforeEach(async () => {
-        const mockEntitySchema = {
-            product: {
-                entity: 'product',
-                properties: {
-                    id: {
-                        type: 'uuid',
-                    },
-                    price: {
-                        type: 'json_object',
-                        properties: [],
-                    },
-                    parent: {
-                        type: 'association',
-                        relation: 'many_to_one',
-                        entity: 'product',
-                    },
-                    cover: {
-                        type: 'association',
-                        relation: 'many_to_one',
-                        entity: 'product_media',
-                    },
-                    name: {
-                        type: 'string',
-                    },
-                    manufacturer: {
-                        type: 'association',
-                        relation: 'many_to_one',
-                        entity: 'product_manufacturer',
-                    },
-                    translations: {
-                        type: 'association',
-                        relation: 'one_to_many',
-                        entity: 'product_translation',
-                    },
-                    visibilities: {
-                        type: 'association',
-                        relation: 'one_to_many',
-                        entity: 'product_visibilities',
-                    },
+async function createWrapper(entityType = 'product') {
+    return mount(
+        await wrapTestComponent('sw-import-export-entity-path-select', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-select-base': await wrapTestComponent('sw-select-base'),
+                    'sw-block-field': await wrapTestComponent('sw-block-field'),
+                    'sw-base-field': await wrapTestComponent('sw-base-field'),
+                    'sw-field-error': await wrapTestComponent('sw-field-error'),
+                    'sw-select-result-list': await wrapTestComponent('sw-select-result-list'),
+                    'sw-popover': await wrapTestComponent('sw-popover'),
+                    'sw-popover-deprecated': await wrapTestComponent('sw-popover-deprecated', { sync: true }),
+                    'sw-select-result': await wrapTestComponent('sw-select-result'),
+                    'sw-highlight-text': await wrapTestComponent('sw-highlight-text'),
+                    transition: false,
+                    'sw-loader': true,
+                    'sw-inheritance-switch': true,
+                    'sw-ai-copilot-badge': true,
+                    'sw-help-text': true,
                 },
             },
-            product_translation: {
-                entity: 'product_translation',
-                properties: {
-                    name: {
-                        type: 'string',
-                    },
-                    customFields: {
-                        type: 'json_object',
-                    },
-                },
-            },
-            product_manufacturer: {
-                entity: 'product_manufacturer',
-                properties: {
-                    id: {
-                        type: 'uuid',
-                    },
-                    name: {
-                        type: 'string',
-                    },
-                    media: {
-                        type: 'association',
-                        relation: 'many_to_one',
-                        entity: 'media',
-                    },
-                    products: {
-                        type: 'association',
-                        relation: 'one_to_many',
-                        entity: 'product',
-                    },
-                    translations: {
-                        type: 'association',
-                        relation: 'one_to_many',
-                        entity: 'product_manufacturer_translation',
-                    },
-                },
-            },
-            product_manufacturer_translation: {
-                entity: 'product_manufacturer_translation',
-                properties: {
-                    name: {
-                        type: 'string',
-                    },
-                    customFields: {
-                        type: 'json_object',
-                    },
-                },
-            },
-            product_media: {
-                entity: 'product_media',
-                properties: {
-                    id: {
-                        type: 'uuid',
-                    },
-                    media: {
-                        type: 'association',
-                        relation: 'many_to_one',
-                        entity: 'media',
-                    },
-                },
-            },
-            media: {
-                entity: 'media',
-                properties: {
-                    id: {
-                        type: 'uuid',
-                    },
-                    translations: {
-                        type: 'association',
-                        relation: 'one_to_many',
-                        entity: 'media_translation',
-                    },
-                },
-            },
-            media_translation: {
-                entity: 'media_translation',
-                properties: {
-                    title: {
-                        type: 'string',
-                    },
-                },
-            },
-        };
-
-        Shopware.EntityDefinition = EntityDefinitionFactory;
-        Object.keys(mockEntitySchema).forEach((entity) => {
-            Shopware.EntityDefinition.add(entity, mockEntitySchema[entity]);
-        });
-
-        wrapper = shallowMount(await Shopware.Component.build('sw-import-export-entity-path-select'), {
-            stubs: {
-                'sw-select-base': await Shopware.Component.build('sw-select-base'),
-                'sw-block-field': await Shopware.Component.build('sw-block-field'),
-                'sw-base-field': await Shopware.Component.build('sw-base-field'),
-                'sw-icon': {
-                    template: '<div></div>',
-                },
-                'sw-field-error': await Shopware.Component.build('sw-field-error'),
-                'sw-select-result-list': await Shopware.Component.build('sw-select-result-list'),
-                'sw-popover': await Shopware.Component.build('sw-popover'),
-                'sw-select-result': await Shopware.Component.build('sw-select-result'),
-                'sw-highlight-text': await Shopware.Component.build('sw-highlight-text'),
-            },
-            propsData: {
+            props: {
                 value: null,
-                entityType: 'product',
+                entityType: entityType,
                 customFieldSets: [
                     {
                         relations: [{ entityName: 'product' }],
-                        customFields: [{ name: 'custom_field_product_1' }, { name: 'custom_field_product_2' }],
+                        customFields: [
+                            { name: 'custom_field_product_1' },
+                            { name: 'custom_field_product_2' },
+                        ],
                     },
                     {
                         relations: [{ entityName: 'product_manufacturer' }],
-                        customFields: [{ name: 'custom_field_manufacturer_1' }, { name: 'custom_field_manufacturer_2' }],
+                        customFields: [
+                            { name: 'custom_field_manufacturer_1' },
+                            { name: 'custom_field_manufacturer_2' },
+                        ],
                     },
                 ],
             },
-        });
-    });
+        },
+    );
+}
 
-    afterEach(() => {
-        wrapper.destroy();
-    });
-
-    it('should be a Vue.js component', async () => {
-        expect(wrapper.vm).toBeTruthy();
+describe('module/sw-import-export/components/sw-import-export-entity-path-select', () => {
+    afterEach(async () => {
+        jest.clearAllTimers();
     });
 
     it('should return array when calling `actualPathParts` computed property', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             value: 'media.id.',
         });
 
-        expect(wrapper.vm.actualPathParts).toEqual(['media', 'id']);
+        expect(wrapper.vm.actualPathParts).toEqual([
+            'media',
+            'id',
+        ]);
     });
 
     it('should return valid price properties on `getPriceProperties` with given currencies', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             currencies: [
                 { isoCode: 'EUR' },
@@ -211,36 +87,99 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
             { label: 'price.EUR.gross', value: 'price.EUR.gross' },
             { label: 'price.EUR.currencyId', value: 'price.EUR.currencyId' },
             { label: 'price.EUR.linked', value: 'price.EUR.linked' },
-            { label: 'price.EUR.listPrice.net', value: 'price.EUR.listPrice.net' },
-            { label: 'price.EUR.listPrice.gross', value: 'price.EUR.listPrice.gross' },
-            { label: 'price.EUR.listPrice.linked', value: 'price.EUR.listPrice.linked' },
+            {
+                label: 'price.EUR.listPrice.net',
+                value: 'price.EUR.listPrice.net',
+            },
+            {
+                label: 'price.EUR.listPrice.gross',
+                value: 'price.EUR.listPrice.gross',
+            },
+            {
+                label: 'price.EUR.listPrice.linked',
+                value: 'price.EUR.listPrice.linked',
+            },
             { label: 'price.USD.net', value: 'price.USD.net' },
             { label: 'price.USD.gross', value: 'price.USD.gross' },
             { label: 'price.USD.currencyId', value: 'price.USD.currencyId' },
             { label: 'price.USD.linked', value: 'price.USD.linked' },
-            { label: 'price.USD.listPrice.net', value: 'price.USD.listPrice.net' },
-            { label: 'price.USD.listPrice.gross', value: 'price.USD.listPrice.gross' },
-            { label: 'price.USD.listPrice.linked', value: 'price.USD.listPrice.linked' },
-            { label: 'purchasePrices.EUR.net', value: 'purchasePrices.EUR.net' },
-            { label: 'purchasePrices.EUR.gross', value: 'purchasePrices.EUR.gross' },
-            { label: 'purchasePrices.EUR.currencyId', value: 'purchasePrices.EUR.currencyId' },
-            { label: 'purchasePrices.EUR.linked', value: 'purchasePrices.EUR.linked' },
-            { label: 'purchasePrices.EUR.listPrice.net', value: 'purchasePrices.EUR.listPrice.net' },
-            { label: 'purchasePrices.EUR.listPrice.gross', value: 'purchasePrices.EUR.listPrice.gross' },
-            { label: 'purchasePrices.EUR.listPrice.linked', value: 'purchasePrices.EUR.listPrice.linked' },
-            { label: 'purchasePrices.USD.net', value: 'purchasePrices.USD.net' },
-            { label: 'purchasePrices.USD.gross', value: 'purchasePrices.USD.gross' },
-            { label: 'purchasePrices.USD.currencyId', value: 'purchasePrices.USD.currencyId' },
-            { label: 'purchasePrices.USD.linked', value: 'purchasePrices.USD.linked' },
-            { label: 'purchasePrices.USD.listPrice.net', value: 'purchasePrices.USD.listPrice.net' },
-            { label: 'purchasePrices.USD.listPrice.gross', value: 'purchasePrices.USD.listPrice.gross' },
-            { label: 'purchasePrices.USD.listPrice.linked', value: 'purchasePrices.USD.listPrice.linked' },
+            {
+                label: 'price.USD.listPrice.net',
+                value: 'price.USD.listPrice.net',
+            },
+            {
+                label: 'price.USD.listPrice.gross',
+                value: 'price.USD.listPrice.gross',
+            },
+            {
+                label: 'price.USD.listPrice.linked',
+                value: 'price.USD.listPrice.linked',
+            },
+            {
+                label: 'purchasePrices.EUR.net',
+                value: 'purchasePrices.EUR.net',
+            },
+            {
+                label: 'purchasePrices.EUR.gross',
+                value: 'purchasePrices.EUR.gross',
+            },
+            {
+                label: 'purchasePrices.EUR.currencyId',
+                value: 'purchasePrices.EUR.currencyId',
+            },
+            {
+                label: 'purchasePrices.EUR.linked',
+                value: 'purchasePrices.EUR.linked',
+            },
+            {
+                label: 'purchasePrices.EUR.listPrice.net',
+                value: 'purchasePrices.EUR.listPrice.net',
+            },
+            {
+                label: 'purchasePrices.EUR.listPrice.gross',
+                value: 'purchasePrices.EUR.listPrice.gross',
+            },
+            {
+                label: 'purchasePrices.EUR.listPrice.linked',
+                value: 'purchasePrices.EUR.listPrice.linked',
+            },
+            {
+                label: 'purchasePrices.USD.net',
+                value: 'purchasePrices.USD.net',
+            },
+            {
+                label: 'purchasePrices.USD.gross',
+                value: 'purchasePrices.USD.gross',
+            },
+            {
+                label: 'purchasePrices.USD.currencyId',
+                value: 'purchasePrices.USD.currencyId',
+            },
+            {
+                label: 'purchasePrices.USD.linked',
+                value: 'purchasePrices.USD.linked',
+            },
+            {
+                label: 'purchasePrices.USD.listPrice.net',
+                value: 'purchasePrices.USD.listPrice.net',
+            },
+            {
+                label: 'purchasePrices.USD.listPrice.gross',
+                value: 'purchasePrices.USD.listPrice.gross',
+            },
+            {
+                label: 'purchasePrices.USD.listPrice.linked',
+                value: 'purchasePrices.USD.listPrice.linked',
+            },
         ];
 
         expect(actual).toEqual(expected);
     });
 
     it('should return valid price properties on `getPriceProperties` with given currencies and path set', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             currencies: [
                 { isoCode: 'EUR' },
@@ -251,61 +190,178 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
         const actual = wrapper.vm.getPriceProperties('parent.');
         const expected = [
             { label: 'parent.price.EUR.net', value: 'parent.price.EUR.net' },
-            { label: 'parent.price.EUR.gross', value: 'parent.price.EUR.gross' },
-            { label: 'parent.price.EUR.currencyId', value: 'parent.price.EUR.currencyId' },
-            { label: 'parent.price.EUR.linked', value: 'parent.price.EUR.linked' },
-            { label: 'parent.price.EUR.listPrice.net', value: 'parent.price.EUR.listPrice.net' },
-            { label: 'parent.price.EUR.listPrice.gross', value: 'parent.price.EUR.listPrice.gross' },
-            { label: 'parent.price.EUR.listPrice.linked', value: 'parent.price.EUR.listPrice.linked' },
+            {
+                label: 'parent.price.EUR.gross',
+                value: 'parent.price.EUR.gross',
+            },
+            {
+                label: 'parent.price.EUR.currencyId',
+                value: 'parent.price.EUR.currencyId',
+            },
+            {
+                label: 'parent.price.EUR.linked',
+                value: 'parent.price.EUR.linked',
+            },
+            {
+                label: 'parent.price.EUR.listPrice.net',
+                value: 'parent.price.EUR.listPrice.net',
+            },
+            {
+                label: 'parent.price.EUR.listPrice.gross',
+                value: 'parent.price.EUR.listPrice.gross',
+            },
+            {
+                label: 'parent.price.EUR.listPrice.linked',
+                value: 'parent.price.EUR.listPrice.linked',
+            },
             { label: 'parent.price.USD.net', value: 'parent.price.USD.net' },
-            { label: 'parent.price.USD.gross', value: 'parent.price.USD.gross' },
-            { label: 'parent.price.USD.currencyId', value: 'parent.price.USD.currencyId' },
-            { label: 'parent.price.USD.linked', value: 'parent.price.USD.linked' },
-            { label: 'parent.price.USD.listPrice.net', value: 'parent.price.USD.listPrice.net' },
-            { label: 'parent.price.USD.listPrice.gross', value: 'parent.price.USD.listPrice.gross' },
-            { label: 'parent.price.USD.listPrice.linked', value: 'parent.price.USD.listPrice.linked' },
-            { label: 'parent.purchasePrices.EUR.net', value: 'parent.purchasePrices.EUR.net' },
-            { label: 'parent.purchasePrices.EUR.gross', value: 'parent.purchasePrices.EUR.gross' },
-            { label: 'parent.purchasePrices.EUR.currencyId', value: 'parent.purchasePrices.EUR.currencyId' },
-            { label: 'parent.purchasePrices.EUR.linked', value: 'parent.purchasePrices.EUR.linked' },
-            { label: 'parent.purchasePrices.EUR.listPrice.net', value: 'parent.purchasePrices.EUR.listPrice.net' },
-            { label: 'parent.purchasePrices.EUR.listPrice.gross', value: 'parent.purchasePrices.EUR.listPrice.gross' },
-            { label: 'parent.purchasePrices.EUR.listPrice.linked', value: 'parent.purchasePrices.EUR.listPrice.linked' },
-            { label: 'parent.purchasePrices.USD.net', value: 'parent.purchasePrices.USD.net' },
-            { label: 'parent.purchasePrices.USD.gross', value: 'parent.purchasePrices.USD.gross' },
-            { label: 'parent.purchasePrices.USD.currencyId', value: 'parent.purchasePrices.USD.currencyId' },
-            { label: 'parent.purchasePrices.USD.linked', value: 'parent.purchasePrices.USD.linked' },
-            { label: 'parent.purchasePrices.USD.listPrice.net', value: 'parent.purchasePrices.USD.listPrice.net' },
-            { label: 'parent.purchasePrices.USD.listPrice.gross', value: 'parent.purchasePrices.USD.listPrice.gross' },
-            { label: 'parent.purchasePrices.USD.listPrice.linked', value: 'parent.purchasePrices.USD.listPrice.linked' },
+            {
+                label: 'parent.price.USD.gross',
+                value: 'parent.price.USD.gross',
+            },
+            {
+                label: 'parent.price.USD.currencyId',
+                value: 'parent.price.USD.currencyId',
+            },
+            {
+                label: 'parent.price.USD.linked',
+                value: 'parent.price.USD.linked',
+            },
+            {
+                label: 'parent.price.USD.listPrice.net',
+                value: 'parent.price.USD.listPrice.net',
+            },
+            {
+                label: 'parent.price.USD.listPrice.gross',
+                value: 'parent.price.USD.listPrice.gross',
+            },
+            {
+                label: 'parent.price.USD.listPrice.linked',
+                value: 'parent.price.USD.listPrice.linked',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.net',
+                value: 'parent.purchasePrices.EUR.net',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.gross',
+                value: 'parent.purchasePrices.EUR.gross',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.currencyId',
+                value: 'parent.purchasePrices.EUR.currencyId',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.linked',
+                value: 'parent.purchasePrices.EUR.linked',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.listPrice.net',
+                value: 'parent.purchasePrices.EUR.listPrice.net',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.listPrice.gross',
+                value: 'parent.purchasePrices.EUR.listPrice.gross',
+            },
+            {
+                label: 'parent.purchasePrices.EUR.listPrice.linked',
+                value: 'parent.purchasePrices.EUR.listPrice.linked',
+            },
+            {
+                label: 'parent.purchasePrices.USD.net',
+                value: 'parent.purchasePrices.USD.net',
+            },
+            {
+                label: 'parent.purchasePrices.USD.gross',
+                value: 'parent.purchasePrices.USD.gross',
+            },
+            {
+                label: 'parent.purchasePrices.USD.currencyId',
+                value: 'parent.purchasePrices.USD.currencyId',
+            },
+            {
+                label: 'parent.purchasePrices.USD.linked',
+                value: 'parent.purchasePrices.USD.linked',
+            },
+            {
+                label: 'parent.purchasePrices.USD.listPrice.net',
+                value: 'parent.purchasePrices.USD.listPrice.net',
+            },
+            {
+                label: 'parent.purchasePrices.USD.listPrice.gross',
+                value: 'parent.purchasePrices.USD.listPrice.gross',
+            },
+            {
+                label: 'parent.purchasePrices.USD.listPrice.linked',
+                value: 'parent.purchasePrices.USD.listPrice.linked',
+            },
         ];
 
         expect(actual).toEqual(expected);
     });
 
     it('should return valid price properties when getting price properties without given currencies', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         const actual = wrapper.vm.getPriceProperties('');
         const expected = [
             { label: 'price.DEFAULT.net', value: 'price.DEFAULT.net' },
             { label: 'price.DEFAULT.gross', value: 'price.DEFAULT.gross' },
-            { label: 'price.DEFAULT.currencyId', value: 'price.DEFAULT.currencyId' },
+            {
+                label: 'price.DEFAULT.currencyId',
+                value: 'price.DEFAULT.currencyId',
+            },
             { label: 'price.DEFAULT.linked', value: 'price.DEFAULT.linked' },
-            { label: 'price.DEFAULT.listPrice.net', value: 'price.DEFAULT.listPrice.net' },
-            { label: 'price.DEFAULT.listPrice.gross', value: 'price.DEFAULT.listPrice.gross' },
-            { label: 'price.DEFAULT.listPrice.linked', value: 'price.DEFAULT.listPrice.linked' },
-            { label: 'purchasePrices.DEFAULT.net', value: 'purchasePrices.DEFAULT.net' },
-            { label: 'purchasePrices.DEFAULT.gross', value: 'purchasePrices.DEFAULT.gross' },
-            { label: 'purchasePrices.DEFAULT.currencyId', value: 'purchasePrices.DEFAULT.currencyId' },
-            { label: 'purchasePrices.DEFAULT.linked', value: 'purchasePrices.DEFAULT.linked' },
-            { label: 'purchasePrices.DEFAULT.listPrice.net', value: 'purchasePrices.DEFAULT.listPrice.net' },
-            { label: 'purchasePrices.DEFAULT.listPrice.gross', value: 'purchasePrices.DEFAULT.listPrice.gross' },
-            { label: 'purchasePrices.DEFAULT.listPrice.linked', value: 'purchasePrices.DEFAULT.listPrice.linked' },
+            {
+                label: 'price.DEFAULT.listPrice.net',
+                value: 'price.DEFAULT.listPrice.net',
+            },
+            {
+                label: 'price.DEFAULT.listPrice.gross',
+                value: 'price.DEFAULT.listPrice.gross',
+            },
+            {
+                label: 'price.DEFAULT.listPrice.linked',
+                value: 'price.DEFAULT.listPrice.linked',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.net',
+                value: 'purchasePrices.DEFAULT.net',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.gross',
+                value: 'purchasePrices.DEFAULT.gross',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.currencyId',
+                value: 'purchasePrices.DEFAULT.currencyId',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.linked',
+                value: 'purchasePrices.DEFAULT.linked',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.listPrice.net',
+                value: 'purchasePrices.DEFAULT.listPrice.net',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.listPrice.gross',
+                value: 'purchasePrices.DEFAULT.listPrice.gross',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.listPrice.linked',
+                value: 'purchasePrices.DEFAULT.listPrice.linked',
+            },
         ];
 
         expect(actual).toEqual(expected);
     });
 
     it('should return valid visibility properties on `getVisibilityProperties` with given visibilities', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         const actual = wrapper.vm.getVisibilityProperties('');
         const expected = [
             { label: 'visibilities.all', value: 'visibilities.all' },
@@ -323,6 +379,9 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
             'description',
         ];
 
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             languages: [
                 { locale: { code: 'en-GB' } },
@@ -334,21 +393,51 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
         const actual = wrapper.vm.getTranslationProperties('', mockProperties);
 
         const expected = [
-            { label: 'translations.en-GB.metaDescription', value: 'translations.en-GB.metaDescription' },
-            { label: 'translations.en-GB.keywords', value: 'translations.en-GB.keywords' },
-            { label: 'translations.en-GB.description', value: 'translations.en-GB.description' },
-            { label: 'translations.de-DE.metaDescription', value: 'translations.de-DE.metaDescription' },
-            { label: 'translations.de-DE.keywords', value: 'translations.de-DE.keywords' },
-            { label: 'translations.de-DE.description', value: 'translations.de-DE.description' },
-            { label: 'translations.DEFAULT.metaDescription', value: 'translations.DEFAULT.metaDescription' },
-            { label: 'translations.DEFAULT.keywords', value: 'translations.DEFAULT.keywords' },
-            { label: 'translations.DEFAULT.description', value: 'translations.DEFAULT.description' },
+            {
+                label: 'translations.en-GB.metaDescription',
+                value: 'translations.en-GB.metaDescription',
+            },
+            {
+                label: 'translations.en-GB.keywords',
+                value: 'translations.en-GB.keywords',
+            },
+            {
+                label: 'translations.en-GB.description',
+                value: 'translations.en-GB.description',
+            },
+            {
+                label: 'translations.de-DE.metaDescription',
+                value: 'translations.de-DE.metaDescription',
+            },
+            {
+                label: 'translations.de-DE.keywords',
+                value: 'translations.de-DE.keywords',
+            },
+            {
+                label: 'translations.de-DE.description',
+                value: 'translations.de-DE.description',
+            },
+            {
+                label: 'translations.DEFAULT.metaDescription',
+                value: 'translations.DEFAULT.metaDescription',
+            },
+            {
+                label: 'translations.DEFAULT.keywords',
+                value: 'translations.DEFAULT.keywords',
+            },
+            {
+                label: 'translations.DEFAULT.description',
+                value: 'translations.DEFAULT.description',
+            },
         ];
 
         expect(actual).toEqual(expected);
     });
 
     it('should return media properties for product cover media value', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             value: 'cover.media.',
             languages: [
@@ -379,10 +468,13 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
                 value: 'cover.media.translations.en-GB.title',
             },
         ];
-        expect(actual).toEqual(expected);
+        expected.forEach((value) => expect(actual).toContainEqual(value));
     });
 
     it('should return product translation properties for product parent parent translation value', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             value: 'parent.parent.translations.name',
             languages: [
@@ -412,25 +504,45 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
         expect(actual).toEqual(expect.arrayContaining(expected));
     });
 
-
     it('should return nothing for searching a invalid path', async () => {
-        await wrapper.setProps({
-            value: 'id.id',
-        });
+        jest.useFakeTimers();
 
-        const actual = wrapper.vm.visibleResults;
+        const wrapper = await createWrapper();
+        await flushPromises();
 
-        expect(actual).toEqual([]);
+        const input = wrapper.find('.sw-import-export-entity-path-select__selection-input');
+
+        await input.trigger('click');
+        await input.setValue('foo');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
+
+        expect(wrapper.find('.sw-select-result-list__empty').text()).toBeTruthy();
+
+        await input.setValue('foo.');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
+
+        expect(wrapper.find('.sw-select-result-list__empty').text()).toBeTruthy();
+
+        await input.setValue('parent.foo.');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
+
+        expect(wrapper.find('.sw-select-result-list__empty').text()).toBeTruthy();
     });
 
     it('should return filtered product properties when searching', async () => {
-        await wrapper.setProps({
-            value: 'parent.parent.',
-            languages: [
-                { locale: { code: 'DEFAULT' } },
-            ],
-        });
-        wrapper.vm.actualSearch = 'parent.parent.price';
+        jest.useFakeTimers();
+        const wrapper = await createWrapper();
+        await flushPromises();
+
+        const input = wrapper.find('.sw-import-export-entity-path-select__selection-input');
+
+        await input.trigger('click');
+        await input.setValue('parent.parent.price.');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
 
         const actual = wrapper.vm.visibleResults;
 
@@ -497,6 +609,9 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
     });
 
     it('should process translations, prices visibilities and remove property from properties array', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             value: '',
             languages: [
@@ -513,24 +628,178 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
             path: '',
         };
 
-        expect(data.properties).toEqual(
-            ['id', 'price', 'parent', 'cover', 'name', 'manufacturer', 'translations', 'visibilities'],
-        );
+        [
+            'id',
+            'price',
+            'parent',
+            'cover',
+            'name',
+            'manufacturer',
+            'translations',
+            'visibilities',
+        ].forEach((property) => expect(data.properties).toContain(property));
 
         data = wrapper.vm.processTranslations(data);
 
-        expect(data.properties).toEqual(['id', 'price', 'parent', 'cover', 'manufacturer', 'visibilities']);
+        [
+            'id',
+            'price',
+            'parent',
+            'cover',
+            'manufacturer',
+            'visibilities',
+        ].forEach((property) => expect(data.properties).toContain(property));
         expect(data.options).toEqual([
-            { label: 'translations.DEFAULT.name', value: 'translations.DEFAULT.name' },
-            { label: 'translations.DEFAULT.customFields', value: 'translations.DEFAULT.customFields', relation: true },
+            {
+                label: 'translations.DEFAULT.metaDescription',
+                value: 'translations.DEFAULT.metaDescription',
+            },
+            {
+                label: 'translations.DEFAULT.name',
+                value: 'translations.DEFAULT.name',
+            },
+            {
+                label: 'translations.DEFAULT.keywords',
+                value: 'translations.DEFAULT.keywords',
+            },
+            {
+                label: 'translations.DEFAULT.description',
+                value: 'translations.DEFAULT.description',
+            },
+            {
+                label: 'translations.DEFAULT.metaTitle',
+                value: 'translations.DEFAULT.metaTitle',
+            },
+            {
+                label: 'translations.DEFAULT.packUnit',
+                value: 'translations.DEFAULT.packUnit',
+            },
+            {
+                label: 'translations.DEFAULT.packUnitPlural',
+                value: 'translations.DEFAULT.packUnitPlural',
+            },
+            {
+                label: 'translations.DEFAULT.customSearchKeywords',
+                value: 'translations.DEFAULT.customSearchKeywords',
+            },
+            {
+                label: 'translations.DEFAULT.slotConfig',
+                value: 'translations.DEFAULT.slotConfig',
+            },
+            {
+                label: 'translations.DEFAULT.customFields',
+                value: 'translations.DEFAULT.customFields',
+                relation: true,
+            },
+            {
+                label: 'translations.DEFAULT.createdAt',
+                value: 'translations.DEFAULT.createdAt',
+            },
+            {
+                label: 'translations.DEFAULT.updatedAt',
+                value: 'translations.DEFAULT.updatedAt',
+            },
+            {
+                label: 'translations.DEFAULT.productId',
+                value: 'translations.DEFAULT.productId',
+            },
+            {
+                label: 'translations.DEFAULT.languageId',
+                value: 'translations.DEFAULT.languageId',
+            },
+            {
+                label: 'translations.DEFAULT.product',
+                value: 'translations.DEFAULT.product',
+            },
+            {
+                label: 'translations.DEFAULT.language',
+                value: 'translations.DEFAULT.language',
+            },
+            {
+                label: 'translations.DEFAULT.productVersionId',
+                value: 'translations.DEFAULT.productVersionId',
+            },
         ]);
 
         data = wrapper.vm.processVisibilities(data);
 
-        expect(data.properties).toEqual(['id', 'price', 'parent', 'cover', 'manufacturer']);
+        [
+            'id',
+            'price',
+            'parent',
+            'cover',
+            'manufacturer',
+        ].forEach((property) => expect(data.properties).toContain(property));
         expect(data.options).toEqual([
-            { label: 'translations.DEFAULT.name', value: 'translations.DEFAULT.name' },
-            { label: 'translations.DEFAULT.customFields', value: 'translations.DEFAULT.customFields', relation: true },
+            {
+                label: 'translations.DEFAULT.metaDescription',
+                value: 'translations.DEFAULT.metaDescription',
+            },
+            {
+                label: 'translations.DEFAULT.name',
+                value: 'translations.DEFAULT.name',
+            },
+            {
+                label: 'translations.DEFAULT.keywords',
+                value: 'translations.DEFAULT.keywords',
+            },
+            {
+                label: 'translations.DEFAULT.description',
+                value: 'translations.DEFAULT.description',
+            },
+            {
+                label: 'translations.DEFAULT.metaTitle',
+                value: 'translations.DEFAULT.metaTitle',
+            },
+            {
+                label: 'translations.DEFAULT.packUnit',
+                value: 'translations.DEFAULT.packUnit',
+            },
+            {
+                label: 'translations.DEFAULT.packUnitPlural',
+                value: 'translations.DEFAULT.packUnitPlural',
+            },
+            {
+                label: 'translations.DEFAULT.customSearchKeywords',
+                value: 'translations.DEFAULT.customSearchKeywords',
+            },
+            {
+                label: 'translations.DEFAULT.slotConfig',
+                value: 'translations.DEFAULT.slotConfig',
+            },
+            {
+                label: 'translations.DEFAULT.customFields',
+                value: 'translations.DEFAULT.customFields',
+                relation: true,
+            },
+            {
+                label: 'translations.DEFAULT.createdAt',
+                value: 'translations.DEFAULT.createdAt',
+            },
+            {
+                label: 'translations.DEFAULT.updatedAt',
+                value: 'translations.DEFAULT.updatedAt',
+            },
+            {
+                label: 'translations.DEFAULT.productId',
+                value: 'translations.DEFAULT.productId',
+            },
+            {
+                label: 'translations.DEFAULT.languageId',
+                value: 'translations.DEFAULT.languageId',
+            },
+            {
+                label: 'translations.DEFAULT.product',
+                value: 'translations.DEFAULT.product',
+            },
+            {
+                label: 'translations.DEFAULT.language',
+                value: 'translations.DEFAULT.language',
+            },
+            {
+                label: 'translations.DEFAULT.productVersionId',
+                value: 'translations.DEFAULT.productVersionId',
+            },
             { label: 'visibilities.all', value: 'visibilities.all' },
             { label: 'visibilities.link', value: 'visibilities.link' },
             { label: 'visibilities.search', value: 'visibilities.search' },
@@ -538,36 +807,141 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
 
         data = wrapper.vm.processPrice(data);
 
-        expect(data.properties).toEqual(['id', 'parent', 'cover', 'manufacturer']);
+        [
+            'id',
+            'parent',
+            'cover',
+            'manufacturer',
+        ].forEach((property) => expect(data.properties).toContain(property));
         expect(data.options).toEqual([
-            { label: 'translations.DEFAULT.name', value: 'translations.DEFAULT.name' },
-            { label: 'translations.DEFAULT.customFields', value: 'translations.DEFAULT.customFields', relation: true },
+            {
+                label: 'translations.DEFAULT.metaDescription',
+                value: 'translations.DEFAULT.metaDescription',
+            },
+            {
+                label: 'translations.DEFAULT.name',
+                value: 'translations.DEFAULT.name',
+            },
+            {
+                label: 'translations.DEFAULT.keywords',
+                value: 'translations.DEFAULT.keywords',
+            },
+            {
+                label: 'translations.DEFAULT.description',
+                value: 'translations.DEFAULT.description',
+            },
+            {
+                label: 'translations.DEFAULT.metaTitle',
+                value: 'translations.DEFAULT.metaTitle',
+            },
+            {
+                label: 'translations.DEFAULT.packUnit',
+                value: 'translations.DEFAULT.packUnit',
+            },
+            {
+                label: 'translations.DEFAULT.packUnitPlural',
+                value: 'translations.DEFAULT.packUnitPlural',
+            },
+            {
+                label: 'translations.DEFAULT.customSearchKeywords',
+                value: 'translations.DEFAULT.customSearchKeywords',
+            },
+            {
+                label: 'translations.DEFAULT.slotConfig',
+                value: 'translations.DEFAULT.slotConfig',
+            },
+            {
+                label: 'translations.DEFAULT.customFields',
+                value: 'translations.DEFAULT.customFields',
+                relation: true,
+            },
+            {
+                label: 'translations.DEFAULT.createdAt',
+                value: 'translations.DEFAULT.createdAt',
+            },
+            {
+                label: 'translations.DEFAULT.updatedAt',
+                value: 'translations.DEFAULT.updatedAt',
+            },
+            {
+                label: 'translations.DEFAULT.productId',
+                value: 'translations.DEFAULT.productId',
+            },
+            {
+                label: 'translations.DEFAULT.languageId',
+                value: 'translations.DEFAULT.languageId',
+            },
+            {
+                label: 'translations.DEFAULT.product',
+                value: 'translations.DEFAULT.product',
+            },
+            {
+                label: 'translations.DEFAULT.language',
+                value: 'translations.DEFAULT.language',
+            },
+            {
+                label: 'translations.DEFAULT.productVersionId',
+                value: 'translations.DEFAULT.productVersionId',
+            },
             { label: 'visibilities.all', value: 'visibilities.all' },
             { label: 'visibilities.link', value: 'visibilities.link' },
             { label: 'visibilities.search', value: 'visibilities.search' },
             { label: 'price.DEFAULT.net', value: 'price.DEFAULT.net' },
             { label: 'price.DEFAULT.gross', value: 'price.DEFAULT.gross' },
-            { label: 'price.DEFAULT.currencyId', value: 'price.DEFAULT.currencyId' },
+            {
+                label: 'price.DEFAULT.currencyId',
+                value: 'price.DEFAULT.currencyId',
+            },
             { label: 'price.DEFAULT.linked', value: 'price.DEFAULT.linked' },
-            { label: 'price.DEFAULT.listPrice.net', value: 'price.DEFAULT.listPrice.net' },
-            { label: 'price.DEFAULT.listPrice.gross', value: 'price.DEFAULT.listPrice.gross' },
-            { label: 'price.DEFAULT.listPrice.linked', value: 'price.DEFAULT.listPrice.linked' },
-            { label: 'purchasePrices.DEFAULT.net', value: 'purchasePrices.DEFAULT.net' },
-            { label: 'purchasePrices.DEFAULT.gross', value: 'purchasePrices.DEFAULT.gross' },
-            { label: 'purchasePrices.DEFAULT.currencyId', value: 'purchasePrices.DEFAULT.currencyId' },
-            { label: 'purchasePrices.DEFAULT.linked', value: 'purchasePrices.DEFAULT.linked' },
-            { label: 'purchasePrices.DEFAULT.listPrice.net', value: 'purchasePrices.DEFAULT.listPrice.net' },
-            { label: 'purchasePrices.DEFAULT.listPrice.gross', value: 'purchasePrices.DEFAULT.listPrice.gross' },
-            { label: 'purchasePrices.DEFAULT.listPrice.linked', value: 'purchasePrices.DEFAULT.listPrice.linked' },
+            {
+                label: 'price.DEFAULT.listPrice.net',
+                value: 'price.DEFAULT.listPrice.net',
+            },
+            {
+                label: 'price.DEFAULT.listPrice.gross',
+                value: 'price.DEFAULT.listPrice.gross',
+            },
+            {
+                label: 'price.DEFAULT.listPrice.linked',
+                value: 'price.DEFAULT.listPrice.linked',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.net',
+                value: 'purchasePrices.DEFAULT.net',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.gross',
+                value: 'purchasePrices.DEFAULT.gross',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.currencyId',
+                value: 'purchasePrices.DEFAULT.currencyId',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.linked',
+                value: 'purchasePrices.DEFAULT.linked',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.listPrice.net',
+                value: 'purchasePrices.DEFAULT.listPrice.net',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.listPrice.gross',
+                value: 'purchasePrices.DEFAULT.listPrice.gross',
+            },
+            {
+                label: 'purchasePrices.DEFAULT.listPrice.linked',
+                value: 'purchasePrices.DEFAULT.listPrice.linked',
+            },
         ]);
     });
 
     it('should process assignedProducts and remove property from properties array', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         await wrapper.setProps({
             value: '',
-            languages: [
-                { locale: { code: 'DEFAULT' } },
-            ],
         });
 
         const definition = Shopware.EntityDefinition.get('product_cross_selling');
@@ -586,11 +960,20 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
 
         expect(data.properties).not.toContain('assignedProducts');
 
-        expect(data.options).toContainEqual({ label: 'assignedProducts', value: 'assignedProducts' });
-        expect(data.options).toContainEqual({ label: 'translations.DEFAULT.name', value: 'translations.DEFAULT.name' });
+        expect(data.options).toContainEqual({
+            label: 'assignedProducts',
+            value: 'assignedProducts',
+        });
+        expect(data.options).toContainEqual({
+            label: 'translations.DEFAULT.name',
+            value: 'translations.DEFAULT.name',
+        });
     });
 
     it('should sort options', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         const options = [
             { label: 'name', value: 'name' },
             { label: 'media', value: 'media' },
@@ -611,63 +994,53 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
     });
 
     it('should return custom field options by entity name', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
         let actual = wrapper.vm.getCustomFields('product');
         let expected = {
-            custom_field_product_1: { label: 'custom_field_product_1', value: 'custom_field_product_1' },
-            custom_field_product_2: { label: 'custom_field_product_2', value: 'custom_field_product_2' },
+            custom_field_product_1: {
+                label: 'custom_field_product_1',
+                value: 'custom_field_product_1',
+            },
+            custom_field_product_2: {
+                label: 'custom_field_product_2',
+                value: 'custom_field_product_2',
+            },
         };
 
         expect(actual).toEqual(expected);
 
         actual = wrapper.vm.getCustomFields('product_manufacturer');
         expected = {
-            custom_field_manufacturer_1: { label: 'custom_field_manufacturer_1', value: 'custom_field_manufacturer_1' },
-            custom_field_manufacturer_2: { label: 'custom_field_manufacturer_2', value: 'custom_field_manufacturer_2' },
+            custom_field_manufacturer_1: {
+                label: 'custom_field_manufacturer_1',
+                value: 'custom_field_manufacturer_1',
+            },
+            custom_field_manufacturer_2: {
+                label: 'custom_field_manufacturer_2',
+                value: 'custom_field_manufacturer_2',
+            },
         };
 
         expect(actual).toEqual(expected);
     });
 
     it('should show custom field options if selected value is custom field', async () => {
-        await wrapper.setProps({
-            value: '',
-            languages: [
-                { locale: { code: 'DEFAULT' } },
-            ],
-        });
+        jest.useFakeTimers();
 
-        wrapper.vm.onSelectExpanded();
+        const wrapper = await createWrapper();
+        await flushPromises();
 
-        await wrapper.vm.setValue({
-            label: 'translations.DEFAULT.customFields',
-            value: 'translations.DEFAULT.customFields',
-            relation: true,
-        });
+        const inputField = wrapper.find('.sw-import-export-entity-path-select__selection-input');
 
-        let actual = wrapper.vm.visibleResults;
-        let expected = [
-            {
-                label: 'translations.DEFAULT.customFields.custom_field_product_1',
-                value: 'translations.DEFAULT.customFields.custom_field_product_1',
-                relation: undefined,
-            },
-            {
-                label: 'translations.DEFAULT.customFields.custom_field_product_2',
-                value: 'translations.DEFAULT.customFields.custom_field_product_2',
-                relation: undefined,
-            },
-        ];
+        await inputField.trigger('click');
+        await inputField.setValue('manufacturer.translations.DEFAULT.customFields.');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
 
-        expect(actual).toEqual(expected);
-
-        await wrapper.vm.setValue({
-            label: 'manufacturer.translations.DEFAULT.customFields',
-            value: 'manufacturer.translations.DEFAULT.customFields',
-            relation: true,
-        });
-
-        actual = wrapper.vm.visibleResults;
-        expected = [
+        const actual = wrapper.vm.visibleResults;
+        const expected = [
             {
                 label: 'manufacturer.translations.DEFAULT.customFields.custom_field_manufacturer_1',
                 value: 'manufacturer.translations.DEFAULT.customFields.custom_field_manufacturer_1',
@@ -681,5 +1054,89 @@ describe('module/sw-import-export/components/sw-import-export-entity-path-select
         ];
 
         expect(actual).toEqual(expected);
+    });
+
+    it('should show transactions of an order on search', async () => {
+        jest.useFakeTimers();
+
+        const wrapper = await createWrapper('order');
+        await flushPromises();
+
+        const input = wrapper.find('.sw-import-export-entity-path-select__selection-input');
+        await input.trigger('click');
+        await input.setValue('transactions');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
+
+        const selectResults = wrapper.findAll('.sw-select-result').map((element) => element.text());
+        expect(selectResults).toStrictEqual([
+            'sw-import-export.profile.mapping.notMapped',
+            'transactions.amount',
+            'transactions.captures',
+            'transactions.createdAt',
+            'transactions.customFields',
+            'transactions.id',
+            'transactions.order',
+            'transactions.orderId',
+            'transactions.orderVersionId',
+            'transactions.paymentMethod',
+            'transactions.paymentMethodId',
+            'transactions.stateId',
+            'transactions.stateMachineState',
+            'transactions.updatedAt',
+            'transactions.validationData',
+            'transactions.versionId',
+        ]);
+    });
+
+    it('should show deliveries of an order on search', async () => {
+        jest.useFakeTimers();
+
+        const wrapper = await createWrapper('order');
+        await flushPromises();
+
+        const input = wrapper.find('.sw-import-export-entity-path-select__selection-input');
+
+        await input.trigger('click');
+        await input.setValue('deliveries');
+        jest.advanceTimersByTime(300);
+        await flushPromises();
+
+        const selectResults = wrapper.findAll('.sw-select-result').map((element) => element.text());
+        expect(selectResults).toStrictEqual([
+            'sw-import-export.profile.mapping.notMapped',
+            'deliveries.createdAt',
+            'deliveries.customFields',
+            'deliveries.id',
+            'deliveries.order',
+            'deliveries.orderId',
+            'deliveries.orderVersionId',
+            'deliveries.positions',
+            'deliveries.shippingCosts',
+            'deliveries.shippingDateEarliest',
+            'deliveries.shippingDateLatest',
+            'deliveries.shippingMethod',
+            'deliveries.shippingMethodId',
+            'deliveries.shippingOrderAddress',
+            'deliveries.shippingOrderAddressId',
+            'deliveries.shippingOrderAddressVersionId',
+            'deliveries.stateId',
+            'deliveries.stateMachineState',
+            'deliveries.trackingCodes',
+            'deliveries.updatedAt',
+            'deliveries.versionId',
+        ]);
+    });
+
+    it('should add popover classes to the result list', async () => {
+        const wrapper = await createWrapper('order');
+        await flushPromises();
+
+        await wrapper.find('.sw-import-export-entity-path-select__selection-input').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('.sw-select-result-list .sw-popover__wrapper').classes()).toContain(
+            'sw-import-export-entity-path-select__result-list',
+        );
     });
 });

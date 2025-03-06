@@ -5,6 +5,7 @@ namespace Shopware\Core\Checkout\Order\SalesChannel;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\Exception\CustomerNotLoggedInException;
 use Shopware\Core\Checkout\Cart\Rule\PaymentMethodRule;
+use Shopware\Core\Checkout\Order\Event\OrderCriteriaEvent;
 use Shopware\Core\Checkout\Order\Exception\GuestNotAuthenticatedException;
 use Shopware\Core\Checkout\Order\Exception\WrongGuestCredentialsException;
 use Shopware\Core\Checkout\Order\OrderCollection;
@@ -24,11 +25,12 @@ use Shopware\Core\Framework\RateLimiter\Exception\RateLimitExceededException;
 use Shopware\Core\Framework\RateLimiter\RateLimiter;
 use Shopware\Core\Framework\Rule\Container\Container;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(defaults: ['_routeScope' => ['store-api']])]
-#[Package('customer-order')]
+#[Package('checkout')]
 class OrderRoute extends AbstractOrderRoute
 {
     /**
@@ -40,7 +42,8 @@ class OrderRoute extends AbstractOrderRoute
     public function __construct(
         private readonly EntityRepository $orderRepository,
         private readonly EntityRepository $promotionRepository,
-        private readonly RateLimiter $rateLimiter
+        private readonly RateLimiter $rateLimiter,
+        private readonly EventDispatcherInterface $eventDispatcher
     ) {
     }
 
@@ -54,23 +57,24 @@ class OrderRoute extends AbstractOrderRoute
     {
         ReplicaConnection::ensurePrimary();
 
-        $criteria->addFilter(new EqualsFilter('order.salesChannelId', $context->getSalesChannel()->getId()));
+        $criteria->addFilter(new EqualsFilter('order.salesChannelId', $context->getSalesChannelId()));
 
         $criteria->getAssociation('documents')
             ->addFilter(new EqualsFilter('config.displayInCustomerAccount', 'true'))
             ->addFilter(new EqualsFilter('sent', true));
 
-        $criteria->addAssociation('billingAddress');
-        $criteria->addAssociation('orderCustomer.customer');
+        $criteria->addAssociations(['billingAddress', 'orderCustomer.customer']);
 
         $deepLinkFilter = \current(array_filter($criteria->getFilters(), static fn (Filter $filter) => \in_array('order.deepLinkCode', $filter->getFields(), true)
             || \in_array('deepLinkCode', $filter->getFields(), true))) ?: null;
 
         if ($context->getCustomer()) {
-            $criteria->addFilter(new EqualsFilter('order.orderCustomer.customerId', $context->getCustomer()->getId()));
+            $criteria->addFilter(new EqualsFilter('order.orderCustomer.customerId', $context->getCustomerId()));
         } elseif ($deepLinkFilter === null) {
             throw CartException::customerNotLoggedIn();
         }
+
+        $this->eventDispatcher->dispatch(new OrderCriteriaEvent($criteria, $context));
 
         $orderResult = $this->orderRepository->search($criteria, $context->getContext());
         $orders = $orderResult->getEntities();
@@ -126,15 +130,14 @@ class OrderRoute extends AbstractOrderRoute
             }
         }
 
-        $promotions = new PromotionCollection();
-
-        if (!empty($promotionIds)) {
-            $criteria = new Criteria($promotionIds);
-            $criteria->addAssociation('cartRules');
-            $promotions = $this->promotionRepository->search($criteria, $context->getContext())->getEntities();
+        if (!$promotionIds) {
+            return new PromotionCollection();
         }
 
-        return $promotions;
+        $criteria = (new Criteria($promotionIds))
+            ->addAssociation('cartRules');
+
+        return $this->promotionRepository->search($criteria, $context->getContext())->getEntities();
     }
 
     private function checkRuleType(Container $rule): bool

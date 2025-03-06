@@ -2,7 +2,7 @@ import template from './sw-order-list.html.twig';
 import './sw-order-list.scss';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
 const { Mixin } = Shopware;
@@ -32,11 +32,10 @@ export default {
             isLoading: false,
             filterLoading: false,
             showDeleteModal: false,
-            availableAffiliateCodes: [],
-            availableCampaignCodes: [],
-            availablePromotionCodes: [],
             filterCriteria: [],
             defaultFilters: [
+                'order-number-filter',
+                'customer-number-filter',
                 'affiliate-code-filter',
                 'campaign-code-filter',
                 'promotion-code-filter',
@@ -83,11 +82,11 @@ export default {
 
             criteria.setTerm(this.term);
 
-            this.sortBy.split(',').forEach(sortBy => {
+            this.sortBy.split(',').forEach((sortBy) => {
                 criteria.addSorting(Criteria.sort(sortBy, this.sortDirection));
             });
 
-            this.filterCriteria.forEach(filter => {
+            this.filterCriteria.forEach((filter) => {
                 criteria.addFilter(filter);
             });
 
@@ -100,13 +99,17 @@ export default {
 
             criteria.addAssociation('stateMachineState');
 
-            criteria.getAssociation('transactions')
+            criteria
+                .getAssociation('transactions')
                 .addAssociation('stateMachineState')
                 .addSorting(Criteria.sort('createdAt'));
 
-            criteria.getAssociation('deliveries')
+            criteria
+                .getAssociation('deliveries')
                 .addAssociation('stateMachineState')
-                .addAssociation('shippingMethod');
+                .addAssociation('shippingOrderAddress')
+                .addAssociation('shippingMethod')
+                .addSorting(Criteria.sort('shippingCosts.unitPrice', 'DESC'));
 
             return criteria;
         },
@@ -123,6 +126,15 @@ export default {
 
         listFilterOptions() {
             return {
+                'order-number-filter': {
+                    property: 'orderNumber',
+                    type: 'string-filter',
+                    label: this.$tc('sw-order.filters.orderNumberFilter.label'),
+                    placeholder: this.$tc('sw-order.filters.orderNumberFilter.placeholder'),
+                    valueProperty: 'key',
+                    labelProperty: 'key',
+                    criteriaFilterType: 'equalsAny',
+                },
                 'sales-channel-filter': {
                     property: 'salesChannel',
                     label: this.$tc('sw-order.filters.salesChannelFilter.label'),
@@ -163,6 +175,15 @@ export default {
                     toFieldLabel: null,
                     showTimeframe: true,
                 },
+                'customer-number-filter': {
+                    property: 'orderCustomer.customer.customerNumber',
+                    type: 'string-filter',
+                    label: this.$tc('sw-order.filters.customerNumberFilter.label'),
+                    placeholder: this.$tc('sw-order.filters.customerNumberFilter.placeholder'),
+                    valueProperty: 'key',
+                    labelProperty: 'key',
+                    criteriaFilterType: 'equals',
+                },
                 'tag-filter': {
                     property: 'tags',
                     label: this.$tc('sw-order.filters.tagFilter.label'),
@@ -170,30 +191,27 @@ export default {
                 },
                 'affiliate-code-filter': {
                     property: 'affiliateCode',
-                    type: 'multi-select-filter',
+                    type: 'string-filter',
                     label: this.$tc('sw-order.filters.affiliateCodeFilter.label'),
                     placeholder: this.$tc('sw-order.filters.affiliateCodeFilter.placeholder'),
                     valueProperty: 'key',
                     labelProperty: 'key',
-                    options: this.availableAffiliateCodes,
                 },
                 'campaign-code-filter': {
                     property: 'campaignCode',
-                    type: 'multi-select-filter',
+                    type: 'string-filter',
                     label: this.$tc('sw-order.filters.campaignCodeFilter.label'),
                     placeholder: this.$tc('sw-order.filters.campaignCodeFilter.placeholder'),
                     valueProperty: 'key',
                     labelProperty: 'key',
-                    options: this.availableCampaignCodes,
                 },
                 'promotion-code-filter': {
                     property: 'lineItems.payload.code',
-                    type: 'multi-select-filter',
+                    type: 'string-filter',
                     label: this.$tc('sw-order.filters.promotionCodeFilter.label'),
                     placeholder: this.$tc('sw-order.filters.promotionCodeFilter.placeholder'),
                     valueProperty: 'key',
                     labelProperty: 'key',
-                    options: this.availablePromotionCodes,
                 },
                 'document-filter': {
                     property: 'documents',
@@ -275,8 +293,16 @@ export default {
     },
 
     methods: {
-        createdComponent() {
-            this.loadFilterValues();
+        createdComponent() {},
+
+        deliveryTooltip(deliveries) {
+            return deliveries
+                .map((delivery) => {
+                    return `${delivery.shippingOrderAddress.street},
+                        ${delivery.shippingOrderAddress.zipcode}
+                        ${delivery.shippingOrderAddress.city}`;
+                })
+                .join('<hr style="margin: 8px 0">');
         },
 
         onEdit(order) {
@@ -301,8 +327,7 @@ export default {
         async getList() {
             this.isLoading = true;
 
-            let criteria = await Shopware.Service('filterService')
-                .mergeWithStoredFilters(this.storeKey, this.orderCriteria);
+            let criteria = await Shopware.Service('filterService').mergeWithStoredFilters(this.storeKey, this.orderCriteria);
 
             criteria = await this.addQueryScores(this.term, criteria);
 
@@ -345,62 +370,89 @@ export default {
         },
 
         getOrderColumns() {
-            return [{
-                property: 'orderNumber',
-                label: 'sw-order.list.columnOrderNumber',
-                routerLink: 'sw.order.detail',
-                allowResize: true,
-                primary: true,
-            }, {
-                property: 'salesChannel.name',
-                label: 'sw-order.list.columnSalesChannel',
-                allowResize: true,
-            }, {
-                property: 'orderCustomer.firstName',
-                dataIndex: 'orderCustomer.lastName,orderCustomer.firstName',
-                label: 'sw-order.list.columnCustomerName',
-                allowResize: true,
-            }, {
-                property: 'billingAddressId',
-                dataIndex: 'billingAddress.street',
-                label: 'sw-order.list.columnBillingAddress',
-                allowResize: true,
-            }, {
-                property: 'amountTotal',
-                label: 'sw-order.list.columnAmount',
-                align: 'right',
-                allowResize: true,
-            }, {
-                property: 'stateMachineState.name',
-                label: 'sw-order.list.columnState',
-                allowResize: true,
-            }, {
-                property: 'transactions.last().stateMachineState.name',
-                dataIndex: 'transactions.stateMachineState.name',
-                label: 'sw-order.list.columnTransactionState',
-                allowResize: true,
-            }, {
-                property: 'deliveries[0].stateMachineState.name',
-                dataIndex: 'deliveries.stateMachineState.name',
-                label: 'sw-order.list.columnDeliveryState',
-                allowResize: true,
-            }, {
-                property: 'orderDateTime',
-                label: 'sw-order.list.orderDate',
-                allowResize: true,
-            }, {
-                property: 'affiliateCode',
-                inlineEdit: 'string',
-                label: 'sw-order.list.columnAffiliateCode',
-                allowResize: true,
-                visible: false,
-            }, {
-                property: 'campaignCode',
-                inlineEdit: 'string',
-                label: 'sw-order.list.columnCampaignCode',
-                allowResize: true,
-                visible: false,
-            }];
+            return [
+                {
+                    property: 'orderNumber',
+                    label: 'sw-order.list.columnOrderNumber',
+                    routerLink: 'sw.order.detail',
+                    allowResize: true,
+                    primary: true,
+                },
+                {
+                    property: 'salesChannel.name',
+                    label: 'sw-order.list.columnSalesChannel',
+                    allowResize: true,
+                    visible: false,
+                },
+                {
+                    property: 'orderCustomer.firstName',
+                    dataIndex: 'orderCustomer.lastName,orderCustomer.firstName',
+                    label: 'sw-order.list.columnCustomerName',
+                    allowResize: true,
+                },
+                {
+                    property: 'orderCustomer.company',
+                    dataIndex: 'orderCustomer.company',
+                    label: 'sw-order.list.columnCustomerCompany',
+                    allowResize: true,
+                    visible: false,
+                },
+                {
+                    property: 'billingAddressId',
+                    dataIndex: 'billingAddress.street',
+                    label: 'sw-order.list.columnBillingAddress',
+                    allowResize: true,
+                    visible: false,
+                },
+                {
+                    property: 'deliveries.id',
+                    dataIndex: 'deliveries.shippingOrderAddress.street',
+                    label: 'sw-order.list.columnDeliveryAddress',
+                    allowResize: true,
+                },
+                {
+                    property: 'amountTotal',
+                    label: 'sw-order.list.columnAmount',
+                    align: 'right',
+                    allowResize: true,
+                },
+                {
+                    property: 'stateMachineState.name',
+                    label: 'sw-order.list.columnState',
+                    allowResize: true,
+                },
+                {
+                    property: 'transactions.last().stateMachineState.name',
+                    dataIndex: 'transactions.stateMachineState.name',
+                    label: 'sw-order.list.columnTransactionState',
+                    allowResize: true,
+                },
+                {
+                    property: 'deliveries[0].stateMachineState.name',
+                    dataIndex: 'deliveries.stateMachineState.name',
+                    label: 'sw-order.list.columnDeliveryState',
+                    allowResize: true,
+                },
+                {
+                    property: 'orderDateTime',
+                    label: 'sw-order.list.orderDate',
+                    allowResize: true,
+                },
+                {
+                    property: 'affiliateCode',
+                    inlineEdit: 'string',
+                    label: 'sw-order.list.columnAffiliateCode',
+                    allowResize: true,
+                    visible: false,
+                },
+                {
+                    property: 'campaignCode',
+                    inlineEdit: 'string',
+                    label: 'sw-order.list.columnCampaignCode',
+                    allowResize: true,
+                    visible: false,
+                },
+            ];
         },
 
         getVariantFromOrderState(order) {
@@ -413,7 +465,12 @@ export default {
             let technicalName = order.transactions.last().stateMachineState.technicalName;
             // set the payment status to the first transaction that is not cancelled
             for (let i = 0; i < order.transactions.length; i += 1) {
-                if (!['cancelled', 'failed'].includes(order.transactions[i].stateMachineState.technicalName)) {
+                if (
+                    ![
+                        'cancelled',
+                        'failed',
+                    ].includes(order.transactions[i].stateMachineState.technicalName)
+                ) {
                     technicalName = order.transactions[i].stateMachineState.technicalName;
                     break;
                 }
@@ -431,24 +488,6 @@ export default {
             );
 
             return style.colorCode;
-        },
-
-        loadFilterValues() {
-            this.filterLoading = true;
-
-            return this.orderRepository.search(this.filterSelectCriteria).then(({ aggregations }) => {
-                const { affiliateCodes, campaignCodes, promotionCodes } = aggregations;
-
-                this.availableAffiliateCodes = affiliateCodes?.buckets.filter(({ key }) => key.length > 0) ?? [];
-                this.availableCampaignCodes = campaignCodes?.buckets.filter(({ key }) => key.length > 0) ?? [];
-                this.availablePromotionCodes = promotionCodes?.buckets.filter(({ key }) => key.length > 0) ?? [];
-
-                this.filterLoading = false;
-
-                return aggregations;
-            }).catch(() => {
-                this.filterLoading = false;
-            });
         },
 
         onDelete(id) {
@@ -488,7 +527,7 @@ export default {
             const ordersExcludeDelivery = Object.values(this.$refs.orderGrid.selection).filter((order) => {
                 return !order.deliveries[0];
             });
-            const excludeDelivery = (ordersExcludeDelivery.length > 0) ? '1' : '0';
+            const excludeDelivery = ordersExcludeDelivery.length > 0 ? '1' : '0';
 
             this.$router.push({
                 name: 'sw.bulk.edit.order',
@@ -500,7 +539,12 @@ export default {
 
         transaction(item) {
             for (let i = 0; i < item.transactions.length; i += 1) {
-                if (!['cancelled', 'failed'].includes(item.transactions[i].stateMachineState.technicalName)) {
+                if (
+                    ![
+                        'cancelled',
+                        'failed',
+                    ].includes(item.transactions[i].stateMachineState.technicalName)
+                ) {
                     return item.transactions[i];
                 }
             }

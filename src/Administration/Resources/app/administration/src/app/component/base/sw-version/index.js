@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-version.html.twig';
@@ -36,7 +36,7 @@ Component.register('sw-version', {
             match.shift();
 
             // Iterate version parts and append to output
-            match.forEach(((versionPart, index) => {
+            match.forEach((versionPart, index) => {
                 if (typeof versionPart !== 'string') {
                     return;
                 }
@@ -58,7 +58,7 @@ Component.register('sw-version', {
 
                 // Add dot and version part to output
                 output += `.${hrt}`;
-            }));
+            });
 
             return output;
         },

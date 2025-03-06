@@ -18,7 +18,6 @@
         "contextMenuDelete": "Delete",
         "titleModalDelete": "Delete role",
         "textModalDelete": "Do you really want to delete the role \"{name}\"?",
-        "labelButtonCancel": "Cancel",
         "labelButtonDelete": "Delete",
         "notification": {
           "deleteSuccess":  {
@@ -48,7 +47,7 @@
       },
       "view": {
         "detailed": {
-          "alertText": "Configure privileges in detail. All deactivated checkboxes are permissions that have already been assigned in the \"General\" tab and are not not configurable. This configuration is only necessary if e.g. extensions are used that add new datasets but do not have privileges, these can be configured here."
+          "alertText": "Configure privileges in detail. All deactivated checkboxes are permissions that have already been assigned in the \"General\" tab and are not configurable. This configuration is only necessary if e.g. extensions are used that add new datasets but do not have privileges, these can be configured here."
         }
       },
       "tabs": {
@@ -75,7 +74,6 @@
         "contextMenuDuplicate": "Duplicate",
         "titleModalDelete": "Delete user",
         "textModalDelete": "Do you really want to delete the user \"{name}\"?",
-        "labelButtonCancel": "Cancel",
         "labelButtonDelete": "Delete",
         "notification": {
           "deleteSuccess": {
@@ -111,7 +109,6 @@
         "labelNewUser": "New user",
         "placeholderNewPassword": "Enter new password...",
         "placeholderNewPasswordConfirm": "Confirm new password...",
-        "labelButtonCancel": "Cancel",
         "labelButtonChangePassword": "Change",
         "labelButtonSave": "Save",
         "writeAccess": "Write",
@@ -129,7 +126,6 @@
           "titleConfirmPasswordModal": "Confirm password",
           "labelConfirmPassword": "Password",
           "placeholderConfirmPassword": "Enter your current password...",
-          "labelButtonCancel": "Cancel",
           "labelButtonConfirm": "Confirm",
           "notificationPasswordErrorTitle": "Error",
           "notificationPasswordErrorMessage": "Please submit your current password correctly."
@@ -140,7 +136,6 @@
           "confirmDelete": "Are you sure you want to delete this integration?",
           "buttonApply": "Save integration",
           "buttonApplyEdit": "Save changes",
-          "buttonCancel": "Cancel",
           "buttonDelete": "Delete",
           "buttonCreateNewApiKeys": "Create new API key",
           "hintCreateNewApiKeys": "For generating new API access keys, updating all associated scripts and applications is recommended.",
@@ -216,14 +211,15 @@
         "api_acl_privileges_route_get": "Read ACL route privileges",
         "api_action_cache_info": "Read cache info",
         "api_action_cache_index": "Trigger indexer",
-        "api_action_cache_delete_and_warmup": "Delete and warm up cache",
         "api_action_cache_delete": "Delete cache",
         "api_action_cache_cleanup": "Clean up cache",
         "api_action_container-cache_delete": "Delete container cache",
         "api_info_me": "Read own api user info",
         "api_info_ping": "Refresh auth token",
         "system:clear:cache": "Clear cache",
-        "api_proxy_switch-customer": "Act on behalf of a customer"
+        "api_proxy_switch-customer": "Act on behalf of a customer",
+        "api_proxy_imitate-customer": "Imitate a customer login",
+        "api_feature_flag_toggle": "Toggle feature flags"
       },
       "app": {
         "label": "Apps",

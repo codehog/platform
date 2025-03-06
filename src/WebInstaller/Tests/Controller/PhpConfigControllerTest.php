@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Shopware\WebInstaller\Tests\Controller;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Shopware\WebInstaller\Controller\PhpConfigController;
@@ -18,15 +19,14 @@ use Twig\Environment;
 
 /**
  * @internal
- *
- * @covers \Shopware\WebInstaller\Controller\PhpConfigController
  */
+#[CoversClass(PhpConfigController::class)]
 class PhpConfigControllerTest extends TestCase
 {
     public function testIndex(): void
     {
         $controller = new PhpConfigController($this->createMock(PhpBinaryFinder::class), $this->createMock(RecoveryManager::class));
-        $controller->setContainer($this->getContainer());
+        $controller->setContainer($this->buildContainer());
 
         $request = new Request();
         $request->setSession(new Session(new MockArraySessionStorage()));
@@ -39,7 +39,7 @@ class PhpConfigControllerTest extends TestCase
     public function testSetConfigOnUpdate(): void
     {
         $controller = new PhpConfigController($this->createMock(PhpBinaryFinder::class), $this->createMock(RecoveryManager::class));
-        $controller->setContainer($this->getContainer());
+        $controller->setContainer($this->buildContainer());
 
         $request = new Request();
         $request->setMethod(Request::METHOD_POST);
@@ -60,7 +60,7 @@ class PhpConfigControllerTest extends TestCase
         $recoveryManager->method('getShopwareLocation')->willThrowException(new \RuntimeException('cannot find shopware'));
 
         $controller = new PhpConfigController($this->createMock(PhpBinaryFinder::class), $recoveryManager);
-        $controller->setContainer($this->getContainer());
+        $controller->setContainer($this->buildContainer());
 
         $request = new Request();
         $request->setMethod(Request::METHOD_POST);
@@ -75,7 +75,7 @@ class PhpConfigControllerTest extends TestCase
         static::assertSame('install', $response->headers->get('Location'));
     }
 
-    private function getContainer(): ContainerInterface
+    private function buildContainer(): ContainerInterface
     {
         $container = new Container();
 

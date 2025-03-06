@@ -1,6 +1,17 @@
+/**
+ * @sw-package framework
+ */
 import initContext from 'src/app/init/context.init';
-import { getCurrency, getEnvironment, getLocale, getShopwareVersion, getModuleInformation, getAppInformation, getUserInformation } from '@shopware-ag/admin-extension-sdk/es/context';
-import extensionsStore from '../state/extensions.store';
+import {
+    getCurrency,
+    getEnvironment,
+    getLocale,
+    getShopwareVersion,
+    getModuleInformation,
+    getAppInformation,
+    getUserInformation,
+    getUserTimezone,
+} from '@shopware-ag/meteor-admin-sdk/es/context';
 
 describe('src/app/init/context.init.ts', () => {
     beforeAll(() => {
@@ -8,23 +19,17 @@ describe('src/app/init/context.init.ts', () => {
     });
 
     beforeEach(() => {
-        if (Shopware.State.get('extensions')) {
-            Shopware.State.unregisterModule('extensions');
-        }
-
-        Shopware.State.registerModule('extensions', extensionsStore);
-    });
-
-    afterEach(() => {
-        Shopware.State.unregisterModule('extensions');
+        Shopware.Store.get('extensions').extensionsState = {};
     });
 
     it('should handle currency', async () => {
         await getCurrency().then((currency) => {
-            expect(currency).toEqual(expect.objectContaining({
-                systemCurrencyId: expect.any(String),
-                systemCurrencyISOCode: expect.any(String),
-            }));
+            expect(currency).toEqual(
+                expect.objectContaining({
+                    systemCurrencyId: expect.any(String),
+                    systemCurrencyISOCode: expect.any(String),
+                }),
+            );
         });
     });
 
@@ -36,10 +41,12 @@ describe('src/app/init/context.init.ts', () => {
 
     it('should handle locale', async () => {
         await getLocale().then((locale) => {
-            expect(locale).toEqual(expect.objectContaining({
-                fallbackLocale: expect.any(String),
-                locale: expect.any(String),
-            }));
+            expect(locale).toEqual(
+                expect.objectContaining({
+                    fallbackLocale: expect.any(String),
+                    locale: expect.any(String),
+                }),
+            );
         });
     });
 
@@ -51,24 +58,44 @@ describe('src/app/init/context.init.ts', () => {
 
     it('should handle module information', async () => {
         await getModuleInformation().then((moduleInformation) => {
-            expect(moduleInformation).toEqual(expect.objectContaining({
-                modules: expect.any(Array),
-            }));
+            expect(moduleInformation).toEqual(
+                expect.objectContaining({
+                    modules: expect.any(Array),
+                }),
+            );
         });
     });
 
     it('should return placeholder app information', async () => {
         await getAppInformation().then((appInformation) => {
-            expect(appInformation).toEqual(expect.objectContaining({
-                name: 'unknown',
-                version: '0.0.0',
-                type: 'app',
-            }));
+            expect(appInformation).toEqual(
+                expect.objectContaining({
+                    name: 'unknown',
+                    version: '0.0.0',
+                    type: 'app',
+                }),
+            );
+        });
+    });
+
+    it('should return user timezone', async () => {
+        Shopware.Store.get('session').setCurrentUser({
+            timeZone: 'Europe/Berlin',
+        });
+        await getUserTimezone().then((timezone) => {
+            expect(timezone).toBe('Europe/Berlin');
+        });
+
+        Shopware.Store.get('session').setCurrentUser({
+            timeZone: undefined,
+        });
+        await getUserTimezone().then((timezone) => {
+            expect(timezone).toBe('UTC');
         });
     });
 
     it('should return app information', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'jestapp',
             baseUrl: '',
             permissions: [],
@@ -79,16 +106,18 @@ describe('src/app/init/context.init.ts', () => {
         });
 
         await getAppInformation().then((appInformation) => {
-            expect(appInformation).toEqual(expect.objectContaining({
-                name: 'jestapp',
-                version: '1.0.0',
-                type: 'app',
-            }));
+            expect(appInformation).toEqual(
+                expect.objectContaining({
+                    name: 'jestapp',
+                    version: '1.0.0',
+                    type: 'app',
+                }),
+            );
         });
     });
 
     it('should return user information', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'jestapp',
             baseUrl: '',
             permissions: {
@@ -102,7 +131,7 @@ describe('src/app/init/context.init.ts', () => {
             active: true,
         });
 
-        Shopware.State.commit('setCurrentUser', {
+        Shopware.Store.get('session').setCurrentUser({
             aclRoles: [],
             active: true,
             admin: true,
@@ -117,24 +146,26 @@ describe('src/app/init/context.init.ts', () => {
         });
 
         await getUserInformation().then((userInformation) => {
-            expect(userInformation).toEqual(expect.objectContaining({
-                aclRoles: expect.any(Array),
-                active: true,
-                admin: true,
-                email: 'john.doe@test.com',
-                firstName: 'John',
-                id: '123',
-                lastName: 'Doe',
-                localeId: 'lOcAlEiD',
-                title: 'Dr.',
-                type: 'user',
-                username: 'john.doe',
-            }));
+            expect(userInformation).toEqual(
+                expect.objectContaining({
+                    aclRoles: expect.any(Array),
+                    active: true,
+                    admin: true,
+                    email: 'john.doe@test.com',
+                    firstName: 'John',
+                    id: '123',
+                    lastName: 'Doe',
+                    localeId: 'lOcAlEiD',
+                    title: 'Dr.',
+                    type: 'user',
+                    username: 'john.doe',
+                }),
+            );
         });
     });
 
     it('should not return user information when permissions arent existing', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'jestapp',
             baseUrl: '',
             permissions: [],
@@ -144,7 +175,7 @@ describe('src/app/init/context.init.ts', () => {
             active: true,
         });
 
-        Shopware.State.commit('setCurrentUser', {
+        Shopware.Store.get('session').setCurrentUser({
             aclRoles: [],
             active: true,
             admin: true,
@@ -162,7 +193,7 @@ describe('src/app/init/context.init.ts', () => {
     });
 
     it('should not return user information when extension is not existing', async () => {
-        Shopware.State.commit('setCurrentUser', {
+        Shopware.Store.get('session').setCurrentUser({
             aclRoles: [],
             active: true,
             admin: true,

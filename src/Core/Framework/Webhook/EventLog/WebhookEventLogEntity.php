@@ -7,7 +7,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityCustomFieldsTrait;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityIdTrait;
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 class WebhookEventLogEntity extends Entity
 {
     use EntityCustomFieldsTrait;
@@ -42,6 +42,8 @@ class WebhookEventLogEntity extends Entity
     protected ?string $responseReasonPhrase = null;
 
     protected string $url;
+
+    protected bool $onlyLiveVersion;
 
     /**
      * @internal
@@ -178,6 +180,16 @@ class WebhookEventLogEntity extends Entity
     public function setUrl(string $url): void
     {
         $this->url = $url;
+    }
+
+    public function getOnlyLiveVersion(): bool
+    {
+        return $this->onlyLiveVersion;
+    }
+
+    public function setOnlyLiveVersion(bool $onlyLiveVersion): void
+    {
+        $this->onlyLiveVersion = $onlyLiveVersion;
     }
 
     /**

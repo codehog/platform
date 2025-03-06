@@ -2,17 +2,17 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer\Write\Command;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\InsertCommand;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\UpdateCommand;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\WriteTypeIntendException;
-use Shopware\Core\Framework\Test\Api\ApiDefinition\EntityDefinition\SimpleDefinition;
+use Shopware\Tests\Integration\Core\Framework\Api\ApiDefinition\EntityDefinition\SimpleDefinition;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\Write\Command\WriteTypeIntendException
  */
+#[CoversClass(WriteTypeIntendException::class)]
 class WriteTypeIntendExceptionTest extends TestCase
 {
     public function testErrorSignalsBadRequest(): void

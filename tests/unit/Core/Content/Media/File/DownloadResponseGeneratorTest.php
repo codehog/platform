@@ -5,16 +5,19 @@ namespace Shopware\Tests\Unit\Core\Content\Media\File;
 use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\UnableToGenerateTemporaryUrl;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
+use Shopware\Core\Content\Media\Core\Application\AbstractMediaUrlGenerator;
 use Shopware\Core\Content\Media\File\DownloadResponseGenerator;
 use Shopware\Core\Content\Media\MediaEntity;
 use Shopware\Core\Content\Media\MediaException;
 use Shopware\Core\Content\Media\MediaService;
-use Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Test\TestCaseHelper\AssertResponseHelper;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Component\HttpFoundation\HeaderUtils;
@@ -24,17 +27,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Media\File\DownloadResponseGenerator
  */
-#[Package('buyers-experience')]
+#[Package('discovery')]
+#[CoversClass(DownloadResponseGenerator::class)]
 class DownloadResponseGeneratorTest extends TestCase
 {
     private MockObject&MediaService $mediaService;
 
     private Filesystem&MockObject $privateFilesystem;
-
-    private MockObject&UrlGeneratorInterface $urlGenerator;
 
     private DownloadResponseGenerator $downloadResponseGenerator;
 
@@ -45,16 +45,14 @@ class DownloadResponseGeneratorTest extends TestCase
         $this->mediaService = $this->createMock(MediaService::class);
         $this->privateFilesystem = $this->createMock(Filesystem::class);
         $publicFilesystem = $this->createMock(Filesystem::class);
-        $this->urlGenerator = $this->createMock(UrlGeneratorInterface::class);
-        $this->urlGenerator->method('getAbsoluteMediaUrl')->willReturn('foobar.txt');
-        $this->urlGenerator->method('getRelativeMediaUrl')->willReturn('foobar.txt');
 
         $this->downloadResponseGenerator = new DownloadResponseGenerator(
             $publicFilesystem,
             $this->privateFilesystem,
-            $this->urlGenerator,
             $this->mediaService,
-            'php'
+            'php',
+            $this->createMock(AbstractMediaUrlGenerator::class),
+            ''
         );
 
         $this->salesChannelContext = $this->createMock(SalesChannelContext::class);
@@ -65,13 +63,15 @@ class DownloadResponseGeneratorTest extends TestCase
     {
         $media = new MediaEntity();
         $media->setFileName('foobar');
+        $media->setPath('foobar.txt');
 
         $downloadResponseGenerator = new DownloadResponseGenerator(
             $this->createMock(FilesystemOperator::class),
             $this->createMock(FilesystemOperator::class),
-            $this->urlGenerator,
             $this->mediaService,
-            'php'
+            'php',
+            $this->createMock(AbstractMediaUrlGenerator::class),
+            ''
         );
 
         $this->expectException(\RuntimeException::class);
@@ -86,68 +86,72 @@ class DownloadResponseGeneratorTest extends TestCase
         $media->setId(Uuid::randomHex());
         $media->setFileName('foobar');
         $media->setPrivate(true);
+        $media->setPath('foobar.txt');
 
         $this->expectException(MediaException::class);
         $this->expectExceptionMessage('The file "foobar." does not exist');
         $this->downloadResponseGenerator->getResponse($media, $this->salesChannelContext);
     }
 
-    /**
-     * @dataProvider filesystemProvider
-     */
-    public function testGetResponse(bool $private, string $privateType, string $publicType, Response $expectedResponse, ?string $strategy = null): void
+    #[DataProvider('filesystemProvider')]
+    public function testGetResponse(bool $private, string $type, Response $expectedResponse, ?string $strategy = null, string $privateLocalPathPrefix = ''): void
     {
-        $privateFilesystem = $privateType === 'local' ? $this->getLocaleFilesystemOperator() : $this->getExternalFilesystemOperator();
-        $publicFilesystem = $publicType === 'local' ? $this->getLocaleFilesystemOperator() : $this->getExternalFilesystemOperator();
-
-        $this->downloadResponseGenerator = new DownloadResponseGenerator(
-            $privateFilesystem,
-            $publicFilesystem,
-            $this->urlGenerator,
-            $this->mediaService,
-            $strategy ?? 'php'
-        );
+        $privateFilesystem = $type === 'local' ? $this->getLocaleFilesystemOperator() : $this->getExternalFilesystemOperator();
+        $publicFilesystem = $type === 'local' ? $this->getLocaleFilesystemOperator() : $this->getExternalFilesystemOperator();
 
         $media = new MediaEntity();
         $media->setId(Uuid::randomHex());
         $media->setFileName('foobar');
         $media->setFileExtension('txt');
         $media->setPrivate($private);
+        $media->setPath('foobar.txt');
+
+        $generator = $this->createMock(AbstractMediaUrlGenerator::class);
+        $generator->method('generate')->willReturn([$media->getId() => 'foobar.txt']);
+
+        $this->downloadResponseGenerator = new DownloadResponseGenerator(
+            $privateFilesystem,
+            $publicFilesystem,
+            $this->mediaService,
+            $strategy ?? 'php',
+            $generator,
+            $privateLocalPathPrefix
+        );
 
         $streamInterface = $this->createMock(StreamInterface::class);
-        $streamInterface->method('detach')->willReturn(fopen('php://temp', 'rb'));
+        $streamInterface->method('detach')->willReturn(fopen('php://temp', 'r'));
         $this->mediaService->method('loadFileStream')->willReturn($streamInterface);
 
         $response = $this->downloadResponseGenerator->getResponse($media, $this->salesChannelContext);
 
-        $response->headers->set('date', null);
-        $expectedResponse->headers->set('date', null);
-
-        static::assertEquals($expectedResponse, $response);
+        AssertResponseHelper::assertResponseEquals($expectedResponse, $response);
     }
 
     public static function filesystemProvider(): \Generator
     {
-        yield 'private / aws' => [true, 'external', 'external', new RedirectResponse('foobar.txt')];
-        yield 'public / aws' => [false, 'external', 'external', new RedirectResponse('foobar.txt')];
-        yield 'private / google' => [true, 'external', 'external', new RedirectResponse('foobar.txt')];
-        yield 'public / google' => [false, 'external', 'external', new RedirectResponse('foobar.txt')];
-        yield 'private / local / php' => [true, 'local', 'local', self::getExpectedStreamResponse()];
+        yield 'private / aws' => [true, 'external', new RedirectResponse('foobar.txt')];
+        yield 'public / aws' => [false, 'external', new RedirectResponse('foobar.txt')];
+        yield 'private / local / php' => [true, 'local', self::getExpectedStreamResponse()];
         yield 'private / local / x-sendfile' => [
             true,
             'local',
-            'local',
-            self::getExpectedStreamResponse('X-Sendfile'),
-            DownloadResponseGenerator::X_SENDFILE_DOWNLOAD_STRATEGRY,
+            self::getExpectedStreamResponse(DownloadResponseGenerator::X_SENDFILE_DOWNLOAD_STRATEGY),
+            DownloadResponseGenerator::X_SENDFILE_DOWNLOAD_STRATEGY,
         ];
         yield 'private / local / x-accel' => [
             true,
             'local',
-            'local',
-            self::getExpectedStreamResponse('X-Accel-Redirect'),
-            DownloadResponseGenerator::X_ACCEL_DOWNLOAD_STRATEGRY,
+            self::getExpectedStreamResponse(DownloadResponseGenerator::X_ACCEL_REDIRECT),
+            DownloadResponseGenerator::X_ACCEL_DOWNLOAD_STRATEGY,
         ];
-        yield 'public / local' => [false, 'local', 'local', new RedirectResponse('foobar.txt')];
+        yield 'private / local / x-accel with prefix' => [
+            true,
+            'local',
+            self::getExpectedStreamResponse(DownloadResponseGenerator::X_ACCEL_REDIRECT, '/protected'),
+            DownloadResponseGenerator::X_ACCEL_DOWNLOAD_STRATEGY,
+            '/protected',
+        ];
+        yield 'public / local' => [false, 'local', new RedirectResponse('foobar.txt')];
     }
 
     /**
@@ -169,7 +173,7 @@ class DownloadResponseGeneratorTest extends TestCase
         return $fileSystem;
     }
 
-    private static function getExpectedStreamResponse(?string $strategy = null): Response
+    private static function getExpectedStreamResponse(?string $strategy = null, string $privateLocalPathPrefix = ''): Response
     {
         $headers = [
             'Content-Disposition' => HeaderUtils::makeDisposition(
@@ -183,7 +187,13 @@ class DownloadResponseGeneratorTest extends TestCase
 
         if ($strategy) {
             $response = new Response(null, 200, $headers);
-            $response->headers->set($strategy, 'foobar.txt');
+
+            $locationPath = 'foobar.txt';
+            if ($strategy === DownloadResponseGenerator::X_ACCEL_REDIRECT && !empty($privateLocalPathPrefix)) {
+                $locationPath = $privateLocalPathPrefix . '/foobar.txt';
+            }
+
+            $response->headers->set($strategy, $locationPath);
 
             return $response;
         }

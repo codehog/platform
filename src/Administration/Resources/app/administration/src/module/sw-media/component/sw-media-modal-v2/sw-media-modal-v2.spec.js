@@ -1,33 +1,37 @@
 /**
- * @package buyers-experience
+ * @sw-package discovery
  */
-import { shallowMount } from '@vue/test-utils';
-import swMediaModalV2 from 'src/module/sw-media/component/sw-media-modal-v2';
-
-Shopware.Component.register('sw-media-modal-v2', swMediaModalV2);
+import { mount } from '@vue/test-utils';
 
 describe('src/module/sw-media/component/sw-media-modal-v2', () => {
     let wrapper;
 
     beforeEach(async () => {
-        wrapper = shallowMount(await Shopware.Component.build('sw-media-modal-v2'), {
-            stubs: {
-                'sw-modal': true,
-                'sw-tabs': {
-                    template: '<div><slot name="content" active="upload"></slot></div>',
-                },
-                'sw-media-sidebar': true,
-                'sw-button': true,
-                'sw-media-upload-v2': true,
-                'sw-upload-listener': true,
-                'sw-media-grid': true,
-            },
-            provide: {
-                repositoryFactory: {},
-                mediaService: {},
-            },
-            propsData: {
+        wrapper = mount(await wrapTestComponent('sw-media-modal-v2', { sync: true }), {
+            props: {
                 uploadTag: 'my-upload',
+            },
+            global: {
+                renderStubDefaultSlot: true,
+                stubs: {
+                    'sw-modal': true,
+                    'sw-tabs': {
+                        template: '<div><slot name="content" active="upload"></slot></div>',
+                    },
+                    'sw-media-sidebar': true,
+                    'sw-media-upload-v2': true,
+                    'sw-upload-listener': true,
+                    'sw-media-grid': true,
+                    'sw-tabs-item': true,
+                    'sw-media-breadcrumbs': true,
+                    'sw-simple-search-field': true,
+                    'sw-media-library': true,
+                    'sw-media-media-item': true,
+                },
+                provide: {
+                    repositoryFactory: {},
+                    mediaService: {},
+                },
             },
         });
     });
@@ -35,7 +39,6 @@ describe('src/module/sw-media/component/sw-media-modal-v2', () => {
     it('should be a Vue.js component', async () => {
         expect(wrapper.vm).toBeTruthy();
     });
-
 
     it('should contain the default accept value', async () => {
         const fileInput = wrapper.find('sw-media-upload-v2-stub');

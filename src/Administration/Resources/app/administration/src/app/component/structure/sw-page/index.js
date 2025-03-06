@@ -5,10 +5,9 @@ const { Component } = Shopware;
 const { dom } = Shopware.Utils;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description
  * Container for the content of a page, including the search bar, page header, actions and the actual content.
  * @status ready
@@ -46,13 +45,19 @@ const { dom } = Shopware.Utils;
 Component.register('sw-page', {
     template,
 
+    provide() {
+        return {
+            setSwPageSidebarOffset: this.setSidebarOffset,
+            removeSwPageSidebarOffset: this.removeSidebarOffset,
+        };
+    },
+
     props: {
         /**
          * Toggles smart bar
          */
         showSmartBar: {
             type: Boolean,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -61,7 +66,6 @@ Component.register('sw-page', {
          */
         showSearchBar: {
             type: Boolean,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -151,10 +155,6 @@ Component.register('sw-page', {
             };
         },
 
-        additionalEventListeners() {
-            return this.$listeners;
-        },
-
         smartBarContentStyle() {
             const rowNumber = this.showSearchBar ? 2 : 1;
 
@@ -176,15 +176,13 @@ Component.register('sw-page', {
         this.updatedComponent();
     },
 
-    beforeDestroy() {
-        Shopware.State.dispatch('error/resetApiErrors');
+    beforeUnmount() {
+        Shopware.Store.get('error').resetApiErrors();
         this.beforeDestroyComponent();
     },
 
     methods: {
         createdComponent() {
-            this.$on('mount', this.setSidebarOffset);
-            this.$on('destroy', this.removeSidebarOffset);
             window.addEventListener('resize', this.readScreenWidth);
         },
 

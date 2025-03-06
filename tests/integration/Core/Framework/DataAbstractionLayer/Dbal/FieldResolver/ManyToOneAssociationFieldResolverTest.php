@@ -1,13 +1,4 @@
-<?php
-/*
- * Copyright (c) Pickware GmbH. All rights reserved.
- * This file is part of software that is released under a proprietary license.
- * You must not copy, modify, distribute, make publicly available, or execute
- * its contents or parts thereof without express permission by the copyright
- * holder, unless otherwise permitted by law.
- */
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace Shopware\Tests\Integration\Core\Framework\DataAbstractionLayer\Dbal\FieldResolver;
 
@@ -16,9 +7,10 @@ use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Document\Aggregate\DocumentType\DocumentTypeDefinition;
 use Shopware\Core\Checkout\Document\DocumentDefinition;
 use Shopware\Core\Checkout\Document\DocumentEntity;
+use Shopware\Core\Checkout\Order\OrderCollection;
 use Shopware\Core\Checkout\Order\OrderDefinition;
 use Shopware\Core\Checkout\Order\OrderEntity;
-use Shopware\Core\Content\Product\ProductEntity;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Content\Test\Product\ProductBuilder;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Context;
@@ -30,11 +22,12 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Test\TestCaseBase\KernelTestBehaviour;
-use Shopware\Core\Framework\Test\TestDataCollection;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextService;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
+use Shopware\Core\Test\Stub\Doctrine\QueryBuilderDataExtractor;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Shopware\Core\Test\TestDefaults;
 use Shopware\Tests\Integration\Core\Checkout\Document\DocumentTrait;
 
@@ -52,7 +45,15 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
 
     protected DefinitionInstanceRegistry $definitionInstanceRegistry;
 
+    /**
+     * @var EntityRepository<OrderCollection>
+     */
     protected EntityRepository $orderRepository;
+
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
+    protected EntityRepository $productRepository;
 
     protected EntityRepository $documentRepository;
 
@@ -64,14 +65,15 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->resolver = $this->getContainer()->get(ManyToOneAssociationFieldResolver::class);
-        $this->queryBuilder = new QueryBuilder($this->getContainer()->get(Connection::class));
-        $this->definitionInstanceRegistry = $this->getContainer()->get(DefinitionInstanceRegistry::class);
-        $this->orderRepository = $this->getContainer()->get('order.repository');
-        $this->documentRepository = $this->getContainer()->get('document.repository');
-        $this->connection = $this->getContainer()->get(Connection::class);
+        $this->resolver = static::getContainer()->get(ManyToOneAssociationFieldResolver::class);
+        $this->queryBuilder = new QueryBuilder(static::getContainer()->get(Connection::class));
+        $this->definitionInstanceRegistry = static::getContainer()->get(DefinitionInstanceRegistry::class);
+        $this->orderRepository = static::getContainer()->get('order.repository');
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->documentRepository = static::getContainer()->get('document.repository');
+        $this->connection = static::getContainer()->get(Connection::class);
         $this->context = Context::createDefaultContext();
-        $this->salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)->create(
+        $this->salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)->create(
             Uuid::randomHex(),
             TestDefaults::SALES_CHANNEL,
             [SalesChannelContextService::CUSTOMER_ID => $this->createCustomer()]
@@ -102,13 +104,13 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
         static::assertSame([
             '`document`' => [
                 [
-                    'joinType' => 'left',
-                    'joinTable' => '`order`',
-                    'joinAlias' => '`document.order`',
-                    'joinCondition' => '`document`.`order_id` = `document.order`.`id` AND `document`.`order_version_id` = `document.order`.`version_id`',
+                    'type' => 'LEFT',
+                    'table' => '`order`',
+                    'alias' => '`document.order`',
+                    'condition' => '`document`.`order_id` = `document.order`.`id` AND `document`.`order_version_id` = `document.order`.`version_id`',
                 ],
             ],
-        ], $this->queryBuilder->getQueryPart('join'));
+        ], QueryBuilderDataExtractor::getJoin($this->queryBuilder));
     }
 
     public function testVersionConstraintWithReferenceToNonVersionedEntity(): void
@@ -135,13 +137,13 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
         static::assertSame([
             '`document`' => [
                 [
-                    'joinType' => 'left',
-                    'joinTable' => '`document_type`',
-                    'joinAlias' => '`document.documentType`',
-                    'joinCondition' => '`document`.`document_type_id` = `document.documentType`.`id`',
+                    'type' => 'LEFT',
+                    'table' => '`document_type`',
+                    'alias' => '`document.documentType`',
+                    'condition' => '`document`.`document_type_id` = `document.documentType`.`id`',
                 ],
             ],
-        ], $this->queryBuilder->getQueryPart('join'));
+        ], QueryBuilderDataExtractor::getJoin($this->queryBuilder));
     }
 
     public function testVersionConstraintWithReferenceToSelf(): void
@@ -168,13 +170,13 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
         static::assertSame([
             '`document`' => [
                 [
-                    'joinType' => 'left',
-                    'joinTable' => '`document`',
-                    'joinAlias' => '`document.referencedDocument`',
-                    'joinCondition' => '`document`.`referenced_document_id` = `document.referencedDocument`.`id`',
+                    'type' => 'LEFT',
+                    'table' => '`document`',
+                    'alias' => '`document.referencedDocument`',
+                    'condition' => '`document`.`referenced_document_id` = `document.referencedDocument`.`id`',
                 ],
             ],
-        ], $this->queryBuilder->getQueryPart('join'));
+        ], QueryBuilderDataExtractor::getJoin($this->queryBuilder));
     }
 
     public function testVersionConstraintWithOneToOneVersionedReferenceFromVersionedEntity(): void
@@ -201,13 +203,13 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
         static::assertSame([
             '`order`' => [
                 [
-                    'joinType' => 'left',
-                    'joinTable' => '`order_customer`',
-                    'joinAlias' => '`order.orderCustomer`',
-                    'joinCondition' => '`order`.`id` = `order.orderCustomer`.`order_id` AND `order`.`version_id` = `order.orderCustomer`.`order_version_id`',
+                    'type' => 'LEFT',
+                    'table' => '`order_customer`',
+                    'alias' => '`order.orderCustomer`',
+                    'condition' => '`order`.`id` = `order.orderCustomer`.`order_id` AND `order`.`version_id` = `order.orderCustomer`.`order_version_id`',
                 ],
             ],
-        ], $this->queryBuilder->getQueryPart('join'));
+        ], QueryBuilderDataExtractor::getJoin($this->queryBuilder));
     }
 
     public function testCorrectOrderVersionOverAssociationOverRepositorySearch(): void
@@ -215,8 +217,9 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
         // 1. Create a new order and extract order number
         $cart = $this->generateDemoCart(2);
         $orderId = $this->persistCart($cart);
-        /** @var OrderEntity $order */
+
         $order = $this->orderRepository->search(new Criteria([$orderId]), $this->context)->first();
+        static::assertInstanceOf(OrderEntity::class, $order);
 
         // 2. Generate a document attached to the order
         $this->createDocument('invoice', $orderId, [], $this->context);
@@ -244,15 +247,16 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
 
         static::assertCount(1, $documents);
         static::assertEquals(1, $documents->getTotal());
-        /** @var DocumentEntity $document */
-        $document = $documents->first();
+
+        $document = $documents->getEntities()->first();
+        static::assertInstanceOf(DocumentEntity::class, $document);
         static::assertNotNull($document->getOrder());
         static::assertEquals('00000000000000000000000000000000', $document->getOrder()->getVersionId());
     }
 
     public function testManyToOneInheritedWorks(): void
     {
-        $ids = new TestDataCollection();
+        $ids = new IdsCollection();
         $p = (new ProductBuilder($ids, 'p1'))
             ->price(100)
             ->cover('cover')
@@ -262,25 +266,22 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
                     ->build()
             );
 
-        $connection = $this->getContainer()->get(Connection::class);
-        $productRepo = $this->getContainer()->get('product.repository');
+        $connection = static::getContainer()->get(Connection::class);
 
         $context = Context::createDefaultContext();
-        $productRepo->create([$p->build()], $context);
+        $this->productRepository->create([$p->build()], $context);
 
         // Old database records don't have a product_media_version_id set
         $connection->executeStatement('UPDATE product SET product_media_version_id = NULL WHERE product_media_id IS NULL');
 
         $criteria = new Criteria([$ids->get('p1'), $ids->get('p2')]);
-        $criteria->addAssociation('cover');
+        $criteria->addAssociation('cover.media');
 
-        /** @var ProductEntity[] $products */
-        $products = array_values($productRepo->search($criteria, $context)->getElements());
+        $products = array_values($this->productRepository->search($criteria, $context)->getElements());
 
         static::assertCount(2, $products);
 
         [$product1, $product2] = $products;
-
         static::assertNotNull($product1->getCover());
         static::assertNull($product2->getCover());
 
@@ -288,13 +289,11 @@ class ManyToOneAssociationFieldResolverTest extends TestCase
 
         $context->setConsiderInheritance(true);
 
-        /** @var ProductEntity[] $products */
-        $products = array_values($productRepo->search($criteria, $context)->getElements());
+        $products = array_values($this->productRepository->search($criteria, $context)->getElements());
 
         static::assertCount(2, $products);
 
         [$product1, $product2] = $products;
-
         static::assertNotNull($product1->getCover());
         static::assertNotNull($product2->getCover());
     }

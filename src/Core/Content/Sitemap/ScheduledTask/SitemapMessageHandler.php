@@ -15,7 +15,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * @internal
  */
 #[AsMessageHandler]
-#[Package('sales-channel')]
+#[Package('discovery')]
 final class SitemapMessageHandler
 {
     /**
@@ -50,7 +50,7 @@ final class SitemapMessageHandler
         try {
             $this->sitemapExporter->generate($context, true, $message->getLastProvider(), $message->getNextOffset());
         } catch (AlreadyLockedException $exception) {
-            $this->logger->error(sprintf('ERROR: %s', $exception->getMessage()));
+            $this->logger->error(\sprintf('ERROR: %s', $exception->getMessage()));
         }
     }
 }

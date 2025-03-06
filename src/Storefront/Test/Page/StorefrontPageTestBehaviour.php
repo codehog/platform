@@ -6,12 +6,15 @@ use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartRuleLoader;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
+use Shopware\Core\Checkout\Customer\CustomerCollection;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Content\Product\Aggregate\ProductVisibility\ProductVisibilityDefinition;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\Api\Util\AccessKeyHelper;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Routing\RoutingException;
 use Shopware\Core\Framework\Struct\Struct;
@@ -25,19 +28,27 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\Test\TestDefaults;
 use Shopware\Storefront\Page\PageLoadedEvent;
 use Shopware\Storefront\Pagelet\PageletLoadedEvent;
+use Shopware\Tests\Integration\Storefront\Page\StorefrontPageTestConstants;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Contracts\EventDispatcher\Event;
 
+/**
+ * @internal
+ */
 trait StorefrontPageTestBehaviour
 {
     use TaxAddToSalesChannelTestBehaviour;
 
     /**
-     * @param class-string<object> $expectedClass
+     * @template TEvent of PageLoadedEvent
+     *
+     * @param class-string<TEvent> $expectedClass
+     * @param TEvent|null $event
      */
     public static function assertPageEvent(
         string $expectedClass,
-        PageLoadedEvent $event,
+        ?PageLoadedEvent $event,
         SalesChannelContext $salesChannelContext,
         Request $request,
         Struct $page
@@ -50,7 +61,10 @@ trait StorefrontPageTestBehaviour
     }
 
     /**
-     * @param class-string<object> $expectedClass
+     * @template TEvent of PageletLoadedEvent
+     *
+     * @param class-string<TEvent> $expectedClass
+     * @param TEvent $event
      */
     public static function assertPageletEvent(
         string $expectedClass,
@@ -82,7 +96,7 @@ trait StorefrontPageTestBehaviour
             ->setRemovable(true)
             ->setStackable(true);
 
-        $cartService = $this->getContainer()->get(CartService::class);
+        $cartService = static::getContainer()->get(CartService::class);
         $cart = $cartService->getCart($context->getToken(), $context);
         $cart->add($lineItem);
 
@@ -96,7 +110,7 @@ trait StorefrontPageTestBehaviour
     {
         $id = Uuid::randomHex();
         $productNumber = Uuid::randomHex();
-        $productRepository = $this->getContainer()->get('product.repository');
+        $productRepository = static::getContainer()->get('product.repository');
 
         $data = [
             'id' => $id,
@@ -112,7 +126,7 @@ trait StorefrontPageTestBehaviour
                 ['id' => Uuid::randomHex(), 'name' => 'asd'],
             ],
             'visibilities' => [
-                ['salesChannelId' => $context->getSalesChannel()->getId(), 'visibility' => ProductVisibilityDefinition::VISIBILITY_ALL],
+                ['salesChannelId' => $context->getSalesChannelId(), 'visibility' => ProductVisibilityDefinition::VISIBILITY_ALL],
             ],
         ];
 
@@ -121,12 +135,10 @@ trait StorefrontPageTestBehaviour
         $productRepository->create([$data], $context->getContext());
         $this->addTaxDataToSalesChannel($context, $data['tax']);
 
-        /** @var SalesChannelRepository $storefrontProductRepository */
-        $storefrontProductRepository = $this->getContainer()->get('sales_channel.product.repository');
-        $searchResult = $storefrontProductRepository->search(new Criteria([$id]), $context);
-
-        /** @var ProductEntity $product */
-        $product = $searchResult->first();
+        /** @var SalesChannelRepository<ProductCollection> $storefrontProductRepository */
+        $storefrontProductRepository = static::getContainer()->get('sales_channel.product.repository');
+        $product = $storefrontProductRepository->search(new Criteria([$id]), $context)->getEntities()->first();
+        static::assertNotNull($product);
 
         return $product;
     }
@@ -244,9 +256,15 @@ trait StorefrontPageTestBehaviour
         return $this->createContext($data, []);
     }
 
-    protected function catchEvent(string $eventName, ?object &$eventResult): void
+    /**
+     * @template TEventName of Event
+     *
+     * @param class-string<TEventName> $eventName
+     * @param TEventName|null $eventResult
+     */
+    protected function catchEvent(string $eventName, ?Event &$eventResult): void
     {
-        $this->addEventListener($this->getContainer()->get('event_dispatcher'), $eventName, static function ($event) use (&$eventResult): void {
+        $this->addEventListener(static::getContainer()->get('event_dispatcher'), $eventName, static function (Event $event) use (&$eventResult): void {
             $eventResult = $event;
         });
     }
@@ -258,39 +276,36 @@ trait StorefrontPageTestBehaviour
         $customerId = Uuid::randomHex();
         $addressId = Uuid::randomHex();
 
-        $data = [
-            [
-                'id' => $customerId,
-                'salesChannelId' => TestDefaults::SALES_CHANNEL,
-                'defaultShippingAddress' => [
-                    'id' => $addressId,
-                    'firstName' => 'Max',
-                    'lastName' => 'Mustermann',
-                    'street' => 'Musterstraße 1',
-                    'city' => 'Schöppingen',
-                    'zipcode' => '12345',
-                    'salutationId' => $this->getValidSalutationId(),
-                    'country' => ['id' => $this->getValidCountryId()],
-                ],
-                'defaultBillingAddressId' => $addressId,
-                'defaultPaymentMethodId' => $this->getValidPaymentMethodId(),
-                'groupId' => TestDefaults::FALLBACK_CUSTOMER_GROUP,
-                'email' => 'foo@bar.de',
-                'password' => 'password',
+        $customer = [
+            'id' => $customerId,
+            'salesChannelId' => TestDefaults::SALES_CHANNEL,
+            'defaultShippingAddress' => [
+                'id' => $addressId,
                 'firstName' => 'Max',
                 'lastName' => 'Mustermann',
+                'street' => 'Musterstraße 1',
+                'city' => 'Schöppingen',
+                'zipcode' => '12345',
                 'salutationId' => $this->getValidSalutationId(),
-                'customerNumber' => '12345',
+                'country' => ['id' => $this->getValidCountryId()],
             ],
+            'defaultBillingAddressId' => $addressId,
+            'groupId' => TestDefaults::FALLBACK_CUSTOMER_GROUP,
+            'email' => 'foo@bar.de',
+            'password' => 'password',
+            'firstName' => 'Max',
+            'lastName' => 'Mustermann',
+            'salutationId' => $this->getValidSalutationId(),
+            'customerNumber' => '12345',
         ];
 
-        $repo = $this->getContainer()->get('customer.repository');
+        /** @var EntityRepository<CustomerCollection> $repo */
+        $repo = static::getContainer()->get('customer.repository');
 
-        $repo->create($data, Context::createDefaultContext());
+        $repo->create([$customer], Context::createDefaultContext());
 
-        $result = $repo->search(new Criteria([$customerId]), Context::createDefaultContext());
-        /** @var CustomerEntity $customer */
-        $customer = $result->first();
+        $customer = $repo->search(new Criteria([$customerId]), Context::createDefaultContext())->getEntities()->first();
+        static::assertNotNull($customer);
 
         return $customer;
     }
@@ -301,8 +316,8 @@ trait StorefrontPageTestBehaviour
      */
     private function createContext(array $salesChannel, array $options): SalesChannelContext
     {
-        $factory = $this->getContainer()->get(SalesChannelContextFactory::class);
-        $salesChannelRepository = $this->getContainer()->get('sales_channel.repository');
+        $factory = static::getContainer()->get(SalesChannelContextFactory::class);
+        $salesChannelRepository = static::getContainer()->get('sales_channel.repository');
 
         $salesChannelId = Uuid::randomHex();
         $salesChannel['id'] = $salesChannelId;
@@ -312,7 +327,7 @@ trait StorefrontPageTestBehaviour
 
         $context = $factory->create(Uuid::randomHex(), $salesChannelId, $options);
 
-        $ruleLoader = $this->getContainer()->get(CartRuleLoader::class);
+        $ruleLoader = static::getContainer()->get(CartRuleLoader::class);
         $ruleLoader->loadByToken($context, $context->getToken());
 
         return $context;

@@ -4,11 +4,9 @@
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
     <parameters>
-        <parameter key="env(APP_URL_CHECK_DISABLED)">false</parameter>
+        <parameter key="env(APP_URL_CHECK_DISABLED)" type="string">false</parameter>
     </parameters>
     <services>
-        <defaults autowire="true"/>
-
         <service id="Shopware\Core\Maintenance\System\Service\DatabaseConnectionFactory"/>
 
         <service id="Shopware\Core\Maintenance\System\Command\SystemInstallCommand">
@@ -23,19 +21,12 @@
             <tag name="console.command"/>
         </service>
 
-        <service id="Shopware\Core\Maintenance\System\Command\SystemGenerateJwtSecretCommand">
-            <argument>%kernel.project_dir%</argument>
-            <argument type="service" id="Shopware\Core\Maintenance\System\Service\JwtCertificateGenerator"/>
-            <tag name="console.command"/>
-        </service>
-
         <service id="Shopware\Core\Maintenance\System\Command\SystemGenerateAppSecretCommand">
             <tag name="console.command"/>
         </service>
 
         <service id="Shopware\Core\Maintenance\System\Command\SystemSetupCommand">
             <argument>%kernel.project_dir%</argument>
-            <argument type="service" id="Shopware\Core\Maintenance\System\Service\JwtCertificateGenerator"/>
             <argument type="service" id="Symfony\Component\Dotenv\Command\DotenvDumpCommand"/>
             <tag name="console.command"/>
         </service>
@@ -47,11 +38,14 @@
 
         <service id="Shopware\Core\Maintenance\System\Command\SystemUpdatePrepareCommand">
             <argument type="service" id="service_container"/>
+            <argument>%kernel.shopware_version%</argument>
             <tag name="console.command"/>
         </service>
 
         <service id="Shopware\Core\Maintenance\System\Command\SystemUpdateFinishCommand">
-            <argument type="service" id="service_container"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument>%kernel.shopware_version%</argument>
             <tag name="console.command"/>
         </service>
 
@@ -67,8 +61,6 @@
             <tag name="console.command"/>
         </service>
 
-        <service id="Shopware\Core\Maintenance\System\Service\JwtCertificateGenerator"/>
-
         <service id="Shopware\Core\Maintenance\System\Service\AppUrlVerifier">
             <argument type="service" id="shopware.maintenance.client"/>
             <argument type="service" id="Doctrine\DBAL\Connection"/>
@@ -80,6 +72,7 @@
 
         <service id="Shopware\Core\Maintenance\System\Service\ShopConfigurator">
             <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="Symfony\Component\EventDispatcher\EventDispatcherInterface"/>
         </service>
 
         <service id="Shopware\Core\Maintenance\SalesChannel\Command\SalesChannelCreateCommand">
@@ -125,10 +118,43 @@
             <tag name="console.command"/>
         </service>
 
+        <service id="Shopware\Core\Maintenance\User\Command\UserListCommand">
+            <argument type="service" id="user.repository"/>
+            <tag name="console.command"/>
+        </service>
+
         <service id="Shopware\Core\Maintenance\User\Service\UserProvisioner" public="true">
             <argument type="service" id="Doctrine\DBAL\Connection"/>
         </service>
 
         <service id="Shopware\Core\Maintenance\System\Service\SetupDatabaseAdapter"/>
+
+        <service id="Shopware\Core\Maintenance\Staging\Command\SystemSetupStagingCommand">
+            <argument type="service" id="event_dispatcher"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+
+            <tag name="console.command"/>
+        </service>
+
+        <service id="Shopware\Core\Maintenance\Staging\Handler\StagingAppHandler">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+
+            <tag name="kernel.event_listener"/>
+        </service>
+
+        <service id="Shopware\Core\Maintenance\Staging\Handler\StagingMailHandler">
+            <argument>%shopware.staging.mailing.disable_delivery%</argument>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+
+            <tag name="kernel.event_listener"/>
+        </service>
+
+        <service id="Shopware\Core\Maintenance\Staging\Handler\StagingSalesChannelHandler">
+            <argument>%shopware.staging.sales_channel.domain_rewrite%</argument>
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+
+            <tag name="kernel.event_listener"/>
+        </service>
     </services>
 </container>

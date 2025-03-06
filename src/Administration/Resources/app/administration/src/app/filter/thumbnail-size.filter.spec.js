@@ -1,3 +1,6 @@
+/**
+ * @sw-package framework
+ */
 describe('src/app/filter/thumbnail-size.filter.ts', () => {
     const thumbnailSizeFilter = Shopware.Filter.getByName('thumbnailSize');
     const mediaThumbnailFactory = Shopware.Service('repositoryFactory').create('media_thumbnail_size');

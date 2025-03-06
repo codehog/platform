@@ -11,13 +11,14 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Entity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityCollection;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Elasticsearch\ElasticsearchException;
 
 /**
  * @internal
  *
  * @final
  */
-#[Package('system-settings')]
+#[Package('inventory')]
 class AdminSearcher
 {
     public function __construct(
@@ -32,7 +33,7 @@ class AdminSearcher
     /**
      * @param array<string> $entities
      *
-     * @return array<string, array{total: int, data:EntityCollection<Entity>, indexer: string, index: string}>
+     * @return array<string, array{total: int, data: EntityCollection<covariant Entity>, indexer: string, index: string}>
      */
     public function search(string $term, array $entities, Context $context, int $limit = 5): array
     {
@@ -48,13 +49,22 @@ class AdminSearcher
                 continue;
             }
 
-            $indexer = $this->registry->getIndexer($entityName);
+            try {
+                $indexer = $this->registry->getIndexer($entityName);
+            } catch (ElasticsearchException $e) {
+                continue;
+            }
+
             $alias = $this->adminEsHelper->getIndex($indexer->getName());
             $index[] = ['index' => $alias];
             $query = $indexer->globalCriteria($term, $this->buildSearch($term, $limit))->toArray();
             $query['timeout'] = $this->timeout;
 
             $index[] = $query;
+        }
+
+        if (empty($index)) {
+            return [];
         }
 
         $responses = $this->client->msearch(['body' => $index]);
@@ -104,8 +114,8 @@ class AdminSearcher
         $lastPart = end($splitTerms);
 
         // If the end of the search term is not a symbol, apply the prefix search query
-        if (preg_match('/^[a-zA-Z0-9]+$/', $lastPart)) {
-            $term = $term . '*';
+        if (preg_match('/^[\p{L}0-9]+$/u', $lastPart)) {
+            $term .= '*';
         }
 
         $query = new SimpleQueryStringQuery($term, [

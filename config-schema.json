@@ -4,7 +4,7 @@
     "definitions": {
         "root": {
             "type": "object",
-            "additionalProperties": false,
+            "additionalProperties": true,
             "properties": {
                 "parameters": {
                     "$ref": "#/definitions/parameters"
@@ -17,6 +17,9 @@
                 },
                 "elasticsearch": {
                     "$ref": "#/definitions/elasticsearch"
+                },
+                "framework": {
+                    "$ref": "#/definitions/framework"
                 }
             },
             "title": "Root"
@@ -30,6 +33,9 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "http_cache": {
+                    "$ref": "#/definitions/http_cache"
+                },
                 "filesystem": {
                     "$ref": "#/definitions/filesystem"
                 },
@@ -95,6 +101,27 @@
                 },
                 "stock": {
                     "$ref": "#/definitions/stock"
+                },
+                "messenger": {
+                    "$ref": "#/definitions/messenger"
+                },
+                "redis": {
+                    "$ref": "#/definitions/redis"
+                },
+                "usage_data": {
+                  "$ref": "#/definitions/usage_data"
+                },
+                "staging": {
+                    "$ref": "#/definitions/staging"
+                },
+                "system_config": {
+                    "type": "object"
+                },
+                "feature_toggle": {
+                    "$ref": "#/definitions/feature_toggle"
+                },
+                "product_stream": {
+                    "$ref": "#/definitions/product_stream"
                 }
             },
             "title": "Shopware"
@@ -120,6 +147,120 @@
                 }
             },
             "title": "Enabled profiler, available since 6.4.11.0"
+        },
+        "usage_data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "gateway": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "dispatch_enabled": {
+                            "type": "boolean"
+                        },
+                        "base_uri": {
+                            "type": "string"
+                        },
+                        "batch_size": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            "title": "Usage data"
+        },
+        "staging": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "mailing": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "disable_delivery": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                },
+                "storefront": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "show_banner": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                },
+                "administration": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "show_banner": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                },
+                "sales_channel": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "domain_rewrite": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "match": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["equal", "regex", "prefix"]
+                                    },
+                                    "replace": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "elasticsearch": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "check_for_existence": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                }
+            },
+            "title": "Staging"
+        },
+        "feature_toggle": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "enable": {
+                    "type": "boolean"
+                }
+            },
+            "title": "Feature toggle"
+        },
+        "product_stream": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "indexing": {
+                    "type": "boolean"
+                }
+            },
+            "title": "Product Stream"
         },
         "twig": {
             "type": "object",
@@ -154,6 +295,35 @@
                 }
             }
         },
+        "messenger": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "routing_overwrite": {
+                    "type": "array",
+                    "title": "Allows to overwrite the routing configuration of the messenger component",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enforce_message_size": {
+                    "type": "boolean",
+                    "title": "Enforce the message size to 256KB, bigger messages will be rejected with an exception",
+                    "default": false
+                }
+            }
+        },
+        "search": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "term_max_length": {
+                    "type": "integer",
+                    "title": "The maximum length of the search term"
+                }
+            }
+        },
         "mail": {
             "type": "object",
             "additionalProperties": false,
@@ -161,6 +331,10 @@
                 "update_mail_variables_on_send": {
                     "type": "boolean",
                     "title": "Configure mail template variable update on each mail sending. This setting should be disabled on productive installations. "
+                },
+                "max_body_length": {
+                    "type": "integer",
+                    "title": "The maximum length of the mail body. If it's set to 0 there is no limit."
                 }
             },
             "title": "Mail Template configuration, Available since 6.4.11.0"
@@ -212,9 +386,6 @@
                 },
                 "rate_limiter": {
                     "$ref": "#/definitions/rate_limiter"
-                },
-                "jwt_key": {
-                    "$ref": "#/definitions/jwt_key"
                 }
             },
             "title": "API"
@@ -285,6 +456,24 @@
             },
             "title": "Rate limiter config"
         },
+        "redis": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "connections": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "dsn": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "api_store": {
             "type": "object",
             "additionalProperties": false,
@@ -298,24 +487,6 @@
                 }
             },
             "title": "API store"
-        },
-        "jwt_key": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "private_key_path": {
-                    "type": "string",
-                    "description": "Path to the private key file."
-                },
-                "private_key_passphrase": {
-                    "type": "string",
-                    "description": "Passphrase for the private key file."
-                },
-                "public_key_path": {
-                    "type": "string",
-                    "description": "Path to the public key file."
-                }
-            }
         },
         "auto_update": {
             "type": "object",
@@ -338,6 +509,12 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Controls the cache compression before the storage"
+                },
+                "cache_compression_method": {
+                    "type": "string",
+                    "enum": ["gzip", "zstd"],
+                    "default": "gzip",
+                    "description": "Controls the cache compression method"
                 },
                 "invalidation": {
                     "$ref": "#/definitions/cache_invalidation"
@@ -382,15 +559,19 @@
                     "properties": {
                         "storage": {
                             "type": "string",
-                            "default": "cache",
+                            "default": "mysql",
                             "enum": [
                                 "cache",
-                                "redis"
+                                "redis",
+                                "mysql"
                             ]
                         },
                         "dsn": {
                             "type": "string",
                             "default": "redis://localhost"
+                        },
+                        "connection": {
+                            "type": "string"
                         }
                     }
                 },
@@ -476,9 +657,34 @@
                     "type": "boolean",
                     "description": "All carts, which stored in redis, are compressed via gzcompress. This option is only available if redis is used."
                 },
-                "redis_url": {
+                "compression_method": {
                     "type": "string",
-                    "description": "The redis url to connect to. All carts will be saved in Redis instead of mysql"
+                    "enum": ["gzip", "zstd"],
+                    "default": "gzip",
+                    "description": "Controls the cache compression method"
+                },
+                "storage": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["mysql", "redis"]
+                        },
+                        "config": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "dsn": {
+                                    "type": "string",
+                                    "deprecationMessage": "The `dsn` option is deprecated and will be removed in v6.7.0 Please use the `connection` option instead."
+                                },
+                                "connection": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
                 }
             },
             "title": "Cart"
@@ -488,21 +694,30 @@
             "additionalProperties": false,
             "properties": {
                 "increment_storage": {
-                    "description": "The storage engine used for the increments. Note that you need to configure a `redis_url` if you want to use the `Redis` storage.",
+                    "description": "The storage engine used for the increments. Note that you need to configure also `config.dsn` if you want to use the `redis` storage.",
                     "anyOf": [
                         {
                             "type": "string",
-                            "enum": ["SQL", "Redis"]
+                            "enum": ["mysql", "redis"]
                         },
                         {
                             "type": "string"
                         }
                     ],
-                    "default": "SQL"
+                    "default": "mysql"
                 },
-                "redis_url": {
-                    "type": "string",
-                    "description": "The redis url to connect to. All number range states will be saved in Redis instead of sql"
+                "config": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "dsn": {
+                            "type": "string",
+                            "deprecationMessage": "The `dsn` option is deprecated and will be removed in v6.7.0 Please use the `connection` option instead."
+                        },
+                        "connection": {
+                            "type": "string"
+                        }
+                    }
                 }
             },
             "title": "Number Range"
@@ -516,6 +731,27 @@
                 },
                 "strategy": {
                     "type": "string"
+                },
+                "fastly": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "api_key": {
+                            "type": "string",
+                            "title": "Fastly API key. Configuring this api key, will lead to purge media urls via fast purge requests"
+                        },
+                        "soft_purge": {
+                            "type": "string",
+                            "enum": ["1", "0"],
+                            "default": "0",
+                            "Title": "Soft purge parameter will be passed to fastly API"
+                        },
+                        "max_parallel_invalidations": {
+                            "type": "integer",
+                            "default": 2,
+                            "title": "Max parallel requests to the external server"
+                        }
+                    }
                 }
             },
             "title": "CDN"
@@ -551,9 +787,132 @@
                 },
                 "cluster_setup": {
                     "type": "boolean"
+                },
+                "runtime_extension_management": {
+                    "type": "boolean"
                 }
             },
             "title": "Deployment"
+        },
+        "http_cache": {
+            "title": "Http cache configuration",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "ignored_url_parameters": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "stale_while_revalidate": {
+                    "type": ["integer", "null"],
+                    "default": null
+                },
+                "stale_if_error": {
+                    "type": ["integer", "null"],
+                    "default": null
+                },
+                "reverse_proxy": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "ban_method": {
+                            "type": "string",
+                            "default": "BAN",
+                            "title": "HTTP method used to purge the cache at the remote server"
+                        },
+                        "ban_headers": {
+                            "type": [
+                                "object",
+                                "null"
+                            ],
+                            "title": "The headers that should be send on a single purge"
+                        },
+                        "hosts": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "List of reverse proxy servers"
+                        },
+                        "max_parallel_invalidations": {
+                            "type": "integer",
+                            "default": 2,
+                            "title": "Max parallel requests to the external server"
+                        },
+                        "use_varnish_xkey": {
+                            "type": "boolean",
+                            "default": false,
+                            "title": "Use the XKey Varnish feature"
+                        },
+                        "redis_url": {
+                            "type": "string",
+                            "title": "Redis URL",
+                            "deprecationMessage": "Using Varnish with Redis is deprecated, consider switching to Varnish with xkeys support"
+                        },
+                        "purge_all": {
+                            "type": [
+                                "object",
+                                "null"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "ban_method": {
+                                    "type": "string",
+                                    "default": "BAN",
+                                    "title": "HTTP method used to purge the cache at the remote server"
+                                },
+                                "ban_headers": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ],
+                                    "title": "The headers that should be send on a single purge"
+                                },
+                                "urls": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "fastly": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "instance_tag": {
+                                    "type": "string",
+                                    "default": ""
+                                },
+                                "api_key": {
+                                    "type": "string",
+                                    "title": "Fastly API key"
+                                },
+                                "service_id": {
+                                    "type": "string",
+                                    "title": "Fastly service ID"
+                                },
+                                "soft_purge": {
+                                    "type": "string",
+                                    "enum": ["1", "0"],
+                                    "default": "0"
+                                }
+                            }
+                        }
+                    },
+                    "title": "Reverse proxy configuration"
+                }
+            }
         },
         "filesystem": {
             "type": "object",
@@ -594,8 +953,11 @@
                         "php",
                         "x-sendfile",
                         "x-accel"
-                    ],
-                    "type": "string"
+                    ]
+                },
+                "private_local_path_prefix": {
+                    "type": "string",
+                    "description": "Path prefix to be prepended to the path when using a local download strategy"
                 }
             },
             "title": "Filesystem"
@@ -739,11 +1101,24 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "url": {
+                                        "type": "string",
+                                        "deprecationMessage": "The `url` option is deprecated and will be removed in v6.7.0 Please use the `connection` option instead."
+                                    },
+                                    "connection": {
                                         "type": "string"
                                     }
                                 },
-                                "required": [
-                                    "url"
+                                "oneOf": [
+                                    {
+                                        "required": [
+                                            "url"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "connection"
+                                        ]
+                                    }
                                 ]
                             }
                         },
@@ -759,6 +1134,9 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "enforce_throw_exception": {
+                    "type": "boolean"
+                },
                 "file_rotation_count": {
                     "type": "integer"
                 },
@@ -793,6 +1171,18 @@
                 },
                 "url_upload_max_size": {
                     "type": "string"
+                },
+                "remote_thumbnails": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enable": {
+                            "type": "boolean"
+                        },
+                        "pattern": {
+                            "type": "string"
+                        }
+                    }
                 }
             },
             "title": "Media"
@@ -837,125 +1227,6 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "reverse_proxy": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean",
-                            "default": false
-                        },
-                        "ban_method": {
-                            "type": "string",
-                            "default": "BAN",
-                            "title": "HTTP method used to purge the cache at the remote server"
-                        },
-                        "ban_headers": {
-                            "type": [
-                                "object",
-                                "null"
-                            ],
-                            "title": "The headers that should be send on a single purge"
-                        },
-                        "hosts": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
-                            "title": "List of reverse proxy servers"
-                        },
-                        "max_parallel_invalidations": {
-                            "type": "integer",
-                            "default": 2,
-                            "title": "Max parallel requests to the external server"
-                        },
-                        "use_varnish_xkey": {
-                            "type": "boolean",
-                            "default": false,
-                            "title": "Use the XKey Varnish feature"
-                        },
-                        "redis_url": {
-                            "type": "string",
-                            "title": "Redis URL"
-                        },
-                        "purge_all": {
-                            "type": [
-                                "object",
-                                "null"
-                            ],
-                            "additionalProperties": false,
-                            "properties": {
-                                "ban_method": {
-                                    "type": "string",
-                                    "default": "BAN",
-                                    "title": "HTTP method used to purge the cache at the remote server"
-                                },
-                                "ban_headers": {
-                                    "type": [
-                                        "object",
-                                        "null"
-                                    ],
-                                    "title": "The headers that should be send on a single purge"
-                                },
-                                "urls": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        },
-                        "fastly": {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "properties": {
-                                "enabled": {
-                                    "type": "boolean",
-                                    "default": false
-                                },
-                                "instance_tag": {
-                                    "type": "string",
-                                    "default": ""
-                                },
-                                "api_key": {
-                                    "type": "string",
-                                    "title": "Fastly API key"
-                                },
-                                "service_id": {
-                                    "type": "string",
-                                    "title": "Fastly service ID"
-                                },
-                                "soft_purge": {
-                                    "type": "string",
-                                    "enum": ["1", "0"],
-                                    "default": "0"
-                                }
-                            }
-                        }
-                    },
-                    "title": "Reverse proxy configuration"
-                },
-                "http_cache": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "ignored_url_parameters": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        },
-                        "stale_while_revalidate": {
-                            "type": ["integer", "null"],
-                            "default": null
-                        },
-                        "stale_if_error": {
-                            "type": ["integer", "null"],
-                            "default": null
-                        }
-                    },
-                    "title": "Http cache configuration"
-                },
                 "theme": {
                     "type": "object",
                     "additionalProperties": false,
@@ -1067,6 +1338,38 @@
                         "cert_key_path": {
                             "type": ["boolean", "string"],
                             "default": false
+                        },
+                        "sigV4": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "region": {
+                                    "type": ["boolean", "string"],
+                                    "default": false
+                                },
+                                "service": {
+                                    "type": ["boolean", "string"],
+                                    "default": false
+                                },
+                                "credentials_provider": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "key_id": {
+                                            "type": ["boolean", "string"],
+                                            "default": false
+                                        },
+                                        "secret_key": {
+                                            "type": ["boolean", "string"],
+                                            "default": false
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -1103,6 +1406,87 @@
                 "dynamic_templates": {
                     "type": "array",
                     "title": "Dynamic Templates Config"
+                }
+            }
+        },
+        "framework": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+                "trusted_proxies": {
+                    "type": "string",
+                    "default": "",
+                    "description": "A list of IP ranges to be considered as proxies and trust the headers",
+                    "examples": [
+                        "REMOTE_ADDR",
+                        "private_ranges",
+                        "192.0.0.1,10.0.0.0/8"
+                    ]
+                },
+                "trusted_headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "x-forwarded-for",
+                            "x-forwarded-host",
+                            "x-forwarded-proto",
+                            "x-forwarded-port",
+                            "x-forwarded-prefix"
+                        ]
+                    }
+                },
+                "lock": {
+                    "type": "string",
+                    "default": "flock"
+                },
+                "session": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "storage_factory_id": {
+                            "type": "string",
+                            "default": "session.storage.factory.native"
+                        },
+                        "handler_id": {
+                            "type": "string",
+                            "default": "",
+                            "examples": [
+                                "redis://localhost"
+                            ]
+                        },
+                        "name": {
+                            "type": "string",
+                            "default": "shop-",
+                            "description": "The cookie name of the session"
+                        },
+                        "cookie_lifetime": {
+                            "type": "integer",
+                            "default": 7200,
+                            "description": "The cookie lifetime of the session"
+                        }
+                    }
+                },
+                "cache": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "app": {
+                            "type": "string",
+                            "default": "cache.adapter.filesystem"
+                        },
+                        "system": {
+                            "type": "string",
+                            "default": "cache.adapter.filesystem"
+                        },
+                        "default_redis_provider": {
+                            "type": "string",
+                            "default": "redis://localhost",
+                            "examples": [
+                                "redis://%env(REDIS_URL)%"
+                            ]
+                        }
+                    }
                 }
             }
         }

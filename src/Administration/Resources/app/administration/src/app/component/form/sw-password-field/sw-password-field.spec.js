@@ -1,111 +1,37 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/form/sw-text-field';
-import 'src/app/component/form/sw-password-field';
-import 'src/app/component/form/field-base/sw-contextual-field';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper(additionalOptions = {}) {
-    return shallowMount(await Shopware.Component.build('sw-password-field'), {
-        stubs: {
-            'sw-field': true,
-            'sw-text-field': await Shopware.Component.build('sw-text-field'),
-            'sw-contextual-field': await Shopware.Component.build('sw-contextual-field'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-field-error': true,
-            'sw-icon': true,
-        },
-        provide: {
-            validationService: {},
-        },
+    return mount(await wrapTestComponent('sw-password-field', { sync: true }), {
+        props: {},
         ...additionalOptions,
     });
 }
 
-describe('components/form/sw-password-field', () => {
-    let wrapper;
-
-    beforeEach(async () => {
-        wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
-    });
-
+describe('src/app/component/base/sw-password-field', () => {
     it('should be a Vue.js component', async () => {
+        const wrapper = await createWrapper();
         expect(wrapper.vm).toBeTruthy();
     });
 
-    it('Should display placeholder as text', async () => {
-        await wrapper.setProps({
-            placeholder: 'Enter your password',
-        });
+    it('should render the mt-password-field when major feature flag is enabled', async () => {
+        global.activeFeatureFlags = ['ENABLE_METEOR_COMPONENTS'];
 
-        expect(wrapper.props('placeholder')).toBe('Enter your password');
-        expect(wrapper.find('input').attributes().placeholder).toBe('Enter your password');
+        const wrapper = await createWrapper();
+
+        expect(wrapper.html()).toContain('mt-password-field');
     });
 
-    it('Should display placeholder as password', async () => {
-        await wrapper.setProps({
-            placeholder: 'ThirteenChars',
-            placeholderIsPassword: true,
-        });
-
-        expect(wrapper.props('placeholder')).toBe('ThirteenChars');
-        expect(wrapper.find('input').attributes().placeholder).toBe('*************');
-    });
-
-    it('Should display placeholder as password without given placeholder prop', async () => {
-        await wrapper.setProps({
-            placeholderIsPassword: true,
-        });
-
-        expect(wrapper.find('input').attributes().placeholder).toBe('******');
-    });
-
-    it('Should display entered password by switching type to text', async () => {
-        const input = wrapper.find('input');
-
-        expect(input.attributes().type).toBe('password');
-
-        await wrapper.setData({
-            showPassword: true,
-        });
-
-        await input.setValue('Very secret password');
-
-        expect(input.attributes().type).toBe('text');
-        expect(input.element.value).toBe('Very secret password');
-    });
-
-    it('should show the label from the property', async () => {
-        wrapper = await createWrapper({
-            propsData: {
-                label: 'Label from prop',
-                value: null,
+    it('passes the value to the inner component', async () => {
+        const wrapper = await createWrapper({
+            props: {
+                value: 'password',
             },
         });
 
-        expect(wrapper.find('label').text()).toBe('Label from prop');
-    });
-
-    it('should show the value from the label slot', async () => {
-        wrapper = await createWrapper({
-            propsData: {
-                label: 'Label from prop',
-                value: null,
-            },
-            scopedSlots: {
-                label: '<template>Label from slot</template>',
-            },
-        });
-
-        expect(wrapper.find('label').text()).toBe('Label from slot');
+        expect(wrapper.find('input').element.value).toBe('password');
     });
 });

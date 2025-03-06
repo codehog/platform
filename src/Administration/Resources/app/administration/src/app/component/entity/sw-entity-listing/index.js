@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-entity-listing.html.twig';
@@ -8,12 +8,26 @@ const { Component } = Shopware;
 const { Criteria } = Shopware.Data;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.extend('sw-entity-listing', 'sw-data-grid', {
     template,
 
     inject: ['feature'],
+
+    emits: [
+        'update-records',
+        'delete-item-finish',
+        'delete-item-failed',
+        'delete-items-failed',
+        'items-delete-finish',
+        'inline-edit-save',
+        'inline-edit-cancel',
+        'column-sort',
+        'page-change',
+        'bulk-edit-modal-open',
+        'bulk-edit-modal-close',
+    ],
 
     props: {
         detailRoute: {
@@ -33,17 +47,18 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
             default: null,
         },
 
-        // FIXME: add default value to this property
         // eslint-disable-next-line vue/require-default-prop
         dataSource: {
-            type: [Array, Object],
+            type: [
+                Array,
+                Object,
+            ],
             required: false,
         },
 
         showSettings: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -52,14 +67,19 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
             type: Array,
             required: false,
             default() {
-                return [10, 25, 50, 75, 100];
+                return [
+                    10,
+                    25,
+                    50,
+                    75,
+                    100,
+                ];
             },
         },
 
         fullPage: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -67,7 +87,6 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
         allowInlineEdit: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -75,7 +94,6 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
         allowColumnEdit: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -89,7 +107,6 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
         allowEdit: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -103,7 +120,6 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
         allowDelete: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -202,13 +218,16 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
             this.deleteId = null;
 
             // send delete request to the server, immediately
-            return this.repository.delete(id, this.items.context).then(() => {
-                this.resetSelection();
-                this.$emit('delete-item-finish', id);
-                return this.doSearch();
-            }).catch((errorResponse) => {
-                this.$emit('delete-item-failed', { id, errorResponse });
-            });
+            return this.repository
+                .delete(id, this.items.context)
+                .then(() => {
+                    this.resetSelection();
+                    this.$emit('delete-item-finish', id);
+                    return this.doSearch();
+                })
+                .catch((errorResponse) => {
+                    this.$emit('delete-item-failed', { id, errorResponse });
+                });
         },
 
         deleteItems() {
@@ -218,12 +237,18 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
 
             selectedIds = Object.keys(this.selection);
 
-            return this.repository.syncDeleted(selectedIds, this.items.context).then(() => {
-                return this.deleteItemsFinish();
-            }).catch((errorResponse) => {
-                this.$emit('delete-items-failed', { selectedIds, errorResponse });
-                return this.deleteItemsFinish();
-            });
+            return this.repository
+                .syncDeleted(selectedIds, this.items.context)
+                .then(() => {
+                    return this.deleteItemsFinish();
+                })
+                .catch((errorResponse) => {
+                    this.$emit('delete-items-failed', {
+                        selectedIds,
+                        errorResponse,
+                    });
+                    return this.deleteItemsFinish();
+                });
         },
 
         deleteItemsFinish() {
@@ -270,9 +295,7 @@ Component.extend('sw-entity-listing', 'sw-data-grid', {
             }
 
             this.lastSortedColumn.dataIndex.split(',').forEach((field) => {
-                this.items.criteria.addSorting(
-                    Criteria.sort(field, direction, this.lastSortedColumn.naturalSorting),
-                );
+                this.items.criteria.addSorting(Criteria.sort(field, direction, this.lastSortedColumn.naturalSorting));
             });
 
             this.currentSortBy = this.lastSortedColumn.dataIndex;

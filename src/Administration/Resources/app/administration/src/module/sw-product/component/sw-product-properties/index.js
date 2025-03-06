@@ -1,19 +1,21 @@
 /*
- * @package inventory
+ * @sw-package inventory
  */
 
 import template from './sw-product-properties.html.twig';
 import './sw-product-properties.scss';
 
-const { Component, Context } = Shopware;
+const { Context } = Shopware;
 const { Criteria, EntityCollection } = Shopware.Data;
-const { mapState, mapGetters } = Component.getComponentHelper();
 
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
-    inject: ['repositoryFactory', 'acl'],
+    inject: [
+        'repositoryFactory',
+        'acl',
+    ],
 
     props: {
         disabled: {
@@ -52,7 +54,6 @@ export default {
             return this.repositoryFactory.create('property_group');
         },
 
-
         propertyOptionRepository() {
             return this.repositoryFactory.create('property_group_option');
         },
@@ -60,12 +61,8 @@ export default {
         propertyGroupCriteria() {
             const criteria = new Criteria(1, 10);
 
-            criteria.addSorting(
-                Criteria.sort('name', 'ASC', false),
-            );
-            criteria.addFilter(
-                Criteria.equalsAny('id', this.groupIds),
-            );
+            criteria.addSorting(Criteria.sort('name', 'ASC', false));
+            criteria.addFilter(Criteria.equalsAny('id', this.groupIds));
 
             if (this.searchTerm) {
                 criteria.setTerm(this.searchTerm);
@@ -95,15 +92,21 @@ export default {
             ];
         },
 
-        ...mapState('swProductDetail', [
-            'product',
-            'parentProduct',
-        ]),
+        product() {
+            return Shopware.Store.get('swProductDetail').product;
+        },
 
-        ...mapGetters('swProductDetail', [
-            'isLoading',
-            'isChild',
-        ]),
+        parentProduct() {
+            return Shopware.Store.get('swProductDetail').parentProduct;
+        },
+
+        isLoading() {
+            return Shopware.Store.get('swProductDetail').isLoading;
+        },
+
+        isChild() {
+            return Shopware.Store.get('swProductDetail').isChild;
+        },
 
         productProperties() {
             return this.isChild && this.product?.properties?.length <= 0
@@ -114,6 +117,10 @@ export default {
         assetFilter() {
             return Shopware.Filter.getByName('asset');
         },
+
+        productHasProperties() {
+            return this.product?.id && this.groupIds.length > 0;
+        },
     },
 
     watch: {
@@ -123,7 +130,6 @@ export default {
                 if (!newValue) {
                     return;
                 }
-
                 this.getGroupIds();
                 this.getProperties();
             },
@@ -156,11 +162,13 @@ export default {
         getProperties() {
             if (!this.product?.id || this.groupIds.length <= 0) {
                 this.properties = [];
+                this.searchTerm = null;
                 return Promise.resolve();
             }
 
             this.isPropertiesLoading = true;
-            return this.propertyGroupRepository.search(this.propertyGroupCriteria, Context.api)
+            return this.propertyGroupRepository
+                .search(this.propertyGroupCriteria, Context.api)
                 .then((properties) => {
                     this.properties = properties;
                 })
@@ -203,7 +211,6 @@ export default {
                         this.productProperties.remove(value.id);
                     });
                 });
-
                 this.$refs.entityListing.resetSelection();
             });
         },
@@ -243,14 +250,16 @@ export default {
             this.turnOffAddPropertiesModal();
         },
 
-        onSaveAddPropertiesModal(newProperties) {
+        onSaveAddPropertiesModal(newProperties, callbackUpdateCurrentValues) {
             this.turnOffAddPropertiesModal();
 
             if (newProperties.length <= 0) {
                 return;
             }
 
-            this.productProperties.splice(0, this.productProperties.length, ...newProperties);
+            if (typeof callbackUpdateCurrentValues === 'function') {
+                callbackUpdateCurrentValues.bind(this)(newProperties);
+            }
         },
 
         checkIfPropertiesExists() {

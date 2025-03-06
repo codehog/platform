@@ -5,7 +5,7 @@ const { Component, Mixin } = Shopware;
 const domUtils = Shopware.Utils.dom;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  */
@@ -47,13 +47,13 @@ Component.register('sw-field-copyable', {
     },
 
     methods: {
-        copyToClipboard() {
+        async copyToClipboard() {
             if (!this.copyableText) {
                 return;
             }
 
             try {
-                domUtils.copyToClipboard(this.copyableText);
+                await domUtils.copyStringToClipboard(this.copyableText);
                 if (this.tooltip) {
                     this.tooltipSuccess();
                 } else {

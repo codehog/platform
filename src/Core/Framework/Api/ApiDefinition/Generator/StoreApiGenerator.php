@@ -3,6 +3,7 @@
 namespace Shopware\Core\Framework\Api\ApiDefinition\Generator;
 
 use http\Exception\RuntimeException;
+use OpenApi\Annotations\License;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Parameter;
@@ -21,7 +22,7 @@ use Shopware\Core\System\SalesChannel\Entity\SalesChannelDefinitionInterface;
  * @phpstan-import-type Api from DefinitionService
  * @phpstan-import-type OpenApiSpec from DefinitionService
  */
-#[Package('core')]
+#[Package('framework')]
 class StoreApiGenerator implements ApiDefinitionGeneratorInterface
 {
     final public const FORMAT = 'openapi-3';
@@ -56,7 +57,9 @@ class StoreApiGenerator implements ApiDefinitionGeneratorInterface
 
     public function generate(array $definitions, string $api, string $apiType, ?string $bundleName): array
     {
-        $openApi = new OpenApi([]);
+        $openApi = new OpenApi([
+            'openapi' => '3.1.0',
+        ]);
         $this->openApiBuilder->enrich($openApi, $api);
 
         $forSalesChannel = $api === DefinitionService::STORE_API;
@@ -88,15 +91,16 @@ class StoreApiGenerator implements ApiDefinitionGeneratorInterface
         $schemaPaths = [$this->schemaPath];
 
         if (!empty($bundleName)) {
-            $schemaPaths = $this->bundleSchemaPathCollection->getSchemaPaths($api, $bundleName);
+            $schemaPaths = array_merge([$this->schemaPath . '/components', $this->schemaPath . '/tags'], $this->bundleSchemaPathCollection->getSchemaPaths($api, $bundleName));
         } else {
             $schemaPaths = array_merge($schemaPaths, $this->bundleSchemaPathCollection->getSchemaPaths($api, $bundleName));
         }
 
         $loader = new OpenApiFileLoader($schemaPaths);
 
+        $preFinalSpecs = $this->mergeComponentsSchemaRequiredFieldsRecursive($data, $loader->loadOpenapiSpecification());
         /** @var OpenApiSpec $finalSpecs */
-        $finalSpecs = array_replace_recursive($data, $loader->loadOpenapiSpecification());
+        $finalSpecs = array_replace_recursive($data, $preFinalSpecs);
 
         return $finalSpecs;
     }
@@ -148,6 +152,10 @@ class StoreApiGenerator implements ApiDefinitionGeneratorInterface
     private function addGeneralInformation(OpenApi $openApi): void
     {
         $openApi->info->description = 'This endpoint reference contains an overview of all endpoints comprising the Shopware Store API';
+        $openApi->info->license = new License([
+            'name' => 'MIT',
+            'url' => 'https://github.com/shopware/shopware/blob/trunk/LICENSE',
+        ]);
     }
 
     private function addContentTypeParameter(OpenApi $openApi): void
@@ -183,8 +191,7 @@ class StoreApiGenerator implements ApiDefinitionGeneratorInterface
 
         foreach ($openApi->paths as $path) {
             foreach (self::OPERATION_KEYS as $key) {
-                /** @var Operation $operation */
-                $operation = $path->$key; /* @phpstan-ignore-line */
+                $operation = $path->$key;
 
                 if (!$operation instanceof Operation) {
                     continue;
@@ -201,5 +208,26 @@ class StoreApiGenerator implements ApiDefinitionGeneratorInterface
                 ]);
             }
         }
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $specsFromDefinition
+     * @param array<string, array<string, mixed>> $specsFromStaticJsonDefinition
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function mergeComponentsSchemaRequiredFieldsRecursive(array $specsFromDefinition, array $specsFromStaticJsonDefinition): array
+    {
+        foreach ($specsFromDefinition['components']['schemas'] as $key => $value) {
+            if (isset($specsFromStaticJsonDefinition['components']['schemas'][$key]['required']) && isset($specsFromDefinition['components']['schemas'][$key]['required'])) {
+                $specsFromStaticJsonDefinition['components']['schemas'][$key]['required']
+                    = array_merge_recursive(
+                        $specsFromStaticJsonDefinition['components']['schemas'][$key]['required'],
+                        $specsFromDefinition['components']['schemas'][$key]['required']
+                    );
+            }
+        }
+
+        return $specsFromStaticJsonDefinition;
     }
 }

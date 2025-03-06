@@ -1,11 +1,17 @@
-import { shallowMount } from '@vue/test-utils';
+/**
+ * @sw-package framework
+ */
+import { mount } from '@vue/test-utils';
 import 'src/app/component/form/select/base/sw-select-selection-list';
+import 'src/app/component/base/sw-label';
 
 async function createWrapper(propsData = {}) {
-    return shallowMount(await Shopware.Component.build('sw-select-selection-list'), {
-        stubs: {
-            'sw-label': {
-                template: '<div class="sw-label"><slot></slot></div>',
+    return mount(await wrapTestComponent('sw-select-selection-list', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-label': {
+                    template: '<div class="sw-label"><slot></slot></div>',
+                },
             },
         },
         propsData: {
@@ -28,7 +34,7 @@ describe('src/app/component/form/select/base/sw-select-selection-list', () => {
 
         const element = wrapper.find('.sw-label');
         expect(element.exists()).toBeTruthy();
-        expect(element.attributes().dismissable).toBeTruthy();
+        expect(element.attributes().dismissable).toBe('true');
     });
 
     it('should render labels which are not dismissable', async () => {
@@ -39,6 +45,12 @@ describe('src/app/component/form/select/base/sw-select-selection-list', () => {
 
         const element = wrapper.find('.sw-label');
         expect(element.exists()).toBeTruthy();
-        expect(element.attributes().dismissable).toBeFalsy();
+        if (element.attributes().hasOwnProperty('dismissable')) {
+            // eslint-disable-next-line jest/no-conditional-expect
+            expect(element.attributes().dismissable).toBe('false');
+        } else {
+            // eslint-disable-next-line jest/no-conditional-expect
+            expect(element.attributes().dismissable).toBeFalsy();
+        }
     });
 });

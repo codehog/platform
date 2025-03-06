@@ -1,85 +1,111 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swOrderNewCustomerModal from 'src/module/sw-order/component/sw-order-new-customer-modal';
-import 'src/app/component/base/sw-button';
-import 'src/app/component/base/sw-tabs';
-import 'src/app/component/base/sw-tabs-item';
+import { mount } from '@vue/test-utils';
 import ShopwareError from 'src/core/data/ShopwareError';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
 const { Context } = Shopware;
 const { EntityCollection } = Shopware.Data;
 
-Shopware.Component.register('sw-order-new-customer-modal', swOrderNewCustomerModal);
-
-async function createWrapper() {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-order-new-customer-modal'), {
-        localVue,
-        stubs: {
-            'sw-modal': {
-                template: '<div class="sw-modal"><slot></slot><slot name="modal-footer"></slot></div>',
-            },
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-tabs': await Shopware.Component.build('sw-tabs'),
-            'sw-tabs-item': await Shopware.Component.build('sw-tabs-item'),
-            'sw-customer-address-form': true,
-            'sw-customer-base-form': true,
-            'sw-icon': true,
-            'sw-switch-field': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: (entity) => {
-                    if (entity === 'customer') {
-                        return {
-                            create: () => {
-                                return {
-                                    id: '1',
-                                    addresses: new EntityCollection('/customer_address', 'customer_address', Context.api, null, []),
-                                };
-                            },
-                        };
-                    }
-
-                    if (entity === 'language') {
-                        return {
-                            searchIds: () => Promise.resolve({
-                                total: 1,
-                                data: ['1'],
-                            }),
-                        };
-                    }
-
-                    if (entity === 'salutation') {
-                        return {
-                            searchIds: () => Promise.resolve({
-                                total: 1,
-                                data: ['salutationId'],
-                            }),
-                        };
-                    }
-
-                    return {
-                        create: () => Promise.resolve(),
-                    };
+async function createWrapper(
+    repositoryMocks = {
+        customerRepositoryMock: undefined,
+        languageRepositoryMock: undefined,
+    },
+) {
+    return mount(await wrapTestComponent('sw-order-new-customer-modal', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-modal': {
+                    template: '<div class="sw-modal"><slot></slot><slot name="modal-footer"></slot></div>',
                 },
+                'sw-tabs': await wrapTestComponent('sw-tabs'),
+                'sw-tabs-deprecated': await wrapTestComponent('sw-tabs-deprecated', { sync: true }),
+                'sw-tabs-item': await wrapTestComponent('sw-tabs-item'),
+                'sw-customer-address-form': true,
+                'sw-customer-base-form': true,
+                'sw-extension-component-section': true,
+                'router-link': true,
+                'sw-loader': true,
             },
-            numberRangeService: {
-                reverse: () => Promise.resolve(),
-            },
-            systemConfigApiService: {
-                getValues: () => {
-                    return Promise.resolve({
-                        'core.loginRegistration.passwordMinLength': 8,
-                    });
+            provide: {
+                repositoryFactory: {
+                    create: (entity) => {
+                        if (entity === 'customer') {
+                            if (repositoryMocks.customerRepositoryMock) {
+                                return repositoryMocks.customerRepositoryMock;
+                            }
+
+                            return {
+                                create: () => {
+                                    return {
+                                        id: '1',
+                                        addresses: new EntityCollection(
+                                            '/customer_address',
+                                            'customer_address',
+                                            Context.api,
+                                            null,
+                                            [],
+                                        ),
+                                    };
+                                },
+                                save: () => Promise.resolve(),
+                            };
+                        }
+
+                        if (entity === 'language') {
+                            if (repositoryMocks.languageRepositoryMock) {
+                                return repositoryMocks.languageRepositoryMock;
+                            }
+
+                            return {
+                                searchIds: () =>
+                                    Promise.resolve({
+                                        total: 1,
+                                        data: ['1'],
+                                    }),
+                            };
+                        }
+
+                        if (entity === 'salutation') {
+                            return {
+                                searchIds: () =>
+                                    Promise.resolve({
+                                        total: 1,
+                                        data: ['salutationId'],
+                                    }),
+                            };
+                        }
+
+                        if (entity === 'customer_address') {
+                            return {
+                                create: () => {
+                                    return {
+                                        id: 'new-shipping-address-id',
+                                    };
+                                },
+                            };
+                        }
+
+                        return {
+                            create: () => Promise.resolve(),
+                        };
+                    },
                 },
-            },
-            customerValidationService: {
-                checkCustomerEmail: () => Promise.resolve(),
+                numberRangeService: {
+                    reverse: () => Promise.resolve(),
+                },
+                systemConfigApiService: {
+                    getValues: () => {
+                        return Promise.resolve({
+                            'core.loginRegistration.passwordMinLength': 8,
+                        });
+                    },
+                },
+                customerValidationService: {
+                    checkCustomerEmail: () => Promise.resolve(),
+                },
             },
         },
     });
@@ -90,10 +116,6 @@ describe('src/module/sw-order/component/sw-order-new-customer-modal', () => {
 
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
     });
 
     it('should be a Vue.js component', async () => {
@@ -118,8 +140,18 @@ describe('src/module/sw-order/component/sw-order-new-customer-modal', () => {
     });
 
     it('should override context when the sales channel does not exist language compared to the API language', async () => {
+        await wrapper.unmount();
+        wrapper = await createWrapper({
+            customerRepositoryMock: {
+                create: () => ({
+                    id: '1',
+                    addresses: new EntityCollection('/customer_address', 'customer_address', Context.api, null, []),
+                }),
+                save: jest.fn((customer, context) => Promise.resolve(context)),
+            },
+        });
+
         wrapper.vm.validateEmail = jest.fn().mockImplementation(() => Promise.resolve({ isValid: true }));
-        wrapper.vm.customerRepository.save = jest.fn((customer, context) => Promise.resolve(context));
 
         expect(await wrapper.vm.languageId).toEqual(Shopware.Context.api.languageId);
 
@@ -142,13 +174,25 @@ describe('src/module/sw-order/component/sw-order-new-customer-modal', () => {
     });
 
     it('should keep context when sales channel exists language compared to API language', async () => {
-        wrapper.vm.validateEmail = jest.fn().mockImplementation(() => Promise.resolve({ isValid: true }));
-        wrapper.vm.customerRepository.save = jest.fn((customer, context) => Promise.resolve(context));
+        await wrapper.unmount();
+        wrapper = await createWrapper({
+            languageRepositoryMock: {
+                searchIds: () =>
+                    Promise.resolve({
+                        total: 1,
+                        data: [Shopware.Context.api.languageId],
+                    }),
+            },
+            customerRepositoryMock: {
+                create: () => ({
+                    id: '1',
+                    addresses: new EntityCollection('/customer_address', 'customer_address', Context.api, null, []),
+                }),
+                save: jest.fn((customer, context) => Promise.resolve(context)),
+            },
+        });
 
-        wrapper.vm.languageRepository.searchIds = jest.fn(() => Promise.resolve({
-            total: 1,
-            data: [Shopware.Context.api.languageId],
-        }));
+        wrapper.vm.validateEmail = jest.fn().mockImplementation(() => Promise.resolve({ isValid: true }));
 
         expect(await wrapper.vm.languageId).toEqual(Shopware.Context.api.languageId);
 
@@ -174,10 +218,10 @@ describe('src/module/sw-order/component/sw-order-new-customer-modal', () => {
         let swDetailsTab = wrapper.findAll('.sw-tabs-item').at(0);
         let swBillingAddressTab = wrapper.findAll('.sw-tabs-item').at(1);
 
-        expect(swDetailsTab.find('sw-icon-stub').exists()).toBe(false);
-        expect(swBillingAddressTab.find('sw-icon-stub').exists()).toBe(false);
+        expect(swDetailsTab.find('.mt-icon').exists()).toBe(false);
+        expect(swBillingAddressTab.find('.mt-icon').exists()).toBe(false);
 
-        await Shopware.State.dispatch('error/addApiError', {
+        Shopware.Store.get('error').addApiError({
             expression: 'customer.1.email',
             error: new ShopwareError({
                 code: 'c1051bb4-d103-4f74-8988-acbcafc7fdc3',
@@ -189,18 +233,90 @@ describe('src/module/sw-order/component/sw-order-new-customer-modal', () => {
 
         wrapper.vm.customerRepository.save = jest.fn(() => Promise.resolve());
 
-        const saveButton = wrapper.find('.sw-button--primary');
+        const saveButton = wrapper.findByText('button', 'global.default.save');
 
         await saveButton.trigger('click');
 
         swDetailsTab = wrapper.findAll('.sw-tabs-item').at(0);
         swBillingAddressTab = wrapper.findAll('.sw-tabs-item').at(1);
 
-        expect(swDetailsTab.find('sw-icon-stub[name=solid-exclamation-circle]').exists()).toBe(true);
-        expect(swBillingAddressTab.find('sw-icon-stub').exists()).toBe(false);
+        expect(swDetailsTab.find('.mt-icon.icon--solid-exclamation-circle').exists()).toBe(true);
+        expect(swBillingAddressTab.find('.mt-icon').exists()).toBe(false);
     });
 
     it('should get default salutation is value not specified', async () => {
         expect(wrapper.vm.customer.salutationId).toBe('salutationId');
+    });
+
+    it('should set defaultShippingAddressId to defaultBillingAddressId when newValue is true', async () => {
+        await wrapper.setData({
+            customer: {
+                ...wrapper.vm.customer,
+                defaultBillingAddressId: 'billing-address-id',
+                isNew: jest.fn(() => false),
+            },
+        });
+
+        wrapper.vm.isSameBilling = true;
+        expect(wrapper.vm.customer.defaultShippingAddressId).toBe('billing-address-id');
+    });
+
+    it('should remove all addresses but default billing when customer is new and newValue is true', async () => {
+        await wrapper.setData({
+            customer: {
+                ...wrapper.props().customer,
+                defaultBillingAddressId: 'billing-address-id',
+                shippingAddressId: 'shipping-address-id',
+                addresses: new EntityCollection('/customer_address', 'customer_address', Context.api, null, [
+                    { id: 'billing-address-id' },
+                    { id: 'shipping-address-id' },
+                ]),
+                isNew: jest.fn(() => true),
+            },
+        });
+
+        wrapper.vm.isSameBilling = true;
+
+        expect(wrapper.vm.customer.addresses.has('shipping-address-id')).toBe(false);
+        expect(wrapper.vm.customer.addresses.has('billing-address-id')).toBe(true);
+    });
+
+    it('should create a new shipping address when newValue is false', async () => {
+        await wrapper.setData({
+            customer: {
+                ...wrapper.props().customer,
+                defaultBillingAddressId: 'billing-address-id',
+                shippingAddressId: 'shipping-address-id',
+                addresses: new EntityCollection('/customer_address', 'customer_address', Context.api, null, [
+                    { id: 'billing-address-id' },
+                    { id: 'shipping-address-id' },
+                ]),
+                isNew: jest.fn(() => true),
+            },
+        });
+
+        wrapper.vm.isSameBilling = true;
+        wrapper.vm.isSameBilling = false;
+
+        expect(wrapper.vm.customer.defaultShippingAddressId).toBe('new-shipping-address-id');
+        expect(wrapper.vm.customer.addresses.has('new-shipping-address-id')).toBe(true);
+        expect(wrapper.vm.defaultSalutationId).toBe('salutationId');
+        expect(wrapper.vm.customer.addresses.get('new-shipping-address-id').salutationId).toBe('salutationId');
+    });
+
+    it('should does not change defaultShippingAddressId if newValue is the same as isSameBilling', async () => {
+        await wrapper.setData({
+            customer: {
+                ...wrapper.vm.customer,
+                defaultBillingAddressId: 'billing-address-id',
+                defaultShippingAddressId: 'billing-address-id',
+                isNew: jest.fn(() => false),
+            },
+        });
+
+        const originalShippingAddressId = wrapper.vm.customer.defaultShippingAddressId;
+        wrapper.vm.isSameBilling = true;
+
+        expect(wrapper.vm.customer.defaultShippingAddressId).toBe(originalShippingAddressId);
     });
 });

@@ -1,3 +1,6 @@
+/**
+ * @sw-package inventory
+ */
 import template from './sw-settings-product-feature-sets-detail.html.twig';
 
 const { Mixin } = Shopware;
@@ -7,7 +10,11 @@ const { mapPropertyErrors } = Shopware.Component.getComponentHelper();
 export default {
     template,
 
-    inject: ['repositoryFactory', 'acl'],
+    inject: [
+        'repositoryFactory',
+        'acl',
+        'feature',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -74,10 +81,11 @@ export default {
             };
         },
 
-        ...mapPropertyErrors(
-            'productFeatureSet',
-            ['name', 'description', 'features.id'],
-        ),
+        ...mapPropertyErrors('productFeatureSet', [
+            'name',
+            'description',
+            'features.id',
+        ]),
     },
 
     watch: {
@@ -97,16 +105,14 @@ export default {
             this.isLoading = true;
 
             if (this.productFeatureSetId) {
-                this.productFeatureSetId = this.$route.params.id;
-                this.productFeatureSetsRepository.get(this.productFeatureSetId)
-                    .then((productFeatureSet) => {
-                        if (productFeatureSet.features && !productFeatureSet.features.length) {
-                            productFeatureSet.features = [];
-                        }
+                this.productFeatureSetsRepository.get(this.productFeatureSetId).then((productFeatureSet) => {
+                    if (productFeatureSet.features && !productFeatureSet.features.length) {
+                        productFeatureSet.features = [];
+                    }
 
-                        this.productFeatureSet = productFeatureSet;
-                        this.isLoading = false;
-                    });
+                    this.productFeatureSet = productFeatureSet;
+                    this.isLoading = false;
+                });
                 return;
             }
 
@@ -115,14 +121,13 @@ export default {
         },
 
         loadEntityData() {
-            this.productFeatureSetsRepository.get(this.productFeatureSetId)
-                .then((productFeatureSet) => {
-                    if (productFeatureSet.features && !productFeatureSet.features.length) {
-                        productFeatureSet.features = [];
-                    }
+            this.productFeatureSetsRepository.get(this.productFeatureSet.id).then((productFeatureSet) => {
+                if (productFeatureSet.features && !productFeatureSet.features.length) {
+                    productFeatureSet.features = [];
+                }
 
-                    this.productFeatureSet = productFeatureSet;
-                });
+                this.productFeatureSet = productFeatureSet;
+            });
         },
 
         saveFinish() {
@@ -133,7 +138,8 @@ export default {
             this.isSaveSuccessful = false;
             this.isLoading = true;
 
-            return this.productFeatureSetsRepository.save(this.productFeatureSet)
+            return this.productFeatureSetsRepository
+                .save(this.productFeatureSet)
                 .then(() => {
                     this.isSaveSuccessful = true;
                     if (!this.productFeatureSetId) {
@@ -157,7 +163,9 @@ export default {
         },
 
         onCancel() {
-            this.$router.push({ name: 'sw.settings.product.feature.sets.index' });
+            this.$router.push({
+                name: 'sw.settings.product.feature.sets.index',
+            });
         },
 
         abortOnLanguageChange() {

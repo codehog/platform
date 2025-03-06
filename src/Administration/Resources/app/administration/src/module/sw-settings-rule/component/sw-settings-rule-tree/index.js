@@ -1,8 +1,9 @@
 /**
  * @private
- * @package business-ops
+ * @sw-package fundamentals@after-sales
  */
 export default {
+    emits: ['check-item'],
 
     data() {
         return {

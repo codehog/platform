@@ -2,6 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
@@ -9,17 +12,16 @@ use Shopware\Core\Checkout\Cart\Rule\CartRuleScope;
 use Shopware\Core\Checkout\Cart\Rule\LineItemClearanceSaleRule;
 use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\Framework\Rule\RuleScope;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
 
 /**
- * @covers \Shopware\Core\Checkout\Cart\Rule\LineItemClearanceSaleRule
- *
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(LineItemClearanceSaleRule::class)]
+#[Group('rules')]
 class LineItemClearanceSaleRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -43,9 +45,7 @@ class LineItemClearanceSaleRuleTest extends TestCase
         static::assertArrayHasKey('clearanceSale', $ruleConstraints, 'Rule Constraint clearanceSale is not defined');
     }
 
-    /**
-     * @dataProvider getLineItemScopeTestData
-     */
+    #[DataProvider('getLineItemScopeTestData')]
     public function testIfMatchesCorrectWithLineItemScope(bool $ruleActive, bool $clearanceSale, bool $expected): void
     {
         $this->rule->assign(['clearanceSale' => $ruleActive]);
@@ -71,9 +71,7 @@ class LineItemClearanceSaleRuleTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScope(bool $ruleActive, bool $clearanceSale, bool $expected): void
     {
         $this->rule->assign(['clearanceSale' => $ruleActive]);
@@ -93,9 +91,7 @@ class LineItemClearanceSaleRuleTest extends TestCase
         static::assertSame($expected, $match);
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testIfMatchesCorrectWithCartRuleScopeNested(bool $ruleActive, bool $clearanceSale, bool $expected): void
     {
         $this->rule->assign(['clearanceSale' => $ruleActive]);
@@ -127,6 +123,23 @@ class LineItemClearanceSaleRuleTest extends TestCase
             'rule no / clearance sale no' => [false, false, true],
             'rule no / clearance sale yes' => [false, true, true],
         ];
+    }
+
+    public function testMatchWithWrongScopeShouldReturnFalse(): void
+    {
+        $goodsCountRule = new LineItemClearanceSaleRule();
+        $wrongScope = $this->createMock(RuleScope::class);
+
+        static::assertFalse($goodsCountRule->match($wrongScope));
+    }
+
+    public function testGetConfig(): void
+    {
+        $cartVolumeRule = new LineItemClearanceSaleRule();
+
+        $result = $cartVolumeRule->getConfig()->getData();
+
+        static::assertSame('clearanceSale', $result['fields']['clearanceSale']['name']);
     }
 
     private function createLineItemWithClearance(bool $clearanceSaleEnabled): LineItem

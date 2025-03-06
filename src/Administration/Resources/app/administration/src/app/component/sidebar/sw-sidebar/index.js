@@ -4,10 +4,9 @@ import './sw-sidebar.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @example-type static
  * @component-example
@@ -18,6 +17,19 @@ const { Component } = Shopware;
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 Component.register('sw-sidebar', {
     template,
+
+    provide() {
+        return {
+            registerSidebarItem: this.registerSidebarItem,
+        };
+    },
+
+    inject: [
+        'setSwPageSidebarOffset',
+        'removeSwPageSidebarOffset',
+    ],
+
+    emits: ['item-click'],
 
     props: {
         propagateWidth: {
@@ -64,7 +76,7 @@ Component.register('sw-sidebar', {
         this.mountedComponent();
     },
 
-    destroyed() {
+    unmounted() {
         this.destroyedComponent();
     },
 
@@ -86,14 +98,16 @@ Component.register('sw-sidebar', {
             if (this.propagateWidth) {
                 const sidebarWidth = this.$el.querySelector('.sw-sidebar__navigation').offsetWidth;
 
-                this._parent.$emit('mount', sidebarWidth);
+                this.setSwPageSidebarOffset(sidebarWidth);
             }
         },
 
         destroyedComponent() {
-            if (this.propagateWidth) {
-                this._parent.$emit('destroy');
+            if (!this.propagateWidth) {
+                return;
             }
+
+            this.removeSwPageSidebarOffset();
         },
 
         _isItemRegistered(itemToCheck) {
@@ -121,13 +135,18 @@ Component.register('sw-sidebar', {
 
             this.items.push(item);
 
-            this.$on('item-click', item.sidebarButtonClick);
-            item.$on('toggle-active', this.setItemActive);
-            item.$on('close-content', this.closeSidebar);
+            item.registerToggleActiveListener(this.setItemActive);
+            item.registerCloseContentListener(this.closeSidebar);
         },
 
         setItemActive(clickedItem) {
             this.$emit('item-click', clickedItem);
+
+            this.items.forEach((item) => {
+                if (item.sidebarButtonClick) {
+                    item.sidebarButtonClick(clickedItem);
+                }
+            });
 
             if (clickedItem.hasDefaultSlot) {
                 this.isOpened = this._isAnyItemActive();

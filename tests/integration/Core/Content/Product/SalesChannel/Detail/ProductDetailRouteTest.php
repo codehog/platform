@@ -2,22 +2,23 @@
 
 namespace Shopware\Tests\Integration\Core\Content\Product\SalesChannel\Detail;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Content\Product\SalesChannel\Detail\ProductDetailRoute;
 use Shopware\Core\Content\Test\Product\ProductBuilder;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelApiTestBehaviour;
-use Shopware\Core\Framework\Test\TestDataCollection;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\SalesChannel\Detail\ProductDetailRoute
- *
- * @group store-api
  */
+#[CoversClass(ProductDetailRoute::class)]
+#[Group('store-api')]
 class ProductDetailRouteTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -25,11 +26,11 @@ class ProductDetailRouteTest extends TestCase
 
     private KernelBrowser $browser;
 
-    private TestDataCollection $ids;
+    private IdsCollection $ids;
 
     protected function setUp(): void
     {
-        $this->ids = new TestDataCollection();
+        $this->ids = new IdsCollection();
 
         $this->browser = $this->createCustomSalesChannelBrowser([
             'id' => $this->ids->create('sales-channel'),
@@ -46,6 +47,41 @@ class ProductDetailRouteTest extends TestCase
 
         static::assertSame('product_detail', $response['apiAlias']);
         static::assertArrayHasKey('product', $response);
+    }
+
+    public function testLoadProductVariantShowBestVariant(): void
+    {
+        $this->createVariantProducts(['displayParent' => true]);
+
+        $this->browser->request('POST', $this->getUrl($this->ids->get('variants')));
+
+        $response = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertSame('product_detail', $response['apiAlias']);
+        static::assertArrayHasKey('product', $response);
+
+        $product = $response['product'];
+        static::assertArrayHasKey('productNumber', $product);
+        static::assertSame('variant-2', $product['productNumber']);
+    }
+
+    public function testLoadProductVariantShowSelectedSingleVariant(): void
+    {
+        $this->createVariantProducts([
+            'mainVariantId' => $this->ids->get('variant-3'),
+            'displayParent' => false,
+        ]);
+
+        $this->browser->request('POST', $this->getUrl($this->ids->get('variants')));
+
+        $response = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertSame('product_detail', $response['apiAlias']);
+        static::assertArrayHasKey('product', $response);
+
+        $product = $response['product'];
+        static::assertArrayHasKey('productNumber', $product);
+        static::assertSame('variant-3', $product['productNumber']);
     }
 
     public function testIncludes(): void
@@ -98,6 +134,78 @@ class ProductDetailRouteTest extends TestCase
         static::assertNotEmpty($response['product']['manufacturer']);
     }
 
+    public function testIncludeForCustomFields(): void
+    {
+        $product = (new ProductBuilder($this->ids, 'custom-fields-product'))
+            ->price(100)
+            ->visibility($this->ids->get('sales-channel'))
+            ->customField('foo', 'foo')
+            ->customField('bar', 'baz')
+            ->customField('nested', [
+                'foo' => 'foo',
+                'bar' => 'baz',
+            ])
+            ->build();
+
+        static::getContainer()->get('product.repository')->create([$product], Context::createDefaultContext());
+
+        $this->browser->request(
+            'POST',
+            $this->getUrl($this->ids->get('custom-fields-product')),
+            [
+                'includes' => [
+                    'product' => ['id', 'customFields'],
+                ],
+            ]
+        );
+
+        $response = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertArrayHasKey('product', $response);
+        static::assertArrayHasKey('customFields', $response['product']);
+        static::assertArrayHasKey('foo', $response['product']['customFields']);
+        static::assertArrayHasKey('bar', $response['product']['customFields']);
+        static::assertArrayHasKey('nested', $response['product']['customFields']);
+
+        $this->browser->request(
+            'POST',
+            $this->getUrl($this->ids->get('custom-fields-product')),
+            [
+                'includes' => [
+                    'product' => ['id', 'customFields.foo'],
+                ],
+            ]
+        );
+
+        $response = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertArrayHasKey('product', $response);
+        static::assertArrayHasKey('customFields', $response['product']);
+        static::assertArrayHasKey('foo', $response['product']['customFields']);
+        static::assertArrayNotHasKey('bar', $response['product']['customFields']);
+        static::assertArrayNotHasKey('nested', $response['product']['customFields']);
+
+        $this->browser->request(
+            'POST',
+            $this->getUrl($this->ids->get('custom-fields-product')),
+            [
+                'includes' => [
+                    'product' => ['id', 'customFields.nested.foo'],
+                ],
+            ]
+        );
+
+        $response = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        static::assertArrayHasKey('product', $response);
+        static::assertArrayHasKey('customFields', $response['product']);
+        static::assertArrayNotHasKey('foo', $response['product']['customFields']);
+        static::assertArrayNotHasKey('bar', $response['product']['customFields']);
+        static::assertArrayHasKey('nested', $response['product']['customFields']);
+        static::assertArrayHasKey('foo', $response['product']['customFields']['nested']);
+        static::assertArrayNotHasKey('bar', $response['product']['customFields']['nested']);
+    }
+
     public function testRecursionEncodingWithLayout(): void
     {
         $this->browser->request(
@@ -107,6 +215,9 @@ class ProductDetailRouteTest extends TestCase
                 'associations' => [
                     'media' => [
                         'sort' => [['field' => 'position']],
+                        'associations' => [
+                            'media' => [],
+                        ],
                     ],
                     'manufacturer' => [],
                     'crossSellings' => [],
@@ -135,17 +246,17 @@ class ProductDetailRouteTest extends TestCase
         foreach ($expected as $key => $value) {
             $current = \implode('.', \array_filter([$pointer, (string) $key]));
 
-            static::assertArrayHasKey($key, $actual, sprintf('Missing key %s', $current));
+            static::assertArrayHasKey($key, $actual, \sprintf('Missing key %s', $current));
 
             if (\is_array($value)) {
-                static::assertIsArray($actual[$key], sprintf('Field %s is not an array', $current));
+                static::assertIsArray($actual[$key], \sprintf('Field %s is not an array', $current));
 
                 $this->assertArray($value, $actual[$key], $current);
 
                 continue;
             }
 
-            static::assertEquals($value, $actual[$key], sprintf('Value for key %s not matching', $current));
+            static::assertEquals($value, $actual[$key], \sprintf('Value for key %s not matching', $current));
         }
     }
 
@@ -172,7 +283,51 @@ class ProductDetailRouteTest extends TestCase
                 ->build(),
         ];
 
-        $this->getContainer()->get('product.repository')
+        static::getContainer()->get('product.repository')
+            ->create($products, Context::createDefaultContext());
+    }
+
+    /**
+     * @param array<mixed> $variantListingConfig
+     */
+    private function createVariantProducts(array $variantListingConfig): void
+    {
+        $products = [
+            (new ProductBuilder($this->ids, 'variants'))
+                ->price(10)
+                ->media('m1', 1)
+                ->visibility($this->ids->get('sales-channel'))
+                ->closeout(true)
+                ->stock(10)
+                ->variant(
+                    (new ProductBuilder($this->ids, 'variant-1'))
+                        ->price(5)
+                        ->visibility($this->ids->get('sales-channel'))
+                        ->closeout(true)
+                        ->stock(0)
+                        ->build()
+                )
+                ->variant(
+                    (new ProductBuilder($this->ids, 'variant-2'))
+                        ->price(15)
+                        ->visibility($this->ids->get('sales-channel'))
+                        ->closeout(true)
+                        ->stock(10)
+                        ->build()
+                )
+                ->variant(
+                    (new ProductBuilder($this->ids, 'variant-3'))
+                        ->price(40)
+                        ->visibility($this->ids->get('sales-channel'))
+                        ->closeout(true)
+                        ->stock(10)
+                        ->build()
+                )
+                ->variantListingConfig($variantListingConfig)
+                ->build(),
+        ];
+
+        static::getContainer()->get('product.repository')
             ->create($products, Context::createDefaultContext());
     }
 

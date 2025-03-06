@@ -2,7 +2,7 @@ import Plugin from 'src/plugin-system/plugin.class';
 import HttpClient from 'src/service/http-client.service';
 
 /**
- * @package content
+ * @package discovery
  */
 export default class FormCmsHandler extends Plugin {
 
@@ -16,7 +16,6 @@ export default class FormCmsHandler extends Plugin {
 
     init() {
         this._client = new HttpClient();
-        this._getButton();
         this._getHiddenSubmit();
         this._registerEvents();
         this._getCmsBlock();
@@ -32,11 +31,6 @@ export default class FormCmsHandler extends Plugin {
 
     _registerEvents() {
         this.el.addEventListener('submit', this._handleSubmit.bind(this));
-
-        if (this._button) {
-            this._button.addEventListener('submit', this._handleSubmit.bind(this));
-            this._button.addEventListener('click', this._handleSubmit.bind(this));
-        }
     }
 
     _getConfirmationText() {
@@ -44,10 +38,6 @@ export default class FormCmsHandler extends Plugin {
         if (input) {
             this._confirmationText = input.value;
         }
-    }
-
-    _getButton() {
-        this._button = this.el.querySelector('button');
     }
 
     _getCmsBlock() {
@@ -90,6 +80,11 @@ export default class FormCmsHandler extends Plugin {
                     changeContent = false;
                 }
                 content += response[i].alert;
+            }
+
+            // Reset form after successful submission to clear form contents.
+            if (changeContent) {
+                this.el.reset();
             }
 
             this._createResponse(changeContent, content);

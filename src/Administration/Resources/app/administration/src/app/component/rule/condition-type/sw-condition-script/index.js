@@ -6,7 +6,7 @@ const { Criteria } = Shopware.Data;
 
 /**
  * @public
- * @package business-ops
+ * @sw-package fundamentals@after-sales
  * @description Condition for the ScriptRule. This component must a be child of sw-condition-tree.
  * @status prototype
  * @example-type code-only
@@ -38,10 +38,18 @@ Component.extend('sw-condition-script', 'sw-condition-base', {
                         this.ensureValueExist();
 
                         if (type === 'bool' && !this.condition.value.hasOwnProperty(name)) {
-                            this.condition.value = { ...this.condition.value, [name]: false };
+                            this.condition.value = {
+                                ...this.condition.value,
+                                [name]: false,
+                            };
                         }
 
-                        if (['sw-entity-multi-id-select', 'sw-multi-select'].includes(config.componentName)) {
+                        if (
+                            [
+                                'sw-entity-multi-id-select',
+                                'sw-multi-select',
+                            ].includes(config.componentName)
+                        ) {
                             return this.condition.value[name] || [];
                         }
 
@@ -49,7 +57,10 @@ Component.extend('sw-condition-script', 'sw-condition-base', {
                     },
                     set: (value) => {
                         this.ensureValueExist();
-                        this.condition.value = { ...this.condition.value, [name]: value };
+                        this.condition.value = {
+                            ...this.condition.value,
+                            [name]: value,
+                        };
                     },
                 });
             });
@@ -65,7 +76,7 @@ Component.extend('sw-condition-script', 'sw-condition-base', {
                     return;
                 }
 
-                const errorProperty = Shopware.State.getters['error/getApiError'](this.condition, `value.${config.name}`);
+                const errorProperty = Shopware.Store.get('error').getApiError(this.condition, `value.${config.name}`);
 
                 if (errorProperty) {
                     error = errorProperty;
@@ -116,7 +127,7 @@ Component.extend('sw-condition-script', 'sw-condition-base', {
         },
 
         updateFieldValue(fieldName, value) {
-            this.$set(this.values, fieldName, value);
+            this.values[fieldName] = value;
         },
     },
 });

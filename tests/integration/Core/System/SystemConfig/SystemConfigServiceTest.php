@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Integration\Core\System\SystemConfig;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
@@ -11,6 +12,7 @@ use Shopware\Core\System\SystemConfig\Event\SystemConfigChangedHook;
 use Shopware\Core\System\SystemConfig\Exception\InvalidDomainException;
 use Shopware\Core\System\SystemConfig\Exception\InvalidKeyException;
 use Shopware\Core\System\SystemConfig\Exception\InvalidSettingValueException;
+use Shopware\Core\System\SystemConfig\SymfonySystemConfigService;
 use Shopware\Core\System\SystemConfig\SystemConfigLoader;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Shopware\Core\System\SystemConfig\Util\ConfigReader;
@@ -19,7 +21,7 @@ use Shopware\Core\Test\TestDefaults;
 /**
  * @internal
  */
-#[Package('system-settings')]
+#[Package('framework')]
 class SystemConfigServiceTest extends TestCase
 {
     use IntegrationTestBehaviour;
@@ -31,16 +33,16 @@ class SystemConfigServiceTest extends TestCase
         parent::setUp();
 
         $this->systemConfigService = new SystemConfigService(
-            $this->getContainer()->get(Connection::class),
-            $this->getContainer()->get(ConfigReader::class),
-            $this->getContainer()->get(SystemConfigLoader::class),
-            $this->getContainer()->get('event_dispatcher'),
-            false
+            static::getContainer()->get(Connection::class),
+            static::getContainer()->get(ConfigReader::class),
+            static::getContainer()->get(SystemConfigLoader::class),
+            static::getContainer()->get('event_dispatcher'),
+            new SymfonySystemConfigService([]),
         );
     }
 
     /**
-     * @return array<mixed>
+     * @return list<array{mixed}>
      */
     public static function differentTypesProvider(): array
     {
@@ -58,11 +60,10 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @param array<mixed>|bool|int|float|string|null $expected
-     *
-     * @dataProvider differentTypesProvider
+     * @param float|bool|int|string|array<mixed>|null $expected
      */
-    public function testSetGetDifferentTypes($expected): void
+    #[DataProvider('differentTypesProvider')]
+    public function testSetGetDifferentTypes(array|float|bool|int|string|null $expected): void
     {
         $this->systemConfigService->set('foo.bar', $expected);
         $actual = $this->systemConfigService->get('foo.bar');
@@ -70,7 +71,7 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @return array<mixed>
+     * @return list<array{mixed, string}>
      */
     public static function getStringProvider(): array
     {
@@ -89,9 +90,8 @@ class SystemConfigServiceTest extends TestCase
 
     /**
      * @param array<mixed>|bool|int|float|string|null $writtenValue
-     *
-     * @dataProvider getStringProvider
      */
+    #[DataProvider('getStringProvider')]
     public function testGetString($writtenValue, string $expected): void
     {
         $this->systemConfigService->set('foo.bar', $writtenValue);
@@ -104,7 +104,7 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @return array<mixed>
+     * @return list<array{mixed, int}>
      */
     public static function getIntProvider(): array
     {
@@ -122,11 +122,10 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @param array<mixed>|bool|int|float|string|null $writtenValue
-     *
-     * @dataProvider getIntProvider
+     * @param float|bool|int|string|array<mixed>|null $writtenValue
      */
-    public function testGetInt($writtenValue, int $expected): void
+    #[DataProvider('getIntProvider')]
+    public function testGetInt(array|float|bool|int|string|null $writtenValue, int $expected): void
     {
         $this->systemConfigService->set('foo.bar', $writtenValue);
         if (\is_array($writtenValue)) {
@@ -138,7 +137,7 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @return array<mixed>
+     * @return list<array{mixed, float}>
      */
     public static function getFloatProvider(): array
     {
@@ -156,11 +155,10 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @param array<mixed>|bool|int|float|string|null $writtenValue
-     *
-     * @dataProvider getFloatProvider
+     * @param float|bool|int|string|array<mixed>|null $writtenValue
      */
-    public function testGetFloat($writtenValue, float $expected): void
+    #[DataProvider('getFloatProvider')]
+    public function testGetFloat(array|float|bool|int|string|null $writtenValue, float $expected): void
     {
         $this->systemConfigService->set('foo.bar', $writtenValue);
         if (\is_array($writtenValue)) {
@@ -172,7 +170,7 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @return array<mixed>
+     * @return list<array{mixed, bool}>
      */
     public static function getBoolProvider(): array
     {
@@ -191,11 +189,10 @@ class SystemConfigServiceTest extends TestCase
     }
 
     /**
-     * @param array<mixed>|bool|int|float|string|null $writtenValue
-     *
-     * @dataProvider getBoolProvider
+     * @param float|bool|int|string|array<mixed>|null $writtenValue
      */
-    public function testGetBool($writtenValue, bool $expected): void
+    #[DataProvider('getBoolProvider')]
+    public function testGetBool(array|float|bool|int|string|null $writtenValue, bool $expected): void
     {
         $this->systemConfigService->set('foo.bar', $writtenValue);
         $actual = $this->systemConfigService->getBool('foo.bar');
@@ -371,13 +368,14 @@ class SystemConfigServiceTest extends TestCase
 
     public function testWebhookEventsFired(): void
     {
-        $eventDispatcher = $this->getContainer()->get('event_dispatcher');
+        $eventDispatcher = static::getContainer()->get('event_dispatcher');
 
         $called = false;
 
         $this->addEventListener($eventDispatcher, SystemConfigChangedHook::class, function (SystemConfigChangedHook $event) use (&$called): void {
             static::assertEquals([
                 'changes' => ['foo.bar'],
+                'salesChannelId' => TestDefaults::SALES_CHANNEL,
             ], $event->getWebhookPayload());
 
             $called = true;

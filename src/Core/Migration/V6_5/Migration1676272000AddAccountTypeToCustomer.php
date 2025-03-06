@@ -3,6 +3,7 @@
 namespace Shopware\Core\Migration\V6_5;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Migration\MigrationStep;
@@ -10,7 +11,7 @@ use Shopware\Core\Framework\Migration\MigrationStep;
 /**
  * @internal
  */
-#[Package('customer-order')]
+#[Package('checkout')]
 class Migration1676272000AddAccountTypeToCustomer extends MigrationStep
 {
     private const CHUNK_SIZE = 5000;
@@ -22,20 +23,16 @@ class Migration1676272000AddAccountTypeToCustomer extends MigrationStep
 
     public function update(Connection $connection): void
     {
-        $isAdded = $this->columnExists($connection, 'customer', 'account_type');
-        if (!$isAdded) {
-            $connection->executeStatement('
-                ALTER TABLE `customer`
-                ADD COLUMN `account_type` VARCHAR(255) NOT NULL DEFAULT \'private\' AFTER `bound_sales_channel_id`
-            ');
-        }
+        $this->addColumn(
+            connection: $connection,
+            table: 'customer',
+            column: 'account_type',
+            type: 'VARCHAR(255)',
+            nullable: false,
+            default: '\'private\''
+        );
 
         $this->massUpdateAccountType($connection);
-    }
-
-    public function updateDestructive(Connection $connection): void
-    {
-        // implement update destructive
     }
 
     private function massUpdateAccountType(Connection $connection): void
@@ -77,7 +74,7 @@ class Migration1676272000AddAccountTypeToCustomer extends MigrationStep
                     'limit' => self::CHUNK_SIZE,
                 ],
                 [
-                    'limit' => \PDO::PARAM_INT,
+                    'limit' => ParameterType::INTEGER,
                 ]
             );
         }

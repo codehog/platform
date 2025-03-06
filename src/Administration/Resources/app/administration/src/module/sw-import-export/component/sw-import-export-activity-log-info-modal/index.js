@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@after-sales
  */
 import template from './sw-import-export-activity-log-info-modal.html.twig';
 import './sw-import-export-activity-log-info-modal.scss';
@@ -14,6 +14,8 @@ export default {
     template,
 
     inject: ['importExport'],
+
+    emits: ['log-close'],
 
     mixins: [
         Mixin.getByName('notification'),

@@ -1,23 +1,19 @@
+/**
+ * @sw-package framework
+ */
 import initMenuItems from 'src/app/init/menu-item.init';
-import { ui } from '@shopware-ag/admin-extension-sdk';
+import { ui } from '@shopware-ag/meteor-admin-sdk';
 
-let stateDispatchBackup = null;
 describe('src/app/init/menu-item.init.ts', () => {
     beforeAll(() => {
         initMenuItems();
-        stateDispatchBackup = Shopware.State.dispatch;
     });
 
     beforeEach(() => {
-        Object.defineProperty(Shopware.State, 'dispatch', {
-            value: stateDispatchBackup,
-            writable: true,
-            configurable: true,
-        });
-        Shopware.State.get('extensionSdkModules').modules = [];
+        Shopware.Store.get('extensionSdkModules').modules = [];
 
-        Shopware.State._store.state.extensions = {};
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').extensionsState = {};
+        Shopware.Store.get('extensions').addExtension({
             name: 'jestapp',
             baseUrl: '',
             permissions: [],
@@ -26,6 +22,9 @@ describe('src/app/init/menu-item.init.ts', () => {
             integrationId: '123',
             active: true,
         });
+
+        // Reset mocks
+        jest.clearAllMocks();
     });
 
     it('should handle incoming menuItemAdd requests', async () => {
@@ -33,29 +32,31 @@ describe('src/app/init/menu-item.init.ts', () => {
             label: 'Test item',
             locationId: 'your-location-id',
             displaySearchBar: true,
+            displaySmartBar: true,
             parent: 'sw-catalogue',
         });
 
-        expect(Shopware.State.get('extensionSdkModules').modules).toHaveLength(1);
+        expect(Shopware.Store.get('extensionSdkModules').modules).toHaveLength(1);
     });
 
     it('should not handle requests when extension is not valid', async () => {
-        Shopware.State._store.state.extensions = {};
+        Shopware.Store.get('extensions').extensionsState = {};
 
         await expect(async () => {
             await ui.menu.addMenuItem({
                 label: 'Test item',
                 locationId: 'your-location-id',
                 displaySearchBar: true,
+                displaySmartBar: true,
                 parent: 'sw-catalogue',
             });
         }).rejects.toThrow(new Error('Extension with the origin "" not found.'));
 
-        expect(Shopware.State.get('extensionSdkModules').modules).toHaveLength(0);
+        expect(Shopware.Store.get('extensionSdkModules').modules).toHaveLength(0);
     });
 
     it('should not commit the extension when moduleID could not be generated', async () => {
-        jest.spyOn(Shopware.State, 'dispatch').mockImplementationOnce(() => {
+        jest.spyOn(Shopware.Store.get('extensionSdkModules'), 'addModule').mockImplementationOnce(() => {
             return Promise.resolve(null);
         });
 
@@ -63,9 +64,18 @@ describe('src/app/init/menu-item.init.ts', () => {
             label: 'Test item',
             locationId: 'your-location-id',
             displaySearchBar: true,
+            displaySmartBar: true,
             parent: 'sw-catalogue',
         });
 
-        expect(Shopware.State.get('extensionSdkModules').modules).toHaveLength(0);
+        expect(Shopware.Store.get('extensionSdkModules').modules).toHaveLength(0);
+    });
+
+    it('should handle incoming menuCollapse/menuExpand requests', async () => {
+        await ui.menu.collapseMenu();
+        expect(Shopware.Store.get('adminMenu').isExpanded).toBe(false);
+
+        await ui.menu.expandMenu();
+        expect(Shopware.Store.get('adminMenu').isExpanded).toBe(true);
     });
 });

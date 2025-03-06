@@ -2,22 +2,21 @@
 
 namespace Shopware\Tests\Unit\Core\Framework\Log;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Log\Package;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\Log\Package
- *
- * @package core
  */
+#[Package('framework')]
+#[CoversClass(Package::class)]
 class PackageTest extends TestCase
 {
     public function testConstructor(): void
     {
-        $package = new Package('test');
-        static::assertSame('test', $package->package);
+        $package = new Package('framework');
+        static::assertSame('framework', $package->package);
     }
 
     public function testNonExistingClass(): void
@@ -32,12 +31,12 @@ class PackageTest extends TestCase
 
     public function testPackage(): void
     {
-        static::assertSame('test', Package::getPackageName(WithPackage::class));
+        static::assertSame('framework', Package::getPackageName(WithPackage::class));
     }
 
     public function testParentPackage(): void
     {
-        static::assertSame('test', Package::getPackageName(WithParentPackage::class, true));
+        static::assertSame('framework', Package::getPackageName(WithParentPackage::class, true));
     }
 
     public function testParentPackageWithoutFlag(): void
@@ -48,8 +47,6 @@ class PackageTest extends TestCase
 
 /**
  * @internal
- *
- * @package core
  */
 class NoPackage
 {
@@ -57,18 +54,14 @@ class NoPackage
 
 /**
  * @internal
- *
- * @package core
  */
-#[Package('test')]
+#[Package('framework')]
 class WithPackage
 {
 }
 
 /**
  * @internal
- *
- * @package core
  */
 class WithParentPackage extends WithPackage
 {

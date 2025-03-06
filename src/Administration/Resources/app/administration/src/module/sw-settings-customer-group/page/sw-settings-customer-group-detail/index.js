@@ -2,9 +2,8 @@ import './sw-settings-customer-group-detail.scss';
 import template from './sw-settings-customer-group-detail.html.twig';
 
 /**
- * @package customer-order
+ * @sw-package discovery
  */
-
 const { Mixin } = Shopware;
 const { Criteria } = Shopware.Data;
 const { mapPropertyErrors } = Shopware.Component.getComponentHelper();
@@ -16,7 +15,11 @@ const domainPlaceholderId = '124c71d524604ccbad6042edce3ac799';
 export default {
     template,
 
-    inject: ['repositoryFactory', 'acl', 'customFieldDataProviderService'],
+    inject: [
+        'repositoryFactory',
+        'acl',
+        'customFieldDataProviderService',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -176,27 +179,28 @@ export default {
     methods: {
         createdComponent() {
             this.isLoading = true;
-            if (this.customerGroupId) {
-                this.loadSeoUrls();
-                this.loadCustomFieldSets();
-                const criteria = new Criteria(1, 25);
-                criteria.addAssociation('registrationSalesChannels');
+            if (!this.customerGroupId) {
+                this.createNotificationError({
+                    message: this.$tc('global.notification.notificationLoadingDataErrorMessage'),
+                });
 
-                this.customerGroupRepository.get(this.customerGroupId, Shopware.Context.api, criteria)
-                    .then((customerGroup) => {
-                        this.customerGroup = customerGroup;
-                        this.isLoading = false;
-                    });
+                this.isLoading = true;
                 return;
             }
 
-            Shopware.State.commit('context/resetLanguageToDefault');
-            this.customerGroup = this.customerGroupRepository.create();
-            this.isLoading = false;
+            this.loadSeoUrls();
+            this.loadCustomFieldSets();
+            const criteria = new Criteria(1, 25);
+            criteria.addAssociation('registrationSalesChannels');
+
+            this.customerGroupRepository.get(this.customerGroupId, Shopware.Context.api, criteria).then((customerGroup) => {
+                this.customerGroup = customerGroup;
+                this.isLoading = false;
+            });
         },
 
         async loadSeoUrls() {
-            if (!this.customerGroup?.registrationSalesChannels.length) {
+            if (!this.customerGroup?.registrationSalesChannels?.length) {
                 this.seoUrls = [];
                 return;
             }
@@ -220,7 +224,7 @@ export default {
         getSeoUrl(seoUrl) {
             let shopUrl = '';
 
-            seoUrl.salesChannel.domains.forEach(domain => {
+            seoUrl.salesChannel.domains.forEach((domain) => {
                 if (domain.languageId === seoUrl.languageId) {
                     shopUrl = domain.url;
                 }
@@ -229,14 +233,12 @@ export default {
             return `${shopUrl}/${seoUrl.seoPathInfo}`;
         },
 
-        async onSave() {
-            this.isSaveSuccessful = false;
-            this.isLoading = true;
-
+        validateSaveRequest() {
             if (
                 Shopware.Context.api.languageId === Shopware.Context.api.systemLanguageId &&
                 this.customerGroup.registrationActive &&
-                types.isEmpty(this.customerGroup.registrationTitle)) {
+                types.isEmpty(this.customerGroup.registrationTitle)
+            ) {
                 this.createNotificationError({
                     message: this.$tc('global.notification.notificationSaveErrorMessageRequiredFieldsInvalid'),
                 });
@@ -248,25 +250,31 @@ export default {
 
                 this.isLoading = false;
                 this.isSaveSuccessful = false;
+                return false;
+            }
+
+            return true;
+        },
+
+        async onSave() {
+            this.isSaveSuccessful = false;
+            this.isLoading = true;
+
+            if (!this.validateSaveRequest()) {
                 return;
             }
 
             try {
                 await this.customerGroupRepository.save(this.customerGroup);
+                await this.loadSeoUrls();
 
                 this.isSaveSuccessful = true;
-                if (!this.customerGroupId) {
-                    this.customerGroupId = this.customerGroup.id;
-                    this.$router.push({ name: 'sw.settings.customer.group.detail', params: { id: this.customerGroup.id } });
-                }
-
-                this.customerGroup = await this.createdComponent();
             } catch (err) {
-                this.isLoading = false;
-
                 this.createNotificationError({
                     message: this.$tc('sw-settings-customer-group.detail.notificationErrorMessage'),
                 });
+            } finally {
+                this.isLoading = false;
             }
         },
     },

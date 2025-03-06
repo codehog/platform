@@ -1,46 +1,52 @@
 /**
- * @package content
+ * @sw-package discovery
  */
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import SwMediaUploadV2 from 'src/app/asyncComponent/media/sw-media-upload-v2';
-import SwMediaCompactUploadV2 from 'src/app/asyncComponent/media/sw-media-compact-upload-v2';
-
-Shopware.Component.register('sw-media-upload-v2', SwMediaUploadV2);
-Shopware.Component.extend('sw-media-compact-upload-v2', 'sw-media-upload-v2', SwMediaCompactUploadV2);
+import { mount } from '@vue/test-utils';
 
 describe('src/app/component/media/sw-media-compact-upload-v2', () => {
     let wrapper;
 
     beforeEach(async () => {
-        const localVue = createLocalVue();
-        localVue.directive('droppable', {});
-
-        wrapper = shallowMount(await Shopware.Component.build('sw-media-compact-upload-v2'), {
-            localVue,
-            stubs: {
-                'sw-context-button': true,
-                'sw-context-menu-item': true,
-                'sw-icon': true,
-                'sw-button': true,
-                'sw-media-url-form': true,
-                'sw-media-preview-v2': true,
-                'sw-context-menu-divider': true,
-            },
-            provide: {
-                repositoryFactory: {},
-                configService: {
-                    getConfig: () => Promise.resolve({ settings: { enableUrlFeature: false } }),
+        wrapper = mount(
+            await wrapTestComponent('sw-media-compact-upload-v2', {
+                sync: true,
+            }),
+            {
+                props: {
+                    uploadTag: 'my-upload',
                 },
-                mediaService: {
-                    addListener: () => {},
-                    removeByTag: () => {},
-                    removeListener: () => {},
+                global: {
+                    renderStubDefaultSlot: true,
+                    stubs: {
+                        'sw-context-button': true,
+                        'sw-context-menu-item': true,
+                        'sw-media-url-form': true,
+                        'sw-media-preview-v2': true,
+                        'sw-context-menu-divider': true,
+                        'sw-button-group': true,
+                        'sw-media-modal-v2': true,
+                    },
+                    provide: {
+                        repositoryFactory: {},
+                        configService: {
+                            getConfig: () =>
+                                Promise.resolve({
+                                    settings: { enableUrlFeature: false },
+                                }),
+                        },
+                        mediaService: {
+                            addListener: () => {},
+                            removeByTag: () => {},
+                            removeListener: () => {},
+                        },
+                        fileValidationService: {},
+                    },
+                    directives: {
+                        droppable: true,
+                    },
                 },
             },
-            propsData: {
-                uploadTag: 'my-upload',
-            },
-        });
+        );
     });
 
     it('should be a Vue.js component', async () => {
@@ -194,6 +200,7 @@ describe('src/app/component/media/sw-media-compact-upload-v2', () => {
                 },
             ],
         });
+
         const removeButton = wrapper.find('.sw-media-upload-v2__delete-item-button');
         expect(removeButton.text()).toBe('global.sw-product-image.context.buttonRemove');
 
@@ -210,10 +217,12 @@ describe('src/app/component/media/sw-media-compact-upload-v2', () => {
                 value: true,
                 helpText: 'example',
             },
-            sourceMultiselect: [{
-                fileName: 'example',
-                fileExtension: 'jpg',
-            }],
+            sourceMultiselect: [
+                {
+                    fileName: 'example',
+                    fileExtension: 'jpg',
+                },
+            ],
         });
 
         expect(wrapper.find('.sw-context-menu-item__buttonRemove').attributes('disabled')).toBeTruthy();

@@ -1,11 +1,8 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import SwCodeEditor from 'src/app/asyncComponent/form/sw-code-editor';
-
-Shopware.Component.register('sw-code-editor', SwCodeEditor);
+import { mount } from '@vue/test-utils';
 
 const vulnerableInput = '<script>alert("Bämmmmm");</script>';
 const sanitizedInput = 'User input cleared';
@@ -13,23 +10,28 @@ const sanitizedInput = 'User input cleared';
 let serviceShouldWork = true;
 
 const userInputSanitizeService = {
-    sanitizeInput: jest.fn(() => new Promise((resolve, reject) => {
-        if (serviceShouldWork) {
-            resolve({
-                preview: sanitizedInput,
-            });
-        } else {
-            reject(new Error(`this serviceShouldWork is ${serviceShouldWork ? 'true' : 'false'}`));
-        }
-    })),
+    sanitizeInput: jest.fn(
+        () =>
+            new Promise((resolve, reject) => {
+                if (serviceShouldWork) {
+                    resolve({
+                        preview: sanitizedInput,
+                    });
+                } else {
+                    reject(new Error(`this serviceShouldWork is ${serviceShouldWork ? 'true' : 'false'}`));
+                }
+            }),
+    ),
 };
 
 async function createWrapper(options = {}) {
-    return shallowMount(await Shopware.Component.build('sw-code-editor'), {
-        provide: { userInputSanitizeService },
-        stubs: {
-            'sw-circle-icon': { template: '<i/>' },
-            'sw-base-field': true,
+    return mount(await wrapTestComponent('sw-code-editor', { sync: true }), {
+        global: {
+            provide: { userInputSanitizeService },
+            stubs: {
+                'sw-circle-icon': { template: '<i/>' },
+                'sw-base-field': true,
+            },
         },
         ...options,
     });
@@ -58,7 +60,7 @@ describe('asyncComponents/form/sw-code-editor', () => {
 
     it('should be read only when disabled', async () => {
         const wrapper = await createWrapper({
-            propsData: {
+            props: {
                 disabled: true,
             },
         });
@@ -68,7 +70,7 @@ describe('asyncComponents/form/sw-code-editor', () => {
 
     it('should sanitize content when `sanitize-input` attibute is true', async () => {
         const wrapper = await createWrapper({
-            propsData: {
+            props: {
                 sanitizeInput: true,
             },
         });
@@ -97,7 +99,7 @@ describe('asyncComponents/form/sw-code-editor', () => {
         serviceShouldWork = true;
 
         let wrapper = await createWrapper({
-            propsData: {
+            props: {
                 sanitizeInput: true,
             },
         });
@@ -112,7 +114,7 @@ describe('asyncComponents/form/sw-code-editor', () => {
             enableHtmlSanitizer: false,
         };
         wrapper = await createWrapper({
-            propsData: {
+            props: {
                 sanitizeInput: true,
             },
         });

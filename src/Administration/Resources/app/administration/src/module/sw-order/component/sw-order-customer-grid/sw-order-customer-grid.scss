@@ -16,6 +16,7 @@ $sw-field--radio-color-border: $color-gray-300;
 
     &__toolbar {
         display: flex;
+        width: 100%;
 
         .sw-card-filter {
             flex-grow: 1;
@@ -30,7 +31,7 @@ $sw-field--radio-color-border: $color-gray-300;
         width: 100%;
     }
 
-    &__add-customer.sw-button {
+    &__add-customer.mt-button {
         margin-left: 22px;
     }
 
@@ -49,6 +50,13 @@ $sw-field--radio-color-border: $color-gray-300;
 
         .sw-data-grid__action-edit-column {
             display: none;
+        }
+    }
+
+    &__sales-channel-selection {
+        &--description {
+            font-size: 16px;
+            margin-bottom: 24px;
         }
     }
 }
@@ -100,4 +108,8 @@ $sw-field--radio-color-border: $color-gray-300;
         border: 1px solid $color-gray-300;
         border-radius: 8px;
     }
+}
+
+.sw-data-grid__row.is--disabled > .sw-data-grid__cell {
+    color: lighten($color-darkgray-200, 40%);
 }

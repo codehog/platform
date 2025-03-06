@@ -1,102 +1,129 @@
-/*
- * @package inventory
+/**
+ * @sw-package buyers-experience
  */
+import { mount } from '@vue/test-utils';
+import Criteria from 'src/core/data/criteria.data';
 
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swProductVariantsOverview from 'src/module/sw-product/component/sw-product-variants/sw-product-variants-overview';
-import 'src/app/component/data-grid/sw-data-grid';
-import SwMediaUploadV2 from 'src/app/asyncComponent/media/sw-media-upload-v2';
-import swMediaCompactUploadV2 from 'src/app/asyncComponent/media/sw-media-compact-upload-v2';
-import 'src/app/component/form/sw-checkbox-field';
-import Vuex from 'vuex';
+let repositoryFactoryMock;
+let repositoryFactoryCreateMock;
 
-Shopware.Component.register('sw-media-upload-v2', SwMediaUploadV2);
-Shopware.Component.extend('sw-media-compact-upload-v2', 'sw-media-upload-v2', () => swMediaCompactUploadV2);
-Shopware.Component.register('sw-product-variants-overview', swProductVariantsOverview);
+async function createWrapper(propsOverride = {}, repositoryFactoryOverride = {}) {
+    repositoryFactoryCreateMock = {
+        search: () => Promise.resolve([]),
+        save: jest.fn(() => Promise.resolve([])).mockName('repositoryFactory save'),
+        get: () => Promise.resolve({}),
+        syncDeleted: () => Promise.resolve({}),
+    };
+    repositoryFactoryMock = {
+        create: jest.fn(() => repositoryFactoryCreateMock),
+        ...repositoryFactoryOverride,
+    };
 
-async function createWrapper(propsOverrides = {}, repositoryFactoryOverride = {}) {
-    const localVue = createLocalVue();
-    localVue.use(Vuex);
-    return shallowMount(await Shopware.Component.build('sw-product-variants-overview'), {
-        localVue,
-        propsData: {
+    return mount(await wrapTestComponent('sw-product-variants-overview', { sync: true }), {
+        props: {
             selectedGroups: [],
             uploadTag: 'uploadTag',
-            ...propsOverrides,
-        },
-        mocks: {
-            $route: {
-                query: {},
+            productEntity: {
+                id: '72bfaf5d90214ce592715a9649d8760a',
+                variantListingConfig: null,
             },
+            ...propsOverride,
         },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: () => Promise.resolve(),
-                    save: () => Promise.resolve([]),
-                    get: () => Promise.resolve({}),
-                }),
-                ...repositoryFactoryOverride,
-            },
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) {
-                        return true;
-                    }
-                    return global.activeAclRoles.includes(identifier);
+        global: {
+            provide: {
+                repositoryFactory: repositoryFactoryMock,
+                searchRankingService: {},
+                configService: {
+                    getConfig: () =>
+                        Promise.resolve({
+                            settings: {
+                                enableUrlFeature: false,
+                            },
+                        }),
                 },
-            },
-            searchRankingService: {},
-            configService: {
-                getConfig: () => Promise.resolve({
-                    settings: {
-                        enableUrlFeature: false,
+                mediaService: {
+                    addListener: () => {},
+                    removeByTag: () => {},
+                    removeListener: () => {},
+                    getDefaultFolderId: () => {
+                        return Promise.resolve('defaultFolderId');
                     },
+                },
+                mediaDefaultFolderService: {
+                    getDefaultFolderId: () => {
+                        return Promise.resolve('defaultFolderId');
+                    },
+                },
+                shortcutService: {
+                    startEventListener: () => {},
+                    stopEventListener: () => {},
+                },
+                fileValidationService: {},
+            },
+            stubs: {
+                'sw-container': await wrapTestComponent('sw-container', {
+                    sync: true,
                 }),
+                'sw-simple-search-field': await wrapTestComponent('sw-simple-search-field', { sync: true }),
+                'sw-context-menu': await wrapTestComponent('sw-context-menu', { sync: true }),
+                'sw-tree': await wrapTestComponent('sw-tree', {
+                    sync: true,
+                }),
+                'sw-tree-item': true,
+                'sw-data-grid': await wrapTestComponent('sw-data-grid', {
+                    sync: true,
+                }),
+                'router-link': true,
+                'sw-label': true,
+                'sw-inheritance-switch': true,
+                'sw-price-field': true,
+                'sw-price-preview': true,
+                'sw-text-field': true,
+                'sw-product-variants-media-upload': true,
+                'sw-upload-listener': true,
+                'sw-media-compact-upload-v2': await wrapTestComponent('sw-media-compact-upload-v2', { sync: true }),
+                'sw-data-grid-column-boolean': true,
+                'sw-context-menu-item': await wrapTestComponent('sw-context-menu-item', { sync: true }),
+                'sw-pagination': true,
+                'sw-bulk-edit-modal': true,
+                'sw-modal': {
+                    template: `
+                        <div class="sw-modal">
+                          <slot name="modal-header"></slot>
+                          <slot></slot>
+                          <slot name="modal-footer"></slot>
+                        </div>
+                    `,
+                },
+                'sw-checkbox-field': await wrapTestComponent('sw-checkbox-field', { sync: true }),
+                'sw-checkbox-field-deprecated': await wrapTestComponent('sw-checkbox-field-deprecated', { sync: true }),
+                'sw-base-field': await wrapTestComponent('sw-base-field', {
+                    sync: true,
+                }),
+                'sw-loader': true,
+                'sw-tree-input-field': true,
+                'sw-context-button': {
+                    template: '<div class="sw-context-button"><slot></slot></div>',
+                },
+                'sw-data-grid-settings': true,
+                'sw-data-grid-inline-edit': true,
+                'sw-data-grid-skeleton': true,
+                'sw-field-error': true,
+                'sw-ai-copilot-badge': true,
+                'sw-help-text': true,
+                'sw-button-group': true,
+                'sw-media-url-form': true,
+                'sw-media-preview-v2': true,
+                'sw-context-menu-divider': true,
+                'sw-media-modal-v2': true,
+                'sw-provide': { template: '<slot/>', inheritAttrs: false },
             },
-            mediaService: {
-                addListener: () => {},
-                removeByTag: () => {},
-                removeListener: () => {},
-            },
-        },
-        stubs: {
-            'sw-container': {
-                template: '<div class="sw-container"><slot></slot></div>',
-            },
-            'sw-simple-search-field': true,
-            'sw-button': {
-                template: '<button @click="$emit(\'click\', $event)"><slot></slot></button>',
-            },
-            'sw-icon': true,
-            'sw-context-menu': true,
-            'sw-tree': true,
-            'sw-data-grid': await Shopware.Component.build('sw-data-grid'),
-            'sw-context-menu-item': {
-                template: '<div class="sw-context-menu-item" @click="$emit(\'click\')"><slot></slot></div>',
-            },
-            'sw-pagination': true,
-            'sw-modal': {
-                template: '<div class="sw-modal"><slot></slot><slot name="modal-footer"></slot></div>',
-            },
-            'sw-data-grid-settings': true,
-            'sw-context-button': true,
-            'sw-product-variants-media-upload': true,
-            'sw-inheritance-switch': true,
-            'router-link': true,
-            'sw-media-compact-upload-v2': await Shopware.Component.build('sw-media-compact-upload-v2'),
-            'sw-upload-listener': true,
-            'sw-checkbox-field': await Shopware.Component.build('sw-checkbox-field'),
-            'sw-field-error': true,
-            'sw-base-field': true,
-            'sw-context-menu-divider': true,
-            'sw-media-preview-v2': true,
         },
     });
 }
 
 describe('src/module/sw-product/component/sw-product-variants/sw-product-variants-overview', () => {
-    beforeEach(async () => {
+    beforeEach(() => {
         global.activeAclRoles = [];
 
         const product = {
@@ -105,12 +132,8 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         };
         product.getEntityName = () => 'T-Shirt';
 
-        if (Shopware.State.get('swProductDetail')) {
-            Shopware.State.unregisterModule('swProductDetail');
-        }
-
-        Shopware.State.registerModule('swProductDetail', {
-            namespaced: true,
+        Shopware.Store.register({
+            id: 'swProductDetail',
             state() {
                 return {
                     product: product,
@@ -153,11 +176,14 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
             getters: {
                 isLoading: () => false,
             },
-            mutations: {
+            actions: {
                 setVariants(state, variants) {
                     state.variants = variants;
                 },
                 setLoading() {},
+                setProduct(state, newProduct) {
+                    state.product = newProduct;
+                },
             },
         });
     });
@@ -171,7 +197,7 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         const wrapper = await createWrapper();
         const generateVariantsButton = wrapper.find('.sw-product-variants__generate-action');
         expect(generateVariantsButton.exists()).toBeTruthy();
-        expect(generateVariantsButton.attributes().disabled).toBeTruthy();
+        expect(generateVariantsButton.attributes('disabled')).toBeDefined();
     });
 
     it('should have an enabled generate variants button', async () => {
@@ -180,45 +206,28 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         const wrapper = await createWrapper();
         const generateVariantsButton = wrapper.find('.sw-product-variants__generate-action');
         expect(generateVariantsButton.exists()).toBeTruthy();
-        expect(generateVariantsButton.attributes().disabled).toBeFalsy();
-    });
-
-    it('should allow inline editing', async () => {
-        global.activeAclRoles = ['product.editor'];
-        const wrapper = await createWrapper();
-        const dataGrid = wrapper.find('.sw-product-variants-overview__data-grid');
-        expect(dataGrid.props('allowInlineEdit')).toBe(true);
-    });
-
-    it('should disallow inline editing', async () => {
-        const wrapper = await createWrapper();
-        const dataGrid = wrapper.find('.sw-product-variants-overview__data-grid');
-        expect(dataGrid.props('allowInlineEdit')).toBe(false);
+        expect(generateVariantsButton.attributes('disabled')).toBeUndefined();
     });
 
     it('should enable selection deleting of list variants', async () => {
         global.activeAclRoles = ['product.deleter'];
 
         const wrapper = await createWrapper();
-        const dataGrid = wrapper.find('.sw-product-variants-overview__data-grid');
-        expect(dataGrid.props('showSelection')).toBe(true);
+        const selectionColumn = wrapper.find('.sw-data-grid__header .sw-data-grid__cell--selection');
+        expect(selectionColumn.exists()).toBeTruthy();
     });
 
     it('should be able to turn on delete confirmation modal', async () => {
         global.activeAclRoles = ['product.deleter'];
 
         const wrapper = await createWrapper();
+        await flushPromises();
 
-        const deleteContextButton = wrapper.find('.sw-context-menu-item[variant="danger"]');
+        const deleteContextButton = wrapper.find('.sw-context-menu-item.sw-context-menu-item--danger');
         await deleteContextButton.trigger('click');
-
-        await wrapper.vm.$forceUpdate();
 
         const deleteModal = wrapper.find('.sw-product-variants-overview__delete-modal');
         expect(deleteModal.exists()).toBeTruthy();
-
-        expect(wrapper.find('.sw-product-variants-overview__modal--confirm-delete-text').text())
-            .toBe('sw-product.variations.generatedListDeleteModalMessage');
     });
 
     it('should not be able to turn on delete confirmation modal', async () => {
@@ -226,8 +235,8 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
 
         const wrapper = await createWrapper();
 
-        const deleteContextButton = wrapper.find('.sw-context-menu-item[variant="danger"]');
-        expect(deleteContextButton.attributes().disabled).toBe('disabled');
+        const deleteContextButton = wrapper.find('.sw-context-menu-item.sw-context-menu-item--danger');
+        expect(deleteContextButton.classes('is--disabled')).toBeTruthy();
     });
 
     it('should be able to delete variants', async () => {
@@ -244,10 +253,7 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         await deleteVariantsButton.trigger('click');
 
         const deleteModal = wrapper.find('.sw-product-variants-overview__delete-modal');
-
         expect(deleteModal.exists()).toBeTruthy();
-        expect(wrapper.find('.sw-product-variants-overview__modal--confirm-delete-text').text())
-            .toBe('sw-product.variations.generatedListDeleteModalMessagePlural');
     });
 
     it('should not be able to delete variants', async () => {
@@ -259,71 +265,62 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         expect(deleteVariantsButton.exists()).toBeFalsy();
     });
 
-    it('should get list will return a list of products', async () => {
-        const wrapper = await createWrapper({}, {
-            create: () => ({
-                search: () => Promise.resolve([
-                    {
-                        id: '1',
-                        name: 'Example product',
-                    },
-                ]),
-            }),
-        });
-
-        await wrapper.vm.getList();
-
-        expect(wrapper.vm.variants).toEqual([{ id: '1', name: 'Example product' }]);
-    });
-
     it('should add the downloads column when the product state is equal "is-download"', async () => {
-        const wrapper = await createWrapper({
-            productStates: ['is-download'],
-        }, {
-            create: (entity) => {
-                if (entity === 'media_default_folder') {
-                    return { search: () => Promise.resolve([
-                        {
-                            id: 'defaultMediaFolderId',
-                            entity: 'product_download',
-                        },
-                    ]) };
-                }
-                return { search: () => Promise.resolve() };
+        const wrapper = await createWrapper(
+            {
+                productStates: ['is-download'],
             },
-        });
+            {
+                create: (entity) => {
+                    if (entity === 'media_default_folder') {
+                        return {
+                            search: () =>
+                                Promise.resolve([
+                                    {
+                                        id: 'defaultMediaFolderId',
+                                        entity: 'product_download',
+                                    },
+                                ]),
+                        };
+                    }
+                    return { search: () => Promise.resolve() };
+                },
+            },
+        );
 
         expect(wrapper.find('.sw-data-grid__cell--downloads').exists()).toBeTruthy();
     });
 
     it('should remove file from digital variant item', async () => {
-        const item =
-            {
-                id: '1',
-                productNumber: '1',
-                name: 'Example product',
-                downloads: [
-                    {
-                        media: {
-                            fileName: 'example',
-                            fileExtension: 'png',
-                        },
+        const item = {
+            id: '1',
+            productNumber: '1',
+            name: 'Example product',
+            downloads: [
+                {
+                    media: {
+                        fileName: 'example',
+                        fileExtension: 'png',
                     },
-                    {
-                        media: {
-                            fileName: 'test',
-                            fileExtension: 'gif',
-                        },
+                },
+                {
+                    media: {
+                        fileName: 'test',
+                        fileExtension: 'gif',
                     },
-                ],
-            };
+                },
+            ],
+        };
 
-        const wrapper = await createWrapper({ productStates: ['is-download'] }, {
-            create: () => ({
-                search: () => Promise.resolve([item]),
-                save: () => Promise.resolve(),
-            }),
-        });
+        const wrapper = await createWrapper(
+            { productStates: ['is-download'] },
+            {
+                create: () => ({
+                    search: () => Promise.resolve([item]),
+                    save: () => Promise.resolve(),
+                }),
+            },
+        );
         await wrapper.vm.getList();
 
         // should be deleted
@@ -331,27 +328,28 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         // should not be deleted (because it's the last one)
         await wrapper.vm.removeFile('test.gif', wrapper.vm.variants.at(0));
 
-        const previewItems = wrapper.find('.sw-data-grid__cell--downloads').findAll('.sw-media-compact-upload-v2__preview-item');
+        const previewItems = wrapper
+            .find('.sw-data-grid__cell--downloads')
+            .findAll('.sw-media-compact-upload-v2__preview-item');
         expect(previewItems).toHaveLength(1);
         expect(previewItems.at(0).find('.sw-context-menu-item').text()).toBe('test.gif');
     });
 
     it('should save successful uploaded files', async () => {
-        const item =
-            {
-                id: '1',
-                productNumber: '1',
-                name: 'Example product',
-                downloads: [
-                    {
-                        media: {
-                            id: 'lel',
-                            fileName: 'test',
-                            fileExtension: 'png',
-                        },
+        const item = {
+            id: '1',
+            productNumber: '1',
+            name: 'Example product',
+            downloads: [
+                {
+                    media: {
+                        id: 'lel',
+                        fileName: 'test',
+                        fileExtension: 'png',
                     },
-                ],
-            };
+                },
+            ],
+        };
 
         const file = {
             id: 'test-id',
@@ -359,14 +357,17 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
             fileExtension: 'png',
         };
 
-        const wrapper = await createWrapper({ productStates: ['is-download'] }, {
-            create: () => ({
-                search: () => Promise.resolve([item]),
-                save: () => Promise.resolve(),
-                create: () => Promise.resolve(),
-                get: () => Promise.resolve(file),
-            }),
-        });
+        const wrapper = await createWrapper(
+            { productStates: ['is-download'] },
+            {
+                create: () => ({
+                    search: () => Promise.resolve([item]),
+                    save: () => Promise.resolve(),
+                    create: () => Promise.resolve(),
+                    get: () => Promise.resolve(file),
+                }),
+            },
+        );
         await wrapper.vm.getList();
 
         // not existing
@@ -374,7 +375,9 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         // existing
         await wrapper.vm.successfulUpload({ targetId: 'test-id', downloads: [] }, item);
 
-        const previewItems = wrapper.find('.sw-data-grid__cell--downloads').findAll('.sw-media-compact-upload-v2__preview-item');
+        const previewItems = wrapper
+            .find('.sw-data-grid__cell--downloads')
+            .findAll('.sw-media-compact-upload-v2__preview-item');
         expect(previewItems).toHaveLength(2);
         expect(previewItems.at(1).find('.sw-context-menu-item').text()).toBe('example.png');
     });
@@ -393,14 +396,134 @@ describe('src/module/sw-product/component/sw-product-variants/sw-product-variant
         });
 
         await wrapper.vm.onEditItems();
-        expect(wrapper.vm.$router.push).toHaveBeenCalledWith(expect.objectContaining({
-            name: 'sw.bulk.edit.product',
-            params: expect.objectContaining({
-                parentId: '72bfaf5d90214ce592715a9649d8760a',
-                includesDigital: '1',
+        expect(wrapper.vm.$router.push).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'sw.bulk.edit.product',
+                params: expect.objectContaining({
+                    parentId: '72bfaf5d90214ce592715a9649d8760a',
+                    includesDigital: '0',
+                }),
             }),
-        }));
+        );
 
         wrapper.vm.$router.push.mockRestore();
+    });
+
+    it('The price of variant should be set to null', async () => {
+        const wrapper = await createWrapper();
+
+        const variant = {
+            price: [
+                {
+                    currencyId: 'b7d2554b0ce847cd82f3ac9bd1c0dfca',
+                    gross: '123',
+                    net: '123',
+                },
+            ],
+        };
+
+        const currency = {
+            id: 'b7d2554b0ce847cd82f3ac9bd1c0dfca',
+        };
+
+        wrapper.vm.onInheritanceRestore(variant, currency);
+
+        expect(variant.price).toBeNull();
+    });
+
+    it('buildSearchQuery modifies criteria correctly', async () => {
+        const criteria = new Criteria();
+        const term = 'test';
+        const wrapper = await createWrapper();
+
+        wrapper.vm.term = term;
+        wrapper.vm.buildSearchQuery(criteria);
+
+        expect(criteria.queries).toHaveLength(3);
+        expect(criteria.queries[0].query.type).toBe('equals');
+        expect(criteria.queries[0].query.field).toBe('product.options.name');
+        expect(criteria.queries[0].query.value).toBe(term);
+        expect(criteria.queries[0].score).toBe(3500);
+        expect(criteria.queries[1].query.type).toBe('contains');
+        expect(criteria.queries[1].query.field).toBe('product.options.name');
+        expect(criteria.queries[1].query.value).toBe(term);
+        expect(criteria.queries[1].score).toBe(500);
+        expect(criteria.queries[2].query.type).toBe('contains');
+        expect(criteria.queries[2].query.field).toBe('product.productNumber');
+        expect(criteria.queries[2].query.value).toBe(term);
+        expect(criteria.queries[2].score).toBe(5000);
+    });
+
+    it('should update variant listing config of product when deleting variant', async () => {
+        global.activeAclRoles = ['product.deleter'];
+
+        const wrapper = await createWrapper();
+        await flushPromises();
+
+        const product = {
+            variantListingConfig: {
+                displayParent: 0,
+                configuratorGroupConfig: [],
+                mainVariantId: 1,
+            },
+            ...wrapper.vm.product,
+        };
+
+        await wrapper.setProps({
+            productEntity: product,
+        });
+
+        const deleteContextButton = wrapper.find('.sw-context-menu-item.sw-context-menu-item--danger');
+        await deleteContextButton.trigger('click');
+
+        const deleteModal = wrapper.find('.sw-product-variants-overview__delete-modal');
+        expect(deleteModal.exists()).toBe(true);
+
+        await wrapper.findByText('button', 'sw-product.variations.generatedListDeleteModalButtonDelete').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.vm.productRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('should contain a currencyColumns computed property', async () => {
+        const wrapper = await createWrapper();
+
+        Shopware.Store.get('swProductDetail').currencies = undefined;
+
+        expect(wrapper.vm.currencyColumns).toEqual([]);
+
+        Shopware.Store.get('swProductDetail').currencies = [
+            {
+                id: 'b7d2554b0ce847cd82f3ac9bd1c0dfca',
+                name: 'Euro',
+                isSystemDefault: true,
+                translated: {
+                    name: 'Euro',
+                },
+            },
+            {
+                id: 'b7d2554b0ce847cd82f3ac9bd1c0dfcb',
+                name: 'Dollar',
+                isSystemDefault: false,
+                translated: {
+                    name: 'Dollar',
+                },
+            },
+        ];
+
+        expect(wrapper.vm.currencyColumns).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    property: 'price.b7d2554b0ce847cd82f3ac9bd1c0dfca.net',
+                    label: 'Euro',
+                    visible: true,
+                }),
+                expect.objectContaining({
+                    property: 'price.b7d2554b0ce847cd82f3ac9bd1c0dfcb.net',
+                    label: 'Dollar',
+                    visible: false,
+                }),
+            ]),
+        );
     });
 });

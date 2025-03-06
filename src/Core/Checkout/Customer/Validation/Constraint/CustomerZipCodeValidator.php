@@ -7,22 +7,20 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\Log\Package;
+use Shopware\Core\System\Country\CountryCollection;
 use Shopware\Core\System\Country\CountryEntity;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\ConstraintValidator;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 
-/**
- * @Annotation
- *
- * @Target({"PROPERTY", "METHOD", "ANNOTATION"})
- */
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerZipCodeValidator extends ConstraintValidator
 {
     /**
      * @internal
+     *
+     * @param EntityRepository<CountryCollection> $countryRepository
      */
     public function __construct(private readonly EntityRepository $countryRepository)
     {
@@ -81,9 +79,8 @@ class CustomerZipCodeValidator extends ConstraintValidator
 
     private function getCountry(string $countryId): CountryEntity
     {
-        $country = $this->countryRepository->search(new Criteria([$countryId]), Context::createDefaultContext())->get($countryId);
-
-        if (!$country instanceof CountryEntity) {
+        $country = $this->countryRepository->search(new Criteria([$countryId]), Context::createDefaultContext())->getEntities()->first();
+        if (!$country) {
             throw CustomerException::countryNotFound($countryId);
         }
 

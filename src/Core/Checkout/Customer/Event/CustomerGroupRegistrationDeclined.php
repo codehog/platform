@@ -18,7 +18,7 @@ use Shopware\Core\Framework\Event\SalesChannelAware;
 use Shopware\Core\Framework\Log\Package;
 use Symfony\Contracts\EventDispatcher\Event;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerGroupRegistrationDeclined extends Event implements SalesChannelAware, CustomerAware, MailAware, CustomerGroupAware, FlowEventAware
 {
     final public const EVENT_NAME = 'customer.group.registration.declined';
@@ -81,11 +81,11 @@ class CustomerGroupRegistrationDeclined extends Event implements SalesChannelAwa
 
     public function getCustomerId(): string
     {
-        return $this->getCustomer()->getId();
+        return $this->customer->getId();
     }
 
     public function getCustomerGroupId(): string
     {
-        return $this->getCustomerGroup()->getId();
+        return $this->customerGroup->getId();
     }
 }

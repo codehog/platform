@@ -19,7 +19,7 @@ use Shopware\Core\Framework\Plugin\Exception\DecorationPatternException;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
-#[Package('buyers-experience')]
+#[Package('discovery')]
 class MediaFolderIndexer extends EntityIndexer
 {
     final public const CHILD_COUNT_UPDATER = 'media_folder.child-count';
@@ -77,7 +77,8 @@ class MediaFolderIndexer extends EntityIndexer
             $this->treeUpdater->batchUpdate(
                 $idsWithChangedParentIds,
                 MediaFolderDefinition::ENTITY_NAME,
-                $event->getContext()
+                $event->getContext(),
+                true
             );
         }
 
@@ -88,11 +89,12 @@ class MediaFolderIndexer extends EntityIndexer
 
     public function handle(EntityIndexingMessage $message): void
     {
-        $context = $message->getContext();
-
         $ids = $message->getData();
-        $ids = array_filter(array_unique($ids));
+        if (!\is_array($ids)) {
+            return;
+        }
 
+        $ids = array_filter(array_unique($ids));
         if (empty($ids)) {
             return;
         }
@@ -134,7 +136,12 @@ class MediaFolderIndexer extends EntityIndexer
         }
 
         if (!empty($children) && $message->allow(self::TREE_UPDATER)) {
-            $this->treeUpdater->batchUpdate($children, MediaFolderDefinition::ENTITY_NAME, $context);
+            $this->treeUpdater->batchUpdate(
+                $children,
+                MediaFolderDefinition::ENTITY_NAME,
+                $message->getContext(),
+                !$message->isFullIndexing
+            );
         }
 
         $this->eventDispatcher->dispatch(new MediaFolderIndexerEvent($ids, $message->getContext(), $message->getSkip()));
@@ -160,13 +167,15 @@ class MediaFolderIndexer extends EntityIndexer
 
     /**
      * @param array<string> $parentIds
+     *
+     * @return array<string>
      */
     private function fetchChildren(array $parentIds): array
     {
         $childIds = $this->connection->fetchAllAssociative(
             'SELECT LOWER(HEX(id)) as id FROM media_folder WHERE parent_id IN (:ids) AND use_parent_configuration = 1',
             ['ids' => Uuid::fromHexToBytesList($parentIds)],
-            ['ids' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY]
         );
 
         $childIds = array_column($childIds, 'id');
@@ -179,6 +188,8 @@ class MediaFolderIndexer extends EntityIndexer
     }
 
     /**
+     * @param array<string> $ids
+     *
      * @return array<string>
      */
     private function getParentIds(array $ids): array
@@ -187,7 +198,7 @@ class MediaFolderIndexer extends EntityIndexer
         $parentIds = $this->connection->fetchFirstColumn(
             'SELECT DISTINCT LOWER(HEX(media_folder.parent_id)) as id FROM media_folder WHERE id IN (:ids)',
             ['ids' => Uuid::fromHexToBytesList($ids)],
-            ['ids' => ArrayParameterType::STRING]
+            ['ids' => ArrayParameterType::BINARY]
         );
 
         return array_unique(array_filter($parentIds));

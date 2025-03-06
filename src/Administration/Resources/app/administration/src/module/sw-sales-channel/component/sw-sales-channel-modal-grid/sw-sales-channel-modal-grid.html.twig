@@ -1,4 +1,3 @@
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_sales_channel_modal_grid %}
 <sw-grid
     v-if="!isLoading"
@@ -11,14 +10,13 @@
     <template
         #columns="{ item }"
     >
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_sales_channel_grid_columns %}
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_sales_channel_grid_columns_icon %}
         <sw-grid-column
             flex="85px"
             data-index="icon"
             class="sw-sales-channel-modal-grid__icon-column"
+            label="icon"
         >
             <span
                 class="sw-sales-channel-modal-grid__icon"
@@ -27,7 +25,7 @@
                 @click="onOpenDetail(item.id)"
                 @keydown.enter="onOpenDetail(item.id)"
             >
-                <sw-icon
+                <mt-icon
                     v-if="item.iconName"
                     :name="item.iconName"
                 />
@@ -35,11 +33,11 @@
         </sw-grid-column>
         {% endblock %}
 
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_sales_channel_grid_columns_content %}
         <sw-grid-column
             flex="minmax(150px, 1fr)"
             data-index="content"
+            label="content"
         >
             <div class="sw-sales-channel-modal-grid__item-content">
                 <h3
@@ -60,15 +58,15 @@
         </sw-grid-column>
         {% endblock %}
 
-        <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
         {% block sw_sales_channel_grid_columns_actions %}
         <sw-grid-column
             flex="auto"
             align="center"
             data-index="actions"
             class="sw-sales-channel-modal-grid__actions"
+            label="actions"
         >
-            <sw-button
+            <mt-button
                 v-tooltip="{
                     message: $tc('sw-sales-channel.modal.messageNoProductStreams'),
                     showOnDisabledElements: true,
@@ -82,15 +80,18 @@
                 @click="onAddChannel(item.id)"
             >
                 {{ $tc('sw-sales-channel.modal.buttonAddChannel') }}
-            </sw-button>
+            </mt-button>
         </sw-grid-column>
         {% endblock %}
         {% endblock %}
     </template>
 </sw-grid>
-
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_sales_channel_modal_grid_loader %}
 <sw-loader v-else />
-    {% endblock %}
+{% endblock %}
+
+<sw-extension-teaser-sales-channel
+    v-if="!isLoading"
+/>
+
 {% endblock %}

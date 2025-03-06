@@ -3,10 +3,9 @@ import template from './sw-form-field-renderer.html.twig';
 const { Component, Mixin } = Shopware;
 const { types } = Shopware.Utils;
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @status ready
  * @description
  * Dynamically renders components with a given configuration. The rendered component can be forced by defining
@@ -70,9 +69,15 @@ const { types } = Shopware.Utils;
  */
 Component.register('sw-form-field-renderer', {
     template,
+
     inheritAttrs: false,
 
-    inject: ['repositoryFactory', 'feature'],
+    inject: [
+        'repositoryFactory',
+        'feature',
+    ],
+
+    emits: ['update:value'],
 
     mixins: [
         Mixin.getByName('sw-inline-snippet'),
@@ -89,7 +94,6 @@ Component.register('sw-form-field-renderer', {
             required: false,
             default: null,
         },
-        // FIXME: add property type
         // eslint-disable-next-line vue/require-prop-types
         value: {
             required: true,
@@ -112,8 +116,17 @@ Component.register('sw-form-field-renderer', {
 
     computed: {
         bind() {
-            const bind = {
-                ...this.$attrs,
+            let bind = {};
+
+            // Filter all listeners from the $attrs object
+            Object.keys(this.$attrs).forEach((key) => {
+                if (!['onUpdate:value'].includes(key)) {
+                    bind[key] = this.$attrs[key];
+                }
+            });
+
+            bind = {
+                ...bind,
                 ...this.config,
                 ...this.swFieldType,
                 ...this.translations,
@@ -133,6 +146,11 @@ Component.register('sw-form-field-renderer', {
 
         componentName() {
             if (this.hasConfig) {
+                // Handle old "sw-field" component with custom type
+                if (this.config.componentName === 'sw-field') {
+                    return this.getComponentFromType(this.config.type);
+                }
+
                 return this.config.componentName || this.getComponentFromType();
             }
             return this.getComponentFromType();
@@ -148,8 +166,7 @@ Component.register('sw-form-field-renderer', {
                 };
             }
 
-            if (this.componentName !== 'sw-field'
-                || (this.hasConfig && this.config.hasOwnProperty('type'))) {
+            if (this.hasConfig && this.config.hasOwnProperty('type')) {
                 return {};
             }
 
@@ -189,7 +206,12 @@ Component.register('sw-form-field-renderer', {
         },
 
         optionTranslations() {
-            if (['sw-single-select', 'sw-multi-select'].includes(this.componentName)) {
+            if (
+                [
+                    'sw-single-select',
+                    'sw-multi-select',
+                ].includes(this.componentName)
+            ) {
                 if (!this.config.hasOwnProperty('options')) {
                     return {};
                 }
@@ -202,12 +224,11 @@ Component.register('sw-form-field-renderer', {
                     labelProperty = this.config.labelProperty;
                 }
 
-                this.config.options.forEach(option => {
-                    const translation = this.getTranslations(
-                        'options',
-                        option,
-                        [labelProperty],
-                    );
+                this.config.options.forEach((option) => {
+                    const translation = this.getTranslations('options', option, [labelProperty]);
+                    if (!translation.label) {
+                        translation.label = option.value;
+                    }
                     // Merge original option with translation
                     const translatedOption = { ...option, ...translation };
                     options.push(translatedOption);
@@ -218,12 +239,32 @@ Component.register('sw-form-field-renderer', {
 
             return {};
         },
+
+        componentPropName() {
+            switch (this.componentName) {
+                case 'mt-textarea':
+                case 'mt-switch':
+                case 'mt-number-field':
+                    return 'modelValue';
+                default:
+                    return 'value';
+            }
+        },
     },
 
     watch: {
         currentValue(value) {
+            if (
+                Array.isArray(value) &&
+                Array.isArray(this.value) &&
+                value.length === this.value.length &&
+                value.every((val, index) => val === this.value[index])
+            ) {
+                return;
+            }
+
             if (value !== this.value) {
-                this.$emit('input', value);
+                this.$emit('update:value', value);
             }
         },
         value() {
@@ -241,24 +282,29 @@ Component.register('sw-form-field-renderer', {
 
             if (this.type === 'price' && !Array.isArray(this.currentValue)) {
                 this.currentValue = [
-                    { currencyId: Shopware.Context.app.systemCurrencyId, gross: null, net: null, linked: true },
+                    {
+                        currencyId: Shopware.Context.app.systemCurrencyId,
+                        gross: null,
+                        net: null,
+                        linked: true,
+                    },
                 ];
             }
         },
 
-        emitChange(data) {
-            if (this.type === 'price') {
-                return;
-            }
-            this.$emit('change', data);
-            this.emitUpdate(data);
-        },
-
         emitUpdate(data) {
-            this.$emit('update', data);
+            this.$emit('update:value', data);
         },
 
-        getTranslations(componentName, config = this.config, translatableFields = ['label', 'placeholder', 'helpText']) {
+        getTranslations(
+            componentName,
+            config = this.config,
+            translatableFields = [
+                'label',
+                'placeholder',
+                'helpText',
+            ],
+        ) {
             if (!translatableFields) {
                 return {};
             }
@@ -273,32 +319,37 @@ Component.register('sw-form-field-renderer', {
             return translations;
         },
 
-        getComponentFromType() {
-            if (this.type === 'price') {
-                return 'sw-price-field';
-            }
+        getComponentFromType(customType = undefined) {
+            const type = customType ?? this.type;
 
-            if (this.type === 'single-select') {
-                return 'sw-single-select';
-            }
+            const components = {
+                bool: 'sw-switch-field-deprecated',
+                switch: 'sw-switch-field-deprecated',
+                textarea: 'sw-textarea-field-deprecated',
+                checkbox: 'sw-checkbox-field-deprecated',
+                colorpicker: 'sw-colorpicker-deprecated',
+                compactColorpicker: 'sw-compact-colorpicker',
+                date: 'sw-datepicker-deprecated',
+                datetime: 'sw-datepicker-deprecated',
+                time: 'sw-datepicker-deprecated',
+                email: 'sw-email-field-deprecated',
+                float: 'sw-number-field-deprecated',
+                int: 'sw-number-field-deprecated',
+                number: 'sw-number-field-deprecated',
+                'multi-entity-id-select': 'sw-entity-multi-id-select',
+                'multi-select': 'sw-multi-select',
+                password: 'sw-password-field-deprecated',
+                price: 'sw-price-field',
+                radio: 'sw-radio-field',
+                'single-entity-id-select': 'sw-entity-single-select',
+                'single-select': 'sw-single-select',
+                string: 'sw-text-field-deprecated',
+                text: 'sw-text-field-deprecated',
+                tagged: 'sw-tagged-field',
+                url: 'sw-url-field-deprecated',
+            };
 
-            if (this.type === 'multi-select') {
-                return 'sw-multi-select';
-            }
-
-            if (this.type === 'single-entity-id-select') {
-                return 'sw-entity-single-select';
-            }
-
-            if (this.type === 'multi-entity-id-select') {
-                return 'sw-entity-multi-id-select';
-            }
-
-            if (this.type === 'tagged') {
-                return 'sw-tagged-field';
-            }
-
-            return 'sw-field';
+            return components[type] ?? 'sw-text-field-deprecated';
         },
 
         createRepository(entity) {
@@ -312,9 +363,15 @@ Component.register('sw-form-field-renderer', {
         fetchSystemCurrency() {
             const systemCurrencyId = Shopware.Context.app.systemCurrencyId;
 
-            this.createRepository('currency').get(systemCurrencyId).then(response => {
-                this.currency = response;
-            });
+            this.createRepository('currency')
+                .get(systemCurrencyId)
+                .then((response) => {
+                    this.currency = response;
+                });
+        },
+
+        getScopedSlots() {
+            return this.$slots;
         },
     },
 });

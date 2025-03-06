@@ -1,46 +1,52 @@
 /**
- * @package system-settings
+ * @sw-package framework
  */
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swBulkEditChangeTypeFieldRenderer from 'src/module/sw-bulk-edit/component/sw-bulk-edit-change-type-field-renderer';
-
-Shopware.Component.register('sw-bulk-edit-change-type-field-renderer', swBulkEditChangeTypeFieldRenderer);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-bulk-edit-change-type-field-renderer'), {
-        localVue,
-        stubs: {
-            'sw-bulk-edit-change-type-field-renderer': true,
-        },
-        props: {
-            bulkEditData: {
-                description: {
-                    isChanged: false,
-                    type: 'overwrite',
-                    value: null,
-                },
-                manufacturerId: {
-                    isChanged: false,
-                    type: 'overwrite',
-                    value: null,
-                },
-                active: {
-                    isChanged: false,
-                    type: 'overwrite',
-                    value: false,
-                },
-                markAsTopseller: {
-                    isChanged: false,
-                    type: 'overwrite',
-                    value: false,
+    return mount(
+        await wrapTestComponent('sw-bulk-edit-change-type-field-renderer', {
+            sync: true,
+        }),
+        {
+            global: {
+                stubs: {
+                    'sw-bulk-edit-change-type-field-renderer': true,
+                    'sw-checkbox-field': true,
+                    'sw-bulk-edit-form-field-renderer': true,
+                    'sw-bulk-edit-change-type': true,
+                    'sw-inheritance-switch': true,
+                    'sw-container': true,
                 },
             },
-            entity: [],
-            formFields: [],
+            props: {
+                bulkEditData: {
+                    description: {
+                        isChanged: false,
+                        type: 'overwrite',
+                        value: null,
+                    },
+                    manufacturerId: {
+                        isChanged: false,
+                        type: 'overwrite',
+                        value: null,
+                    },
+                    active: {
+                        isChanged: false,
+                        type: 'overwrite',
+                        value: false,
+                    },
+                    markAsTopseller: {
+                        isChanged: false,
+                        type: 'overwrite',
+                        value: false,
+                    },
+                },
+                entity: [],
+                formFields: [],
+            },
         },
-    });
+    );
 }
 
 describe('src/module/sw-bulk-edit/component/sw-bulk-edit-change-type-field-renderer', () => {
@@ -48,10 +54,6 @@ describe('src/module/sw-bulk-edit/component/sw-bulk-edit-change-type-field-rende
 
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
     });
 
     it('should be a Vue.js component', async () => {
@@ -133,14 +135,11 @@ describe('src/module/sw-bulk-edit/component/sw-bulk-edit-change-type-field-rende
 
     it('should be able to restore and remove inheritance', async () => {
         const item = { name: 'description', canInherit: true };
-        wrapper.vm.$emit = jest.fn();
 
         wrapper.vm.onInheritanceRestore(item);
-        expect(wrapper.vm.$emit).toHaveBeenCalledWith('inheritance-restore', item);
-        wrapper.vm.$emit.mockRestore();
+        expect(wrapper.emitted('inheritance-restore')[0]).toEqual([item]);
 
         wrapper.vm.onInheritanceRemove(item);
-        expect(wrapper.vm.$emit).toHaveBeenCalledWith('inheritance-remove', item);
-        wrapper.vm.$emit.mockRestore();
+        expect(wrapper.emitted('inheritance-remove')[0]).toEqual([item]);
     });
 });

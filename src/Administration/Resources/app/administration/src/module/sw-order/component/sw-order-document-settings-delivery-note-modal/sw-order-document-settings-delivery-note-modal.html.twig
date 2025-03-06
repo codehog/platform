@@ -1,45 +1,34 @@
-<!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
 {% block sw_order_document_settings_modal_form_first_row %}
 <sw-container
     columns="1fr 1fr 1fr"
     gap="0 14px"
 >
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_order_document_settings_modal_form_document_number %}
-    <sw-text-field
-        {% if VUE3 %}
-        v-model:value="documentConfig.documentNumber"
-        {% else %}
+
+    <mt-text-field
         v-model="documentConfig.documentNumber"
-        {% endif %}
         :label="$tc('sw-order.documentModal.labelDeliveryNoteNumber')"
     />
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_order_document_settings_modal_form_document_date %}
-    <sw-datepicker
-        {% if VUE3 %}
-        v-model:value="documentConfig.documentDate"
-        {% else %}
+    <mt-datepicker
         v-model="documentConfig.documentDate"
-        {% endif %}
         date-type="date"
+        hide-hint
         :label="$tc('sw-order.documentModal.labelDocumentDate')"
+        :placeholder="$tc('sw-datepicker.date.placeholder')"
     />
     {% endblock %}
 
-    <!-- eslint-disable-next-line sw-deprecation-rules/no-twigjs-blocks -->
     {% block sw_order_document_settings_modal_form_document_delivery_date %}
-    <sw-datepicker
-        {% if VUE3 %}
-        v-model:value="documentConfig.custom.deliveryDate"
-        {% else %}
+    <mt-datepicker
         v-model="documentConfig.custom.deliveryDate"
-        {% endif %}
         date-type="date"
         required
+        hide-hint
         :label="$tc('sw-order.documentModal.labelDeliveryDate')"
+        :placeholder="$tc('sw-datepicker.date.placeholder')"
     />
     {% endblock %}
 </sw-container>

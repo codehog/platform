@@ -2,6 +2,9 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
@@ -11,6 +14,7 @@ use Shopware\Core\Checkout\Cart\Rule\LineItemScope;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Rule;
+use Shopware\Core\Framework\Rule\RuleConfig;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Tests\Unit\Core\Checkout\Cart\SalesChannel\Helper\CartRuleHelperTrait;
@@ -19,13 +23,11 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
- * @covers \Shopware\Core\Checkout\Cart\Rule\LineItemCreationDateRule
- *
  * @internal
- *
- * @group rules
  */
-#[Package('business-ops')]
+#[Package('fundamentals@after-sales')]
+#[CoversClass(LineItemCreationDateRule::class)]
+#[Group('rules')]
 class LineItemCreationDateRuleTest extends TestCase
 {
     use CartRuleHelperTrait;
@@ -102,9 +104,8 @@ class LineItemCreationDateRuleTest extends TestCase
     /**
      * This test verifies that our rule works correctly
      * with all the different operators and values.
-     *
-     * @dataProvider getMatchValues
      */
+    #[DataProvider('getMatchValues')]
     public function testRuleMatching(bool $expected, string $itemCreated, string $ruleDate, string $operator): void
     {
         $lineItem = $this->createLineItemWithCreatedDate($itemCreated);
@@ -167,9 +168,7 @@ class LineItemCreationDateRuleTest extends TestCase
         static::assertFalse($match);
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testMultipleLineItemsInCartRuleScope(
         string $ruleCreationDate,
         string $lineItemCreationDate1,
@@ -193,9 +192,7 @@ class LineItemCreationDateRuleTest extends TestCase
         static::assertSame($expected, $match);
     }
 
-    /**
-     * @dataProvider getCartRuleScopeTestData
-     */
+    #[DataProvider('getCartRuleScopeTestData')]
     public function testMultipleLineItemsInCartRuleScopeNested(
         string $ruleCreationDate,
         string $lineItemCreationDate1,
@@ -230,6 +227,31 @@ class LineItemCreationDateRuleTest extends TestCase
             'one matching' => ['2020-02-06 00:00:00', '2020-02-06 00:00:00', '2020-01-01 18:00:00', true],
             'all matching' => ['2020-02-06 00:00:00', '2020-02-06 00:00:00', '2020-02-06 00:00:00', true],
         ];
+    }
+
+    public function testMatchesCreateDateCatchExceptionShouldReturnFalse(): void
+    {
+        $lineItemCreationDateRule = new LineItemCreationDateRule(Rule::OPERATOR_EQ, '1970-01-01');
+
+        $lineItem = new LineItem('anyId', 'a');
+        $lineItem->assign(['payload' => ['createdAt' => 'errorDate']]);
+
+        static::assertFalse(
+            $lineItemCreationDateRule->match(new LineItemScope(
+                $lineItem,
+                $this->createMock(SalesChannelContext::class)
+            ))
+        );
+    }
+
+    public function testGetConfig(): void
+    {
+        $lineItemCreationDateRule = new LineItemCreationDateRule();
+
+        $result = $lineItemCreationDateRule->getConfig()->getData();
+
+        static::assertIsArray($result['operatorSet']['operators']);
+        static::assertEquals(RuleConfig::OPERATOR_SET_NUMBER, $result['operatorSet']['operators']);
     }
 
     private function createLineItemWithCreatedDate(string $createdAt): LineItem

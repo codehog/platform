@@ -5,10 +5,11 @@ namespace Shopware\Core\Installer\Requirements;
 use Shopware\Core\Framework\Log\Package;
 
 /**
+ * Extracted to be able to mock all ini values
+ *
  * @internal
  */
-#[Package('core
-Extracted to be able to mock all ini values')]
+#[Package('framework')]
 class IniConfigReader
 {
     public function get(string $key): string

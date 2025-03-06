@@ -20,7 +20,7 @@ use Shopware\Core\Framework\Log\Package;
  *
  * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class NoDALAutoload implements Rule
 {
     use InTestClassTrait;
@@ -117,11 +117,13 @@ class NoDALAutoload implements Rule
             }
 
             return [
-                RuleErrorBuilder::message(sprintf(
+                RuleErrorBuilder::message(\sprintf(
                     '%s.%s association has a configured autoload===true, this is forbidden for platform integrations',
                     $constantValue->value,
                     $propType->getConstantStrings()[0]->getValue()
-                ))->build(),
+                ))
+                    ->identifier('shopware.associationAutoload')
+                    ->build(),
             ];
         }
 

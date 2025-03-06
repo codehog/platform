@@ -30,6 +30,8 @@
       }
     },
     "card": {
+      "buttonImitateCustomer": "Log in as customer",
+      "tooltipImitateCustomerGuest": "Guest accounts cannot be imitated.",
       "placeholderTitle": "Title",
       "placeholderFirstName": "First name",
       "placeholderLastName": "Last name",
@@ -52,6 +54,7 @@
       "textCustomers": "Customers",
       "textCustomersTotal": "No customer | One customer | {count} customers",
       "buttonAddCustomer": "Add customer",
+      "columnCompany": "Company",
       "columnCustomerNumber": "Customer number",
       "columnName": "Name",
       "columnGroup": "Customer group",
@@ -77,7 +80,6 @@
       "contextMenuEdit": "Edit",
       "messageEmpty": "No customers yet",
       "textDeleteConfirm": "Are you sure you want to delete the customer \"{name}\"?",
-      "buttonCancel": "Cancel",
       "buttonDelete": "Delete",
       "titleSidebarItemRefresh": "Refresh",
       "titleSidebarItemFilter": "Filter",
@@ -124,16 +126,20 @@
       "labelTurnover": "Turnover",
       "labelDefaultPayment": "Default payment method",
       "labelActive": "Account status",
+      "labelConfirmed": "Email address status",
       "labelAffiliateCode": "Affiliate code",
       "labelCampaignCode": "Campaign code",
       "labelCompany": "Company",
       "labelVatId": "VAT Reg.No.",
       "contentActive": "Active | Inactive",
+      "contentConfirmed": "Confirmed | Unconfirmed",
       "emptyTextLogin": "No login yet",
       "emptyTextBirthday": "No information",
       "labelBoundSalesChannel": "Sales Channel",
       "emptyBoundSalesChannel": "All",
-      "helpTextBoundSalesChannel": "This customer can log in to the following Sales Channels"
+      "helpTextBoundSalesChannel": "This customer can log in to the following Sales Channels",
+      "placeholderCustomerAffiliateCode": "Enter an affiliate code...",
+      "placeholderCustomerCampaignCode": "Enter a campaign code..."
     },
     "detailBase": {
       "labelAccountCard": "Account",
@@ -150,10 +156,7 @@
     },
     "detailAddresses": {
       "buttonAddAddress": "Add address",
-      "buttonAdd": "Add",
-      "buttonCancel": "Cancel",
       "buttonClose": "Close",
-      "buttonApply": "Apply",
       "buttonDelete": "Delete",
       "buttonSelect": "Select",
       "buttonSaveAndSelect": "Save and select",
@@ -187,6 +190,13 @@
       "emptySearchTitle": "No search result",
       "emptySubline": "Manage your customers' orders here",
       "buttonCreateOrder": "Add order"
+    },
+    "imitateCustomerModal": {
+      "modalTitle": "Log in as {firstname} {lastname}",
+      "modalDescription": "Choose the Sales Channel in which you would like to log in as {firstname} {lastname}.",
+      "modalInfo": "Please remember to {logout} after you have finished your work.",
+      "modalInfoLogout": "log out",
+      "labelCancel": "Close"
     },
     "addressForm": {
       "labelCompany": "Company",
@@ -223,16 +233,20 @@
     },
     "detail": {
       "buttonSave": "Save",
-      "buttonCancel": "Cancel",
       "buttonEdit": "Edit",
       "tabGeneral": "General",
       "tabAddresses": "Addresses",
       "messageSaveError": "Customer could not be saved.",
       "messageSaveSuccess": "Customer \"{name}\" has been saved.",
       "notificationPasswordErrorMessage": "The submitted passwords do not match.",
+      "notificationImitateCustomerErrorMessage": "There was an error logging in as a customer. Please make sure that opening popups windows are allowed.",
       "labelCreatedByAdmin": "Created by admin"
     },
     "filter": {
+      "customerNumber": {
+        "label": "Customer number",
+        "placeholder": "Enter customer number..."
+      },
       "salutation": {
         "label": "Salutation",
         "placeholder": "Select salutation..."
@@ -240,10 +254,6 @@
       "status": {
         "label": "Status",
         "placeholder": "Select status..."
-      },
-      "defaultPaymentMethod": {
-        "label": "Default payment method",
-        "placeholder": "Select default payment method..."
       },
       "customerGroup": {
         "label": "Customer group",

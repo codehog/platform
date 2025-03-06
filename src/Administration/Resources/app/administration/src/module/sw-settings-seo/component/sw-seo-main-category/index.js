@@ -1,5 +1,5 @@
 /**
- * @package buyers-experience
+ * @sw-package inventory
  */
 
 import template from './sw-seo-main-category.html.twig';
@@ -9,6 +9,8 @@ export default {
     template,
 
     inject: ['repositoryFactory'],
+
+    emits: ['main-category-add'],
 
     props: {
         currentSalesChannelId: {
@@ -32,7 +34,6 @@ export default {
         allowEdit: {
             type: Boolean,
             required: false,
-            // TODO: Boolean props should only be opt in and therefore default to false
             // eslint-disable-next-line vue/no-boolean-default
             default: true,
         },
@@ -55,11 +56,11 @@ export default {
         },
 
         isHeadlessSalesChannel() {
-            if (Shopware.State.get('swSeoUrl').salesChannelCollection === null) {
+            if (Shopware.Store.get('swSeoUrl').salesChannelCollection === null) {
                 return true;
             }
 
-            const salesChannel = Shopware.State.get('swSeoUrl').salesChannelCollection.find((entry) => {
+            const salesChannel = Shopware.Store.get('swSeoUrl').salesChannelCollection.find((entry) => {
                 return entry.id === this.currentSalesChannelId;
             });
 

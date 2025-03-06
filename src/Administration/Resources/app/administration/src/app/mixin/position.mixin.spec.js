@@ -1,26 +1,30 @@
+/**
+ * @sw-package framework
+ */
 import 'src/app/mixin/position.mixin';
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount({
-        template: `
+    return mount(
+        {
+            template: `
             <div class="sw-mock">
               <slot></slot>
             </div>
         `,
-        mixins: [
-            Shopware.Mixin.getByName('position'),
-        ],
-        data() {
-            return {
-                name: 'sw-mock-field',
-            };
+            mixins: [
+                Shopware.Mixin.getByName('position'),
+            ],
+            data() {
+                return {
+                    name: 'sw-mock-field',
+                };
+            },
         },
-    }, {
-        stubs: {},
-        mocks: {},
-        attachTo: document.body,
-    });
+        {
+            attachTo: document.body,
+        },
+    );
 }
 
 describe('src/app/mixin/position.mixin.ts', () => {
@@ -34,7 +38,7 @@ describe('src/app/mixin/position.mixin.ts', () => {
 
     afterEach(async () => {
         if (wrapper) {
-            await wrapper.destroy();
+            await wrapper.unmount();
         }
 
         await flushPromises();
@@ -46,38 +50,34 @@ describe('src/app/mixin/position.mixin.ts', () => {
 
     it('should return a new position value using the current max position +1 starting with 1', async () => {
         const productRepositoryMock = {
-            search: () => Promise.resolve({
-                total: 1,
-                aggregations: {
-                    maxPosition: {
-                        max: 7,
+            search: () =>
+                Promise.resolve({
+                    total: 1,
+                    aggregations: {
+                        maxPosition: {
+                            max: 7,
+                        },
                     },
-                },
-            }),
+                }),
         };
         const criteria = new Shopware.Data.Criteria();
 
-        const result = await wrapper.vm.getNewPosition(
-            productRepositoryMock,
-            criteria,
-        );
+        const result = await wrapper.vm.getNewPosition(productRepositoryMock, criteria);
 
         expect(result).toBe(8);
     });
 
     it('should return a new position value when no maxPosition is defined', async () => {
         const productRepositoryMock = {
-            search: () => Promise.resolve({
-                total: 1,
-                aggregations: {},
-            }),
+            search: () =>
+                Promise.resolve({
+                    total: 1,
+                    aggregations: {},
+                }),
         };
         const criteria = new Shopware.Data.Criteria();
 
-        const result = await wrapper.vm.getNewPosition(
-            productRepositoryMock,
-            criteria,
-        );
+        const result = await wrapper.vm.getNewPosition(productRepositoryMock, criteria);
 
         expect(result).toBe(1);
     });

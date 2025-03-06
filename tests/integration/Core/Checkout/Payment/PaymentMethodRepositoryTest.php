@@ -4,10 +4,8 @@ namespace Shopware\Tests\Integration\Core\Checkout\Payment;
 
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Payment\Cart\PaymentHandler\DefaultPayment;
-use Shopware\Core\Checkout\Payment\Exception\PluginPaymentMethodsDeleteRestrictionException;
 use Shopware\Core\Checkout\Payment\PaymentException;
 use Shopware\Core\Checkout\Payment\PaymentMethodCollection;
-use Shopware\Core\Checkout\Payment\PaymentMethodEntity;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -16,7 +14,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\WriteConstraintViolationException;
-use Shopware\Tests\Integration\Core\Checkout\Payment\Handler\MockPaymentHandler\AsyncTestPaymentHandler;
+use Shopware\Core\Test\Integration\PaymentHandler\TestPaymentHandler;
 
 /**
  * @internal
@@ -26,13 +24,16 @@ class PaymentMethodRepositoryTest extends TestCase
 {
     use IntegrationTestBehaviour;
 
+    /**
+     * @var EntityRepository<PaymentMethodCollection>
+     */
     private EntityRepository $paymentRepository;
 
     private string $paymentMethodId;
 
     protected function setUp(): void
     {
-        $this->paymentRepository = $this->getContainer()->get('payment_method.repository');
+        $this->paymentRepository = static::getContainer()->get('payment_method.repository');
         $this->paymentMethodId = Uuid::randomHex();
     }
 
@@ -47,7 +48,6 @@ class PaymentMethodRepositoryTest extends TestCase
         $criteria = new Criteria([$this->paymentMethodId]);
         $criteria->addAssociation('availabilityRule');
 
-        /** @var PaymentMethodCollection $resultSet */
         $resultSet = $this->paymentRepository->search($criteria, $defaultContext)->getEntities();
         $firstPaymentMethod = $resultSet->first();
         static::assertNotNull($firstPaymentMethod);
@@ -56,10 +56,10 @@ class PaymentMethodRepositoryTest extends TestCase
         static::assertNotNull($firstPaymentMethod->getAvailabilityRule());
         static::assertSame(
             $paymentMethod[0]['availabilityRule']['id'],
-            $firstPaymentMethod->getAvailabilityRule()->getId()
+            $firstPaymentMethod->getAvailabilityRuleId()
         );
         static::assertSame(
-            'handler_shopware_asynctestpaymenthandler',
+            'handler_shopware_testpaymenthandler',
             $firstPaymentMethod->getFormattedHandlerIdentifier()
         );
         static::assertFalse($firstPaymentMethod->getAfterOrderEnabled());
@@ -78,8 +78,7 @@ class PaymentMethodRepositoryTest extends TestCase
         $criteria = new Criteria([$this->paymentMethodId]);
         $criteria->addAssociation('availabilityRule');
 
-        $resultSet = $this->paymentRepository->search($criteria, $defaultContext);
-        /** @var PaymentMethodEntity $firstPaymentMethod */
+        $resultSet = $this->paymentRepository->search($criteria, $defaultContext)->getEntities();
         $firstPaymentMethod = $resultSet->first();
         static::assertNotNull($firstPaymentMethod);
 
@@ -99,8 +98,7 @@ class PaymentMethodRepositoryTest extends TestCase
         $criteria = new Criteria([$this->paymentMethodId]);
         $criteria->addAssociation('availabilityRule');
 
-        $resultSet = $this->paymentRepository->search($criteria, $defaultContext);
-        /** @var PaymentMethodEntity $firstPaymentMethod */
+        $resultSet = $this->paymentRepository->search($criteria, $defaultContext)->getEntities();
         $firstPaymentMethod = $resultSet->first();
         static::assertNotNull($firstPaymentMethod);
 
@@ -108,7 +106,7 @@ class PaymentMethodRepositoryTest extends TestCase
         static::assertNotNull($firstPaymentMethod->getAvailabilityRule());
         static::assertSame(
             $paymentMethod[0]['availabilityRule']['id'],
-            $firstPaymentMethod->getAvailabilityRule()->getId()
+            $firstPaymentMethod->getAvailabilityRuleId()
         );
         static::assertSame(
             'Object',
@@ -140,8 +138,7 @@ class PaymentMethodRepositoryTest extends TestCase
         $criteria = new Criteria([$this->paymentMethodId]);
         $criteria->addAssociation('availabilityRule');
 
-        $resultSet = $this->paymentRepository->search($criteria, $defaultContext);
-        /** @var PaymentMethodEntity $firstPaymentMethod */
+        $resultSet = $this->paymentRepository->search($criteria, $defaultContext)->getEntities();
         $firstPaymentMethod = $resultSet->first();
         static::assertNotNull($firstPaymentMethod);
         static::assertNotNull($firstPaymentMethod->getAvailabilityRule());
@@ -185,7 +182,7 @@ class PaymentMethodRepositoryTest extends TestCase
         try {
             $this->paymentRepository->delete([$primaryKey], $defaultContext);
             static::fail('this should not be reached');
-        } catch (PluginPaymentMethodsDeleteRestrictionException|PaymentException $e) {
+        } catch (PaymentException $e) {
             if ($e->getErrorCode() !== PaymentException::PAYMENT_PLUGIN_PAYMENT_METHOD_DELETE_RESTRICTION) {
                 throw $e;
             }
@@ -209,11 +206,10 @@ class PaymentMethodRepositoryTest extends TestCase
 
         $criteria = new Criteria([$this->paymentMethodId]);
 
-        $resultSet = $this->paymentRepository->search($criteria, $defaultContext);
+        $resultSet = $this->paymentRepository->search($criteria, $defaultContext)->getEntities();
 
-        /** @var PaymentMethodEntity $paymentMethod */
-        $paymentMethod = $resultSet->filterByProperty('id', $this->paymentMethodId)
-            ->getElements()[$this->paymentMethodId];
+        $paymentMethod = $resultSet->filterByProperty('id', $this->paymentMethodId)->get($this->paymentMethodId);
+        static::assertNotNull($paymentMethod);
 
         static::assertSame(DefaultPayment::class, $paymentMethod->getHandlerIdentifier());
     }
@@ -230,7 +226,6 @@ class PaymentMethodRepositoryTest extends TestCase
 
             static::fail('The name should always be required!');
         } catch (WriteException $e) {
-            /** @var WriteConstraintViolationException $constraintViolation */
             $constraintViolation = $e->getExceptions()[0];
             static::assertInstanceOf(WriteConstraintViolationException::class, $constraintViolation);
             static::assertEquals('/name', $constraintViolation->getViolations()->get(0)->getPropertyPath());
@@ -246,7 +241,8 @@ class PaymentMethodRepositoryTest extends TestCase
             [
                 'id' => $this->paymentMethodId,
                 'name' => 'test',
-                'handlerIdentifier' => AsyncTestPaymentHandler::class,
+                'technicalName' => 'test_payment',
+                'handlerIdentifier' => TestPaymentHandler::class,
                 'availabilityRule' => [
                     'id' => Uuid::randomHex(),
                     'name' => 'asd',
@@ -265,6 +261,7 @@ class PaymentMethodRepositoryTest extends TestCase
             [
                 'id' => $this->paymentMethodId,
                 'name' => 'test',
+                'technicalName' => 'payment_test',
                 'handlerIdentifier' => 'Object',
                 'availabilityRule' => [
                     'id' => Uuid::randomHex(),
@@ -279,8 +276,7 @@ class PaymentMethodRepositoryTest extends TestCase
     {
         $pluginId = Uuid::randomHex();
 
-        /** @var EntityRepository $pluginRepo */
-        $pluginRepo = $this->getContainer()->get('plugin.repository');
+        $pluginRepo = static::getContainer()->get('plugin.repository');
         $pluginRepo->create([[
             'id' => $pluginId,
             'label' => 'testPlugin',

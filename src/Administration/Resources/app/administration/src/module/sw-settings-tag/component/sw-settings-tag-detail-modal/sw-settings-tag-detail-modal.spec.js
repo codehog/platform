@@ -1,40 +1,51 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swSettingsTagDetailModal from 'src/module/sw-settings-tag/component/sw-settings-tag-detail-modal';
+import { mount } from '@vue/test-utils';
 
-Shopware.Component.register('sw-settings-tag-detail-modal', swSettingsTagDetailModal);
+/**
+ * @sw-package inventory
+ */
 
 async function createWrapper() {
-    const localVue = createLocalVue();
+    return mount(
+        await wrapTestComponent('sw-settings-tag-detail-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                renderStubDefaultSlot: true,
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            create: () => {
+                                return {
+                                    isNew: () => true,
+                                };
+                            },
 
-    return shallowMount(await Shopware.Component.build('sw-settings-tag-detail-modal'), {
-        localVue,
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    create: () => {
-                        return {
-                            isNew: () => true,
-                        };
+                            save: jest.fn(() => Promise.resolve()),
+                        }),
                     },
-
-                    save: jest.fn(() => Promise.resolve()),
-                }),
-            },
-            syncService: {
-                sync: jest.fn(),
-            },
-            acl: {
-                can: () => {
-                    return true;
+                    syncService: {
+                        sync: jest.fn(),
+                    },
+                    acl: {
+                        can: () => {
+                            return true;
+                        },
+                    },
+                },
+                stubs: {
+                    'sw-modal': true,
+                    'sw-tabs': await wrapTestComponent('sw-tabs', {
+                        sync: true,
+                    }),
+                    'sw-tabs-item': true,
+                    'sw-text-field': true,
+                    'sw-settings-tag-detail-assignments': true,
+                    'sw-tabs-deprecated': true,
                 },
             },
         },
-        stubs: {
-            'sw-modal': true,
-            'sw-tabs': true,
-            'sw-tabs-item': true,
-        },
-    });
+    );
 }
 
 describe('module/sw-settings-tag/component/sw-settings-tag-detail-modal', () => {
@@ -138,7 +149,13 @@ describe('module/sw-settings-tag/component/sw-settings-tag-detail-modal', () => 
         wrapper.vm.removeAssignment('products', 'd', { id: 'd' });
         wrapper.vm.removeAssignment('products', 'f', { id: 'f' });
 
-        expect(wrapper.vm.assignmentsToBeDeleted.products).toEqual({ a: { id: 'a' }, f: { id: 'f' } });
-        expect(wrapper.vm.assignmentsToBeAdded.products).toEqual({ c: { id: 'c' }, e: { id: 'e' } });
+        expect(wrapper.vm.assignmentsToBeDeleted.products).toEqual({
+            a: { id: 'a' },
+            f: { id: 'f' },
+        });
+        expect(wrapper.vm.assignmentsToBeAdded.products).toEqual({
+            c: { id: 'c' },
+            e: { id: 'e' },
+        });
     });
 });

@@ -2,11 +2,17 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Customer\Rule;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\CheckoutRuleScope;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerAddress\CustomerAddressEntity;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Customer\CustomerException;
 use Shopware\Core\Checkout\Customer\Rule\BillingCityRule;
+use Shopware\Core\Framework\Feature;
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Rule\Exception\UnsupportedValueException;
 use Shopware\Core\Framework\Rule\Rule;
 use Shopware\Core\Framework\Rule\RuleScope;
@@ -16,14 +22,11 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Type;
 
 /**
- * @package business-ops
- *
  * @internal
- *
- * @group rules
- *
- * @covers \Shopware\Core\Checkout\Customer\Rule\BillingCityRule
  */
+#[Package('fundamentals@after-sales')]
+#[CoversClass(BillingCityRule::class)]
+#[Group('rules')]
 class BillingCityRuleTest extends TestCase
 {
     private BillingCityRule $rule;
@@ -53,9 +56,7 @@ class BillingCityRuleTest extends TestCase
         static::assertEquals([new NotBlank(), new Type('string')], $constraints['cityName']);
     }
 
-    /**
-     * @dataProvider getMatchValues
-     */
+    #[DataProvider('getMatchValues')]
     public function testRuleMatching(string $operator, bool $isMatching, string $billingCity): void
     {
         $cityName = 'kyln123';
@@ -87,7 +88,11 @@ class BillingCityRuleTest extends TestCase
         $scope = new CheckoutRuleScope($context);
 
         $this->rule->assign(['operator' => Rule::OPERATOR_EQ]);
-        $this->expectException(UnsupportedValueException::class);
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
         static::assertFalse($this->rule->match($scope));
     }
 
@@ -118,7 +123,11 @@ class BillingCityRuleTest extends TestCase
         $scope = new CheckoutRuleScope($context);
 
         $this->rule->assign(['cityName' => true, 'operator' => Rule::OPERATOR_EQ]);
-        $this->expectException(UnsupportedValueException::class);
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
         static::assertFalse($this->rule->match($scope));
     }
 
@@ -147,6 +156,23 @@ class BillingCityRuleTest extends TestCase
 
         $this->rule->assign(['cityName' => 'test', 'operator' => Rule::OPERATOR_EQ]);
         static::assertFalse($this->rule->match($scope));
+    }
+
+    public function testMatchThrowsException(): void
+    {
+        if (!Feature::isActive('v6.8.0.0')) {
+            $this->expectException(UnsupportedValueException::class);
+        } else {
+            $this->expectException(CustomerException::class);
+        }
+        $customer = new CustomerEntity();
+        $customer->setActiveBillingAddress(new CustomerAddressEntity());
+        $context = $this->createMock(SalesChannelContext::class);
+        $context->method('getCustomer')->willReturn($customer);
+
+        (new BillingCityRule())->match(
+            new CheckoutRuleScope($context)
+        );
     }
 
     /**

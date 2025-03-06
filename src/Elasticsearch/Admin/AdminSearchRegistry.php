@@ -6,6 +6,8 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception;
 use OpenSearch\Client;
+use OpenSearch\Common\Exceptions\OpenSearchException;
+use Psr\Log\LoggerInterface;
 use Shopware\Core\Framework\DataAbstractionLayer\Event\EntityWrittenContainerEvent;
 use Shopware\Core\Framework\Event\ProgressAdvancedEvent;
 use Shopware\Core\Framework\Event\ProgressFinishedEvent;
@@ -13,7 +15,7 @@ use Shopware\Core\Framework\Event\ProgressStartedEvent;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Elasticsearch\Admin\Indexer\AbstractAdminIndexer;
-use Shopware\Elasticsearch\Exception\ElasticsearchIndexingException;
+use Shopware\Elasticsearch\ElasticsearchException;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -24,7 +26,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  *
  * @final
  */
-#[Package('system-settings')]
+#[Package('inventory')]
 #[AsMessageHandler(handles: AdminSearchIndexingMessage::class)]
 class AdminSearchRegistry implements EventSubscriberInterface
 {
@@ -50,6 +52,7 @@ class AdminSearchRegistry implements EventSubscriberInterface
         private readonly EventDispatcherInterface $dispatcher,
         private readonly Client $client,
         private readonly AdminElasticsearchHelper $adminEsHelper,
+        private readonly LoggerInterface $logger,
         array $config,
         private readonly array $mapping
     ) {
@@ -135,7 +138,13 @@ class AdminSearchRegistry implements EventSubscriberInterface
         }
 
         if ($this->adminEsHelper->getRefreshIndices()) {
-            $this->refreshIndices();
+            try {
+                $this->refreshIndices();
+            } catch (OpenSearchException $e) {
+                $this->logger->error('Could not refresh indices. Run "bin/console es:admin:mapping:update" & "bin/console es:admin:index" to update indices and reindex. Error: ' . $e->getMessage());
+
+                return;
+            }
         }
 
         /** @var array<string, string> $indices */
@@ -151,9 +160,9 @@ class AdminSearchRegistry implements EventSubscriberInterface
             if (empty($ids)) {
                 continue;
             }
-            $documents = $indexer->fetch($ids);
 
-            $this->push($indexer, $indices, $documents, $ids);
+            $msg = new AdminSearchIndexingMessage($indexer->getEntity(), $indexer->getName(), $indices, $ids);
+            $this->queue->dispatch($msg);
         }
     }
 
@@ -172,7 +181,7 @@ class AdminSearchRegistry implements EventSubscriberInterface
             return $indexer;
         }
 
-        throw new ElasticsearchIndexingException([\sprintf('Indexer for name %s not found', $name)]);
+        throw ElasticsearchException::indexingError([\sprintf('Indexer for name %s not found', $name)]);
     }
 
     public function updateMappings(): void
@@ -234,12 +243,18 @@ class AdminSearchRegistry implements EventSubscriberInterface
             'body' => $documents,
         ];
 
-        $result = $this->client->bulk($arguments);
+        try {
+            $result = $this->client->bulk($arguments);
+        } catch (OpenSearchException $e) {
+            $this->logger->error('Could not index documents. Run "bin/console es:admin:index" to reindex. Error: ' . $e->getMessage());
+
+            return;
+        }
 
         if (\is_array($result) && !empty($result['errors'])) {
             $errors = $this->parseErrors($result);
 
-            throw new ElasticsearchIndexingException($errors);
+            throw ElasticsearchException::indexingError($errors);
         }
     }
 

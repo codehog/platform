@@ -2,13 +2,20 @@ import template from './sw-first-run-wizard-store.html.twig';
 import './sw-first-run-wizard-store.scss';
 
 /**
- * @package merchant-services
+ * @sw-package fundamentals@after-sales
  */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
     inject: ['extensionHelperService'],
+
+    emits: [
+        'frw-set-title',
+        'frw-redirect',
+        'extension-activated',
+        'buttons-update',
+    ],
 
     data() {
         return {
@@ -128,7 +135,8 @@ export default {
                 .catch((error) => {
                     this.activationError = true;
 
-                    if (error?.response?.data &&
+                    if (
+                        error?.response?.data &&
                         Array.isArray(error.response.data.errors) &&
                         error.response.data.errors[0]
                     ) {

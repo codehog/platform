@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Elasticsearch\Admin\Indexer;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\Dbal\Common\IteratorFactory;
@@ -17,12 +18,9 @@ use Shopware\Core\System\SalesChannel\SalesChannelEntity;
 use Shopware\Elasticsearch\Admin\Indexer\SalesChannelAdminSearchIndexer;
 
 /**
- * @package system-settings
- *
  * @internal
- *
- * @covers \Shopware\Elasticsearch\Admin\Indexer\SalesChannelAdminSearchIndexer
  */
+#[CoversClass(SalesChannelAdminSearchIndexer::class)]
 class SalesChannelAdminSearchIndexerTest extends TestCase
 {
     private SalesChannelAdminSearchIndexer $searchIndexer;

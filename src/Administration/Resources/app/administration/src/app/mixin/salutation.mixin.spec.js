@@ -1,28 +1,30 @@
+/**
+ * @sw-package framework
+ */
 import 'src/app/mixin/salutation.mixin';
-import { shallowMount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount({
-        template: `
+    return mount(
+        {
+            template: `
             <div class="sw-mock">
               <slot></slot>
             </div>
         `,
-        mixins: [
-            Shopware.Mixin.getByName('salutation'),
-        ],
-        data() {
-            return {
-                name: 'sw-mock-field',
-            };
+            mixins: [
+                Shopware.Mixin.getByName('salutation'),
+            ],
+            data() {
+                return {
+                    name: 'sw-mock-field',
+                };
+            },
         },
-    }, {
-        stubs: {},
-        mocks: {},
-        propsData: {},
-        provide: {},
-        attachTo: document.body,
-    });
+        {
+            attachTo: document.body,
+        },
+    );
 }
 
 describe('src/app/mixin/salutation.mixin.ts', () => {
@@ -41,14 +43,6 @@ describe('src/app/mixin/salutation.mixin.ts', () => {
         }
 
         wrapper = await createWrapper();
-
-        await flushPromises();
-    });
-
-    afterEach(async () => {
-        if (wrapper) {
-            await wrapper.destroy();
-        }
 
         await flushPromises();
     });

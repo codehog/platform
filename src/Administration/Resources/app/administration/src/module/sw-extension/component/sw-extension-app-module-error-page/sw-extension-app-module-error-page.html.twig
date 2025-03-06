@@ -1,3 +1,4 @@
+{% block sw_extension_app_module_error_page %}
 <div class="sw-extension-app-module-error-page">
     <img
         :src="assetFilter('administration/static/img/error-pages/app-error.svg')"
@@ -10,11 +11,12 @@
         <p>{{ $tc('sw-extension.sw-extension-app-module-error-page.error.phrase') }}</p>
         <p>{{ $tc('sw-extension.sw-extension-app-module-error-page.error.info') }}</p>
 
-        <sw-button
+        <mt-button
             variant="primary"
             @click="goBack"
         >
             {{ $tc('sw-extension.sw-extension-app-module-error-page.error.lblBackButton') }}
-        </sw-button>
+        </mt-button>
     </div>
 </div>
+{% endblock %}

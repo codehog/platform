@@ -1,38 +1,40 @@
 /**
- * @package buyers-experience
+ * @sw-package fundamentals@framework
  */
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swSettingsCurrencyCountryModal from 'src/module/sw-settings-currency/component/sw-settings-currency-country-modal';
 
-Shopware.Component.register('sw-settings-currency-country-modal', swSettingsCurrencyCountryModal);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-
-    return shallowMount(await Shopware.Component.build('sw-settings-currency-country-modal'), {
-        localVue,
-        propsData: {
-            currencyCountryRounding: {
-                currencyId: 'currencyId1',
+    return mount(
+        await wrapTestComponent('sw-settings-currency-country-modal', {
+            sync: true,
+        }),
+        {
+            props: {
+                currencyCountryRounding: {
+                    currencyId: 'currencyId1',
+                },
             },
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        searchIds: () => Promise.resolve([]),
-                    };
+            global: {
+                provide: {
+                    repositoryFactory: {
+                        create: () => {
+                            return {
+                                searchIds: () => Promise.resolve([]),
+                            };
+                        },
+                    },
+                },
+                stubs: {
+                    'sw-modal': true,
+                    'sw-entity-single-select': true,
+                    'sw-settings-price-rounding': true,
+                    'sw-highlight-text': true,
+                    'sw-select-result': true,
                 },
             },
         },
-        stubs: {
-            'sw-modal': true,
-            'sw-entity-single-select': true,
-            'sw-settings-price-rounding': true,
-            'sw-button': true,
-        },
-    });
+    );
 }
 
 describe('module/sw-settings-currency/component/sw-settings-currency-country-modal', () => {
@@ -68,4 +70,3 @@ describe('module/sw-settings-currency/component/sw-settings-currency-country-mod
         expect(wrapper.vm.shouldDisableCountry({ id: 'countryId2' })).toBe(false);
     });
 });
-

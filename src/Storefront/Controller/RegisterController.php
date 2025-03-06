@@ -3,6 +3,7 @@
 namespace Shopware\Storefront\Controller;
 
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
+use Shopware\Core\Checkout\Customer\CustomerCollection;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Checkout\Customer\Exception\CustomerAlreadyConfirmedException;
 use Shopware\Core\Checkout\Customer\Exception\CustomerNotFoundByHashException;
@@ -19,7 +20,7 @@ use Shopware\Core\Framework\Validation\DataBag\QueryDataBag;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\DataValidationDefinition;
 use Shopware\Core\Framework\Validation\Exception\ConstraintViolationException;
-use Shopware\Core\System\SalesChannel\Aggregate\SalesChannelDomain\SalesChannelDomainEntity;
+use Shopware\Core\System\SalesChannel\Aggregate\SalesChannelDomain\SalesChannelDomainCollection;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 use Shopware\Storefront\Framework\AffiliateTracking\AffiliateTrackingListener;
@@ -33,7 +34,7 @@ use Shopware\Storefront\Page\Checkout\Register\CheckoutRegisterPageLoader;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Constraints\EqualTo;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
@@ -42,11 +43,14 @@ use Symfony\Component\Validator\Constraints\NotBlank;
  * Do not use direct or indirect repository calls in a controller. Always use a store-api route to get or put data
  */
 #[Route(defaults: ['_routeScope' => ['storefront']])]
-#[Package('customer-order')]
+#[Package('checkout')]
 class RegisterController extends StorefrontController
 {
     /**
      * @internal
+     *
+     * @param EntityRepository<CustomerCollection> $customerRepository
+     * @param EntityRepository<SalesChannelDomainCollection> $domainRepository
      */
     public function __construct(
         private readonly AccountLoginPageLoader $loginPageLoader,
@@ -157,14 +161,8 @@ class RegisterController extends StorefrontController
             }
 
             $data->set('storefrontUrl', $this->getConfirmUrl($context, $request));
-
             $data = $this->prepareAffiliateTracking($data, $request->getSession());
-
-            if ($data->getBoolean('createCustomerAccount')) {
-                $data->set('guest', false);
-            } else {
-                $data->set('guest', true);
-            }
+            $data->set('guest', !$data->getBoolean('createCustomerAccount'));
 
             $this->registerRoute->register(
                 $data->toRequestDataBag(),
@@ -208,8 +206,8 @@ class RegisterController extends StorefrontController
             return $this->redirectToRoute('frontend.account.register.page');
         }
 
-        /** @var CustomerEntity $customer */
-        $customer = $this->customerRepository->search(new Criteria([$customerId]), $context->getContext())->first();
+        $customer = $this->customerRepository->search(new Criteria([$customerId]), $context->getContext())->getEntities()->first();
+        \assert($customer !== null);
 
         if ($customer->getGuest()) {
             $this->addFlash(self::SUCCESS, $this->trans('account.doubleOptInMailConfirmationSuccessfully'));
@@ -220,7 +218,11 @@ class RegisterController extends StorefrontController
         $this->addFlash(self::SUCCESS, $this->trans('account.doubleOptInRegistrationSuccessfully'));
 
         if ($redirectTo = $queryDataBag->get('redirectTo')) {
-            return $this->redirectToRoute($redirectTo);
+            /** @var array<string, mixed> $parameters */
+            $parameters = $queryDataBag->all();
+            unset($parameters['em'], $parameters['hash'], $parameters['redirectTo']);
+
+            return $this->redirectToRoute($redirectTo, $parameters);
         }
 
         return $this->redirectToRoute('frontend.account.home.page');
@@ -228,20 +230,20 @@ class RegisterController extends StorefrontController
 
     private function isDoubleOptIn(DataBag $data, SalesChannelContext $context): bool
     {
-        $creatueCustomerAccount = $data->getBoolean('createCustomerAccount');
+        $createCustomerAccount = $data->getBoolean('createCustomerAccount');
 
-        $configKey = $creatueCustomerAccount
+        $configKey = $createCustomerAccount
             ? 'core.loginRegistration.doubleOptInRegistration'
             : 'core.loginRegistration.doubleOptInGuestOrder';
 
         $doubleOptInRequired = $this->systemConfigService
-            ->get($configKey, $context->getSalesChannel()->getId());
+            ->get($configKey, $context->getSalesChannelId());
 
         if (!$doubleOptInRequired) {
             return false;
         }
 
-        if ($creatueCustomerAccount) {
+        if ($createCustomerAccount) {
             $this->addFlash(self::SUCCESS, $this->trans('account.optInRegistrationAlert'));
 
             return true;
@@ -256,17 +258,17 @@ class RegisterController extends StorefrontController
     {
         $definition = new DataValidationDefinition('storefront.confirmation');
 
-        if ($this->systemConfigService->get('core.loginRegistration.requireEmailConfirmation', $context->getSalesChannel()->getId())) {
+        if ($this->systemConfigService->get('core.loginRegistration.requireEmailConfirmation', $context->getSalesChannelId())) {
             $definition->add('emailConfirmation', new NotBlank(), new EqualTo([
                 'value' => $data->get('email'),
             ]));
         }
 
-        if ($data->has('guest')) {
+        if ($data->getBoolean('guest')) {
             return $definition;
         }
 
-        if ($this->systemConfigService->get('core.loginRegistration.requirePasswordConfirmation', $context->getSalesChannel()->getId())) {
+        if ($this->systemConfigService->get('core.loginRegistration.requirePasswordConfirmation', $context->getSalesChannelId())) {
             $definition->add('passwordConfirmation', new NotBlank(), new EqualTo([
                 'value' => $data->get('password'),
             ]));
@@ -279,11 +281,13 @@ class RegisterController extends StorefrontController
     {
         $affiliateCode = $session->get(AffiliateTrackingListener::AFFILIATE_CODE_KEY);
         $campaignCode = $session->get(AffiliateTrackingListener::CAMPAIGN_CODE_KEY);
-        if ($affiliateCode !== null && $campaignCode !== null) {
-            $data->add([
-                AffiliateTrackingListener::AFFILIATE_CODE_KEY => $affiliateCode,
-                AffiliateTrackingListener::CAMPAIGN_CODE_KEY => $campaignCode,
-            ]);
+
+        if ($affiliateCode !== null) {
+            $data->set(AffiliateTrackingListener::AFFILIATE_CODE_KEY, $affiliateCode);
+        }
+
+        if ($campaignCode !== null) {
+            $data->set(AffiliateTrackingListener::CAMPAIGN_CODE_KEY, $campaignCode);
         }
 
         return $data;
@@ -293,7 +297,7 @@ class RegisterController extends StorefrontController
     {
         /** @var string $domainUrl */
         $domainUrl = $this->systemConfigService
-            ->get('core.loginRegistration.doubleOptInDomain', $context->getSalesChannel()->getId());
+            ->get('core.loginRegistration.doubleOptInDomain', $context->getSalesChannelId());
 
         if ($domainUrl) {
             return $domainUrl;
@@ -305,15 +309,11 @@ class RegisterController extends StorefrontController
             return $domainUrl;
         }
 
-        $criteria = new Criteria();
-        $criteria->addFilter(new EqualsFilter('salesChannelId', $context->getSalesChannel()->getId()));
-        $criteria->setLimit(1);
+        $criteria = (new Criteria())
+            ->addFilter(new EqualsFilter('salesChannelId', $context->getSalesChannelId()))
+            ->setLimit(1);
 
-        /** @var SalesChannelDomainEntity|null $domain */
-        $domain = $this->domainRepository
-            ->search($criteria, $context->getContext())
-            ->first();
-
+        $domain = $this->domainRepository->search($criteria, $context->getContext())->getEntities()->first();
         if (!$domain) {
             throw new SalesChannelDomainNotFoundException($context->getSalesChannel());
         }

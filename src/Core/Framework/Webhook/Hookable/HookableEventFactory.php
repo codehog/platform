@@ -10,9 +10,9 @@ use Shopware\Core\Framework\Webhook\BusinessEventEncoder;
 use Shopware\Core\Framework\Webhook\Hookable;
 
 /**
- * @deprecated tag:v6.6.0 - Will be internal - reason:visibility-change
+ * @internal
  */
-#[Package('core')]
+#[Package('framework')]
 class HookableEventFactory
 {
     /**
@@ -22,6 +22,11 @@ class HookableEventFactory
         private readonly BusinessEventEncoder $eventEncoder,
         private readonly WriteResultMerger $writeResultMerger
     ) {
+    }
+
+    public static function isHookable(object $event): bool
+    {
+        return $event instanceof Hookable || $event instanceof FlowEventAware || $event instanceof EntityWrittenContainerEvent;
     }
 
     /**

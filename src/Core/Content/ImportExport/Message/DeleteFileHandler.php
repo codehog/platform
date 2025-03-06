@@ -11,7 +11,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * @internal
  */
 #[AsMessageHandler]
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
 final class DeleteFileHandler
 {
     /**

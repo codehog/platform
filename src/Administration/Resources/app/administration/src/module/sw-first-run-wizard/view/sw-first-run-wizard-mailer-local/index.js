@@ -2,14 +2,20 @@ import './sw-first-run-wizard-mailer-local.scss';
 import template from './sw-first-run-wizard-mailer-local.html.twig';
 
 /**
- * @package merchant-services
- * @deprecated tag:v6.6.0 - Will be private
+ * @sw-package fundamentals@after-sales
+ *
+ * @private
  */
-// eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
 
     inject: ['systemConfigApiService'],
+
+    emits: [
+        'buttons-update',
+        'frw-set-title',
+        'frw-redirect',
+    ],
 
     data() {
         return {
@@ -33,10 +39,18 @@ export default {
                     name: this.$tc('sw-settings-mailer.sendmail.sync'),
                 },
                 {
-                    value: '-t',
+                    value: '-t -i',
                     name: this.$tc('sw-settings-mailer.sendmail.async'),
                 },
             ];
+        },
+
+        nextAction() {
+            if (Shopware.Store.get('context').app.config.settings.disableExtensionManagement) {
+                return 'sw.first.run.wizard.index.shopware.account';
+            }
+
+            return 'sw.first.run.wizard.index.paypal.info';
         },
 
         buttonConfig() {
@@ -54,7 +68,7 @@ export default {
                     label: this.$tc('sw-first-run-wizard.general.buttonConfigureLater'),
                     position: 'right',
                     variant: null,
-                    action: 'sw.first.run.wizard.index.paypal.info',
+                    action: this.nextAction,
                     disabled: false,
                 },
                 {
@@ -112,7 +126,7 @@ export default {
             const option = this.mailerSettings['core.mailerSettings.sendMailOptions'];
 
             if (option === undefined || option === '') {
-                this.mailerSettings['core.mailerSettings.sendMailOptions'] = '-t';
+                this.mailerSettings['core.mailerSettings.sendMailOptions'] = '-t -i';
             }
 
             this.isLoading = false;
@@ -121,12 +135,15 @@ export default {
         saveMailerSettings() {
             this.isLoading = true;
 
-            return this.systemConfigApiService.saveValues(this.mailerSettings).then(() => {
-                this.$emit('frw-redirect', 'sw.first.run.wizard.index.paypal.info');
-                this.isLoading = false;
-            }).catch(() => {
-                this.isLoading = false;
-            });
+            return this.systemConfigApiService
+                .saveValues(this.mailerSettings)
+                .then(() => {
+                    this.$emit('frw-redirect', this.nextAction);
+                    this.isLoading = false;
+                })
+                .catch(() => {
+                    this.isLoading = false;
+                });
         },
     },
 };

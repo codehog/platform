@@ -4,10 +4,9 @@ import './sw-confirm-field.scss';
 const { Component } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
- * @public
+ * @private
  * @description Text field with additional confirmation buttons inlined in the field itself.
  * @status ready
  * @example-type static
@@ -16,6 +15,13 @@ const { Component } = Shopware;
  */
 Component.register('sw-confirm-field', {
     template,
+
+    emits: [
+        'remove-error',
+        'blur',
+        'submit-cancel',
+        'input',
+    ],
 
     props: {
         value: {
@@ -57,6 +63,7 @@ Component.register('sw-confirm-field', {
 
     data() {
         return {
+            hasSubmittedFromKey: false,
             isEditing: false,
             draft: this.value,
             event: null,
@@ -79,7 +86,7 @@ Component.register('sw-confirm-field', {
         },
     },
 
-    beforeDestroy() {
+    beforeUnmount() {
         this.$emit('remove-error');
     },
 
@@ -92,8 +99,9 @@ Component.register('sw-confirm-field', {
             this.isEditing = true;
         },
 
-        onBlurField({ relatedTarget }) {
-            if (!!relatedTarget && relatedTarget.classList.contains('sw-confirm-field__button')) {
+        onBlurField(event) {
+            if (event?.relatedTarget?.classList.contains('sw-confirm-field__button') || this.hasSubmittedFromKey) {
+                this.hasSubmittedFromKey = false;
                 return;
             }
             this.$emit('blur');
@@ -123,6 +131,7 @@ Component.register('sw-confirm-field', {
         },
 
         onSubmitFromKey() {
+            this.hasSubmittedFromKey = true;
             this.event = 'key';
             this.submitValue();
             this.isEditing = false;

@@ -8,7 +8,7 @@ use Shopware\Core\Framework\Struct\Collection;
 /**
  * @extends Collection<Error>
  */
-#[Package('sales-channel')]
+#[Package('inventory')]
 class ErrorCollection extends Collection
 {
     /**
@@ -21,7 +21,7 @@ class ErrorCollection extends Collection
 
     /**
      * @param string $key
-     * @param Error  $error
+     * @param Error $error
      */
     public function set($key, $error): void
     {

@@ -2,11 +2,19 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\App\Cms\Xml;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\App\Cms\CmsExtensions;
 
 /**
  * @internal
+ *
+ * @phpstan-type SlotArray array{
+ *      name: string,
+ *      type: string,
+ *      config: array<string, array<string, string|int>>,
+ *      position: int
+ * }
  */
 class SlotTest extends TestCase
 {
@@ -22,27 +30,26 @@ class SlotTest extends TestCase
 
     /**
      * @param array<string, mixed> $config
-     *
-     * @dataProvider provideSlots
      */
-    public function testSlotsFromXml(int $i, string $name, string $type, array $config): void
+    #[DataProvider('provideSlots')]
+    public function testSlotsFromXml(int $i, string $name, string $type, array $config, int $position): void
     {
         $cmsExtensions = CmsExtensions::createFromXmlFile(__DIR__ . '/../_fixtures/valid/cmsExtensionsWithBlocks.xml');
         static::assertNotNull($cmsExtensions->getBlocks());
 
         $slot = $cmsExtensions->getBlocks()->getBlocks()[0]->getSlots()[$i];
 
-        static::assertEquals($name, $slot->getName());
-        static::assertEquals($type, $slot->getType());
+        static::assertSame($name, $slot->getName());
+        static::assertSame($type, $slot->getType());
+        static::assertSame($position, $slot->getPosition());
         static::assertEquals($config, $slot->getConfig()->toArray('en-GB'));
     }
 
     /**
      * @param array<string, mixed> $config
-     *
-     * @dataProvider provideSlots
      */
-    public function testToArray(int $i, string $name, string $type, array $config): void
+    #[DataProvider('provideSlots')]
+    public function testToArray(int $i, string $name, string $type, array $config, int $position): void
     {
         $cmsExtensions = CmsExtensions::createFromXmlFile(__DIR__ . '/../_fixtures/valid/cmsExtensionsWithBlocks.xml');
         static::assertNotNull($cmsExtensions->getBlocks());
@@ -53,6 +60,7 @@ class SlotTest extends TestCase
             [
                 'name' => $name,
                 'type' => $type,
+                'position' => $position,
                 'config' => $config,
             ],
             $slot->toArray('en-GB')
@@ -60,7 +68,7 @@ class SlotTest extends TestCase
     }
 
     /**
-     * @return array<array<string|int|array<string, mixed>>>
+     * @return list<SlotArray>
      */
     public static function provideSlots(): array
     {
@@ -75,6 +83,7 @@ class SlotTest extends TestCase
                         'value' => 'cover',
                     ],
                 ],
+                'position' => 0,
             ],
             [
                 1,
@@ -90,6 +99,7 @@ class SlotTest extends TestCase
                         'value' => 'auto',
                     ],
                 ],
+                'position' => 0,
             ],
             [
                 2,
@@ -101,6 +111,7 @@ class SlotTest extends TestCase
                         'value' => 'contain',
                     ],
                 ],
+                'position' => 0,
             ],
         ];
     }

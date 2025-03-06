@@ -2,6 +2,7 @@
 
 namespace Shopware\Tests\Integration\Core\Framework\App\ActionButton\Response;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\App\ActionButton\AppAction;
 use Shopware\Core\Framework\App\ActionButton\Response\NotificationResponse;
@@ -9,6 +10,8 @@ use Shopware\Core\Framework\App\ActionButton\Response\NotificationResponseFactor
 use Shopware\Core\Framework\App\ActionButton\Response\OpenModalResponse;
 use Shopware\Core\Framework\App\ActionButton\Response\OpenNewTabResponse;
 use Shopware\Core\Framework\App\ActionButton\Response\ReloadDataResponse;
+use Shopware\Core\Framework\App\AppEntity;
+use Shopware\Core\Framework\App\Payload\Source;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Tests\Integration\Core\Framework\App\GuzzleTestClientBehaviour;
@@ -26,26 +29,25 @@ class NotificationResponseFactoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->factory = $this->getContainer()->get(NotificationResponseFactory::class);
+        $this->factory = static::getContainer()->get(NotificationResponseFactory::class);
+        $app = new AppEntity();
+        $app->setId(Uuid::randomHex());
+        $app->setAppSecret('app-secret');
         $this->action = new AppAction(
+            $app,
+            new Source('http://shop.url', 'shop-id', '1.0.0'),
             'http://target.url',
-            'http://shop.url',
-            '1.0.0',
             'customer',
             'action-name',
             [Uuid::randomHex(), Uuid::randomHex()],
-            'app-secret',
-            'shop-id',
             'action-it'
         );
     }
 
-    /**
-     * @dataProvider provideActionTypes
-     */
+    #[DataProvider('provideActionTypes')]
     public function testSupportsOnlyNotificationActionType(string $actionType, bool $isSupported): void
     {
-        static::assertEquals($isSupported, $this->factory->supports($actionType));
+        static::assertSame($isSupported, $this->factory->supports($actionType));
     }
 
     public function testCreatesNotificationResponse(): void

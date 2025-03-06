@@ -4,12 +4,10 @@ namespace Shopware\Core;
 
 use Shopware\Core\Framework\Log\Package;
 
-#[Package('core')]
+#[Package('framework')]
 final class SalesChannelRequest
 {
     public const ATTRIBUTE_IS_SALES_CHANNEL_REQUEST = '_is_sales_channel';
-
-    public const ATTRIBUTE_IS_ALLOWED_IN_MAINTENANCE = 'allow_maintenance';
 
     public const ATTRIBUTE_THEME_ID = 'theme-id';
     public const ATTRIBUTE_THEME_NAME = 'theme-name';

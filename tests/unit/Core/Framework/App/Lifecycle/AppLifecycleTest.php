@@ -3,6 +3,7 @@
 namespace Shopware\Tests\Unit\Core\Framework\App\Lifecycle;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Shopware\Administration\Snippet\AppAdministrationSnippetPersister;
 use Shopware\Core\Framework\Api\Acl\Role\AclRoleCollection;
@@ -10,9 +11,9 @@ use Shopware\Core\Framework\App\AppCollection;
 use Shopware\Core\Framework\App\AppEntity;
 use Shopware\Core\Framework\App\AppException;
 use Shopware\Core\Framework\App\AppStateService;
-use Shopware\Core\Framework\App\Lifecycle\AbstractAppLoader;
 use Shopware\Core\Framework\App\Lifecycle\AppLifecycle;
-use Shopware\Core\Framework\App\Lifecycle\AppLoader;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppInstallParameters;
+use Shopware\Core\Framework\App\Lifecycle\Parameters\AppUpdateParameters;
 use Shopware\Core\Framework\App\Lifecycle\Persister\ActionButtonPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\CmsBlockPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\CustomFieldPersister;
@@ -22,6 +23,7 @@ use Shopware\Core\Framework\App\Lifecycle\Persister\PaymentMethodPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\PermissionPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\RuleConditionPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\ScriptPersister;
+use Shopware\Core\Framework\App\Lifecycle\Persister\ShippingMethodPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\TaxProviderPersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\TemplatePersister;
 use Shopware\Core\Framework\App\Lifecycle\Persister\WebhookPersister;
@@ -32,6 +34,7 @@ use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Plugin\Util\AssetService;
 use Shopware\Core\Framework\Script\Execution\ScriptExecutor;
+use Shopware\Core\Framework\Util\Filesystem;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\CustomEntity\CustomEntityLifecycleService;
 use Shopware\Core\System\CustomEntity\Schema\CustomEntitySchemaUpdater;
@@ -39,16 +42,31 @@ use Shopware\Core\System\Language\LanguageCollection;
 use Shopware\Core\System\Language\LanguageEntity;
 use Shopware\Core\System\Locale\LocaleEntity;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
+use Shopware\Core\System\SystemConfig\Util\ConfigReader;
+use Shopware\Core\Test\Stub\App\StaticSourceResolver;
 use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticEntityRepository;
+use Symfony\Component\Filesystem\Filesystem as Io;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Framework\App\Lifecycle\AppLifecycle
  */
+#[CoversClass(AppLifecycle::class)]
 class AppLifecycleTest extends TestCase
 {
+    private Io $io;
+
+    protected function setUp(): void
+    {
+        $this->io = new Io();
+        $this->io->mkdir(__DIR__ . '/../_fixtures/Resources/app/administration/snippet');
+    }
+
+    protected function tearDown(): void
+    {
+        $this->io->remove(__DIR__ . '/../_fixtures/Resources/app/administration/snippet');
+    }
+
     public function testInstallNotCompatibleApp(): void
     {
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/../_fixtures/manifest.xml');
@@ -57,11 +75,11 @@ class AppLifecycleTest extends TestCase
         $appRepository = $this->createMock(EntityRepository::class);
         $appRepository->expects(static::never())->method('upsert');
 
-        $appLifecycle = $this->getAppLifecycle(new StaticEntityRepository([]), new StaticEntityRepository([]), null, $this->createMock(AppLoader::class));
+        $appLifecycle = $this->getAppLifecycle($appRepository, new StaticEntityRepository([]), null, new StaticSourceResolver());
 
-        static::expectException(AppException::class);
-        static::expectExceptionMessage('App test is not compatible with this Shopware version');
-        $appLifecycle->install($manifest, false, Context::createDefaultContext());
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('App test is not compatible with this Shopware version');
+        $appLifecycle->install($manifest, new AppInstallParameters(), Context::createDefaultContext());
     }
 
     public function testUpdateNotCompatibleApp(): void
@@ -72,11 +90,11 @@ class AppLifecycleTest extends TestCase
         $appRepository = $this->createMock(EntityRepository::class);
         $appRepository->expects(static::never())->method('upsert');
 
-        $appLifecycle = $this->getAppLifecycle(new StaticEntityRepository([]), new StaticEntityRepository([]), null, $this->createMock(AppLoader::class));
+        $appLifecycle = $this->getAppLifecycle($appRepository, new StaticEntityRepository([]), null, new StaticSourceResolver());
 
-        static::expectException(AppException::class);
-        static::expectExceptionMessage('App test is not compatible with this Shopware version');
-        $appLifecycle->update($manifest, ['id' => 'test', 'roleId' => 'test'], Context::createDefaultContext());
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('App test is not compatible with this Shopware version');
+        $appLifecycle->update($manifest, new AppUpdateParameters(), ['id' => 'test', 'roleId' => 'test'], Context::createDefaultContext());
     }
 
     public function testInstallSavesSnippetsGiven(): void
@@ -84,7 +102,7 @@ class AppLifecycleTest extends TestCase
         $languageRepository = new StaticEntityRepository([$this->getLanguageCollection([
             [
                 'id' => Uuid::randomHex(),
-                'locale' => $this->getLocaleEntity(['code' => 'en-GB']),
+                'translationCode' => $this->getLocaleEntity(['code' => 'en-GB']),
             ],
         ])]);
 
@@ -111,15 +129,24 @@ class AppLifecycleTest extends TestCase
 
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/../_fixtures/manifest.xml');
 
+        $this->io->dumpFile(
+            __DIR__ . '/../_fixtures/Resources/app/administration/snippet/en-GB.json',
+            (string) json_encode([
+                'snippetKey' => 'snippetTranslation',
+            ])
+        );
+
         $appRepository = $this->getAppRepositoryMock($appEntities);
         $appLifecycle = $this->getAppLifecycle(
             $appRepository,
             $languageRepository,
-            $this->getAppAdministrationSnippetPersisterMock($appEntities[2], $this->getSnippets()),
-            $this->getAppLoaderMock($this->getSnippets())
+            $this->getAppAdministrationSnippetPersisterMock($appEntities[2], [
+                'en-GB' => '{"snippetKey":"snippetTranslation"}',
+            ]),
+            $this->getSourceResolver(__DIR__ . '/../_fixtures/manifest.xml')
         );
 
-        $appLifecycle->install($manifest, false, Context::createDefaultContext());
+        $appLifecycle->install($manifest, new AppInstallParameters(activate: false), Context::createDefaultContext());
 
         static::assertCount(1, $appRepository->upserts[0]);
         static::assertSame('test', $appRepository->upserts[0][0]['name']);
@@ -130,7 +157,7 @@ class AppLifecycleTest extends TestCase
         $languageRepository = new StaticEntityRepository([$this->getLanguageCollection([
             [
                 'id' => Uuid::randomHex(),
-                'locale' => $this->getLocaleEntity(['code' => 'en-GB']),
+                'translationCode' => $this->getLocaleEntity(['code' => 'en-GB']),
             ],
         ])]);
 
@@ -162,10 +189,10 @@ class AppLifecycleTest extends TestCase
             $appRepository,
             $languageRepository,
             $this->getAppAdministrationSnippetPersisterMock($appEntities[2]),
-            $this->getAppLoaderMock()
+            $this->getSourceResolver(__DIR__ . '/../_fixtures/manifest.xml')
         );
 
-        $appLifecycle->install($manifest, false, Context::createDefaultContext());
+        $appLifecycle->install($manifest, new AppInstallParameters(false), Context::createDefaultContext());
 
         static::assertCount(1, $appRepository->upserts[0]);
         static::assertSame('test', $appRepository->upserts[0][0]['name']);
@@ -176,7 +203,7 @@ class AppLifecycleTest extends TestCase
         $languageRepository = new StaticEntityRepository([$this->getLanguageCollection([
             [
                 'id' => Uuid::randomHex(),
-                'locale' => $this->getLocaleEntity(['code' => 'en-GB']),
+                'translationCode' => $this->getLocaleEntity(['code' => 'en-GB']),
             ],
         ])]);
 
@@ -201,16 +228,15 @@ class AppLifecycleTest extends TestCase
         ];
 
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/../_fixtures/manifest.xml');
-
         $appRepository = $this->getAppRepositoryMock($appEntities);
         $appLifecycle = $this->getAppLifecycle(
             $appRepository,
             $languageRepository,
             $this->getAppAdministrationSnippetPersisterMock($appEntities[1]),
-            $this->getAppLoaderMock()
+            $this->getSourceResolver(__DIR__ . '/../_fixtures/manifest.xml')
         );
 
-        $appLifecycle->update($manifest, ['id' => 'appId', 'roleId' => 'roleId'], Context::createDefaultContext());
+        $appLifecycle->update($manifest, new AppUpdateParameters(), ['id' => 'appId', 'roleId' => 'roleId'], Context::createDefaultContext());
 
         static::assertCount(1, $appRepository->upserts[0]);
         static::assertSame('test', $appRepository->upserts[0][0]['name']);
@@ -221,7 +247,7 @@ class AppLifecycleTest extends TestCase
         $languageRepository = new StaticEntityRepository([$this->getLanguageCollection([
             [
                 'id' => Uuid::randomHex(),
-                'locale' => $this->getLocaleEntity(['code' => 'en-GB']),
+                'translationCode' => $this->getLocaleEntity(['code' => 'en-GB']),
             ],
         ])]);
 
@@ -245,17 +271,26 @@ class AppLifecycleTest extends TestCase
             ],
         ];
 
+        $this->io->dumpFile(
+            __DIR__ . '/../_fixtures/Resources/app/administration/snippet/en-GB.json',
+            (string) json_encode([
+                'snippetKey' => 'snippetTranslation',
+            ])
+        );
+
         $manifest = Manifest::createFromXmlFile(__DIR__ . '/../_fixtures/manifest.xml');
 
         $appRepository = $this->getAppRepositoryMock($appEntities);
         $appLifecycle = $this->getAppLifecycle(
             $appRepository,
             $languageRepository,
-            $this->getAppAdministrationSnippetPersisterMock($appEntities[1], $this->getSnippets()),
-            $this->getAppLoaderMock($this->getSnippets())
+            $this->getAppAdministrationSnippetPersisterMock($appEntities[1], [
+                'en-GB' => '{"snippetKey":"snippetTranslation"}',
+            ]),
+            $this->getSourceResolver(__DIR__ . '/../_fixtures/manifest.xml')
         );
 
-        $appLifecycle->update($manifest, ['id' => 'appId', 'roleId' => 'roleId'], Context::createDefaultContext());
+        $appLifecycle->update($manifest, new AppUpdateParameters(), ['id' => 'appId', 'roleId' => 'roleId'], Context::createDefaultContext());
 
         static::assertCount(1, $appRepository->upserts[0]);
         static::assertSame('test', $appRepository->upserts[0][0]['name']);
@@ -263,10 +298,12 @@ class AppLifecycleTest extends TestCase
 
     public function testUpdateResetsConfigurableFlagToFalseWhenConfigXMLWasRemoved(): void
     {
+        $this->io->rename(__DIR__ . '/../_fixtures/Resources/config', __DIR__ . '/../_fixtures/Resources/noconfighere');
+
         $languageRepository = new StaticEntityRepository([$this->getLanguageCollection([
             [
                 'id' => Uuid::randomHex(),
-                'locale' => $this->getLocaleEntity(['code' => 'en-GB']),
+                'translationCode' => $this->getLocaleEntity(['code' => 'en-GB']),
             ],
         ])]);
 
@@ -295,22 +332,27 @@ class AppLifecycleTest extends TestCase
             $appRepository,
             $languageRepository,
             null,
-            $this->getAppLoaderMock()
+            $this->getSourceResolver(__DIR__ . '/../_fixtures/manifest.xml')
         );
 
-        $appLifecycle->update($manifest, ['id' => $appId, 'roleId' => 'roleId'], Context::createDefaultContext());
+        $appLifecycle->update($manifest, new AppUpdateParameters(), ['id' => $appId, 'roleId' => 'roleId'], Context::createDefaultContext());
 
         static::assertCount(1, $appRepository->upserts[0]);
 
         static::assertEquals([['id' => $appId, 'configurable' => false, 'allowDisable' => true]], $appRepository->upserts[1]);
+
+        $this->io->rename(__DIR__ . '/../_fixtures/Resources/noconfighere', __DIR__ . '/../_fixtures/Resources/config');
     }
 
     private function getAppLifecycle(
         EntityRepository $appRepository,
         EntityRepository $languageRepository,
         ?AppAdministrationSnippetPersister $appAdministrationSnippetPersisterMock,
-        AbstractAppLoader $appLoader
+        StaticSourceResolver $appSourceResolver
     ): AppLifecycle {
+        /** @var StaticEntityRepository<AclRoleCollection> $aclRoleRepo */
+        $aclRoleRepo = new StaticEntityRepository([new AclRoleCollection()]);
+
         return new AppLifecycle(
             $appRepository,
             $this->createMock(PermissionPersister::class),
@@ -323,7 +365,6 @@ class AppLifecycleTest extends TestCase
             $this->createMock(TaxProviderPersister::class),
             $this->createMock(RuleConditionPersister::class),
             $this->createMock(CmsBlockPersister::class),
-            $appLoader,
             $this->createMock(EventDispatcherInterface::class),
             $this->createMock(AppRegistrationService::class),
             $this->createMock(AppStateService::class),
@@ -331,7 +372,7 @@ class AppLifecycleTest extends TestCase
             $this->createMock(SystemConfigService::class),
             $this->createMock(ConfigValidator::class),
             $this->createMock(EntityRepository::class),
-            new StaticEntityRepository([new AclRoleCollection()]),
+            $aclRoleRepo,
             $this->createMock(AssetService::class),
             $this->createMock(ScriptExecutor::class),
             __DIR__,
@@ -342,7 +383,11 @@ class AppLifecycleTest extends TestCase
             $this->createMock(CustomEntityLifecycleService::class),
             '6.5.0.0',
             $this->createMock(FlowEventPersister::class),
-            'test'
+            'test',
+            $this->createMock(ShippingMethodPersister::class),
+            $this->createMock(EntityRepository::class),
+            $appSourceResolver,
+            $this->createMock(ConfigReader::class)
         );
     }
 
@@ -413,7 +458,7 @@ class AppLifecycleTest extends TestCase
 
     /**
      * @param array<int, array<string, mixed>> $appEntities
-     * @param array<string, array<string, string>> $expectedSnippets
+     * @param array<string, string> $expectedSnippets
      */
     private function getAppAdministrationSnippetPersisterMock(array $appEntities, array $expectedSnippets = []): AppAdministrationSnippetPersister
     {
@@ -429,29 +474,10 @@ class AppLifecycleTest extends TestCase
         return $persister;
     }
 
-    /**
-     * @param array<string, array<string, string>> $snippets
-     */
-    private function getAppLoaderMock(array $snippets = []): AbstractAppLoader
+    private function getSourceResolver(string $manifestPath): StaticSourceResolver
     {
-        $appLoader = $this->createMock(AbstractAppLoader::class);
-
-        $appLoader
-            ->method('getSnippets')
-            ->willReturn($snippets);
-
-        return $appLoader;
-    }
-
-    /**
-     * @return array<string, array<string, string>>
-     */
-    private function getSnippets(): array
-    {
-        return [
-            'en-GB' => [
-                'snippetKey' => 'snippetTranslation',
-            ],
-        ];
+        return new StaticSourceResolver([
+            'test' => new Filesystem(\dirname($manifestPath)),
+        ]);
     }
 }

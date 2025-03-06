@@ -3,9 +3,9 @@ const { Service } = Shopware;
 const { Criteria } = Shopware.Data;
 
 /**
- * @package admin
+ * @sw-package framework
  *
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  * @module app/service/custom-field
  * @memberOf module:core/service/custom-field
  * @constructor
@@ -122,6 +122,7 @@ export default function createCustomFieldService() {
         'shipping_method',
         'tax',
         'unit',
+        'newsletter_recipient',
     ];
 
     return {
@@ -155,7 +156,9 @@ export default function createCustomFieldService() {
     }
 
     function removeEntityName(entityName) {
-        remove($entityNameStore, (storeItem) => { return storeItem === entityName; });
+        remove($entityNameStore, (storeItem) => {
+            return storeItem === entityName;
+        });
     }
 
     function getCustomFieldSets(entityName) {

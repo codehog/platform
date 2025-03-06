@@ -6,7 +6,7 @@ const { mapPropertyErrors } = Component.getComponentHelper();
 
 /**
  * @private
- * @package business-ops
+ * @sw-package fundamentals@after-sales
  * @description Base condition for the condition-tree. This component must be a child of sw-condition-tree.
  * @status prototype
  * @example-type code-only
@@ -15,6 +15,7 @@ const { mapPropertyErrors } = Component.getComponentHelper();
  */
 Component.register('sw-condition-base', {
     template,
+
     inheritAttrs: false,
 
     inject: [
@@ -22,6 +23,12 @@ Component.register('sw-condition-base', {
         'availableTypes',
         'childAssociationField',
         'availableGroups',
+    ],
+
+    emits: [
+        'create-before',
+        'create-after',
+        'condition-delete',
     ],
 
     props: {
@@ -82,10 +89,11 @@ Component.register('sw-condition-base', {
     watch: {
         value() {
             if (this.hasError) {
-                this.$store.commit('error/removeApiError', { expression: this.valueErrorPath });
+                Shopware.Store.get('error').removeApiError(this.valueErrorPath);
             }
             if (this.isEmpty && !!this.inputKey) {
-                this.$delete(this.condition.value, this.inputKey);
+                // eslint-disable-next-line vue/no-mutating-props
+                delete this.condition.value[this.inputKey];
             }
         },
     },

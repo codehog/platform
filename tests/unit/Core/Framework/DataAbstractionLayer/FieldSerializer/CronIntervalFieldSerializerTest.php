@@ -3,13 +3,14 @@
 namespace Shopware\Tests\Unit\Core\Framework\DataAbstractionLayer\FieldSerializer;
 
 use Cron\CronExpression;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\DataAbstractionLayer\DataAbstractionLayerException;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\CronIntervalField;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\Flag\Required;
-use Shopware\Core\Framework\DataAbstractionLayer\Field\StringField;
+use Shopware\Core\Framework\DataAbstractionLayer\Field\ManyToOneAssociationField;
 use Shopware\Core\Framework\DataAbstractionLayer\FieldSerializer\CronIntervalFieldSerializer;
 use Shopware\Core\Framework\DataAbstractionLayer\FieldType\CronInterval;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\DataStack\KeyValuePair;
@@ -24,11 +25,10 @@ use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
- * @covers \Shopware\Core\Framework\DataAbstractionLayer\FieldSerializer\CronIntervalFieldSerializer
- *
  * @internal
  */
 #[Package('checkout')]
+#[CoversClass(CronIntervalFieldSerializer::class)]
 class CronIntervalFieldSerializerTest extends TestCase
 {
     private const COMPLEX_CRON = '12,4 */2 * 1-4 MON#3';
@@ -72,7 +72,7 @@ class CronIntervalFieldSerializerTest extends TestCase
         static::expectException(DataAbstractionLayerException::class);
 
         $this->intervalFieldSerializer->encode(
-            new StringField('fake', 'fake'),
+            new ManyToOneAssociationField('test', 'test', 'test'),
             $this->createStub(EntityExistence::class),
             $data,
             $this->createMock(WriteParameterBag::class)

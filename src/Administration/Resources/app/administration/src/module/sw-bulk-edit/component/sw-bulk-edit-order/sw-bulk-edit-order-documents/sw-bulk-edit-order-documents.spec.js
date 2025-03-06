@@ -1,28 +1,26 @@
 /**
- * @package system-settings
+ * @sw-package checkout
  */
-import { shallowMount } from '@vue/test-utils';
-import swBulkEditOrderDocuments from 'src/module/sw-bulk-edit/component/sw-bulk-edit-order/sw-bulk-edit-order-documents';
-
-Shopware.Component.register('sw-bulk-edit-order-documents', swBulkEditOrderDocuments);
+import { mount } from '@vue/test-utils';
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-bulk-edit-order-documents'), {
-        stubs: {
-            'sw-container': true,
-            'sw-checkbox-field': true,
-            'sw-switch-field': true,
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        search: () => Promise.resolve([]),
-                    };
+    return mount(await wrapTestComponent('sw-bulk-edit-order-documents', { sync: true }), {
+        global: {
+            stubs: {
+                'sw-container': await wrapTestComponent('sw-container'),
+                'sw-checkbox-field': true,
+            },
+            provide: {
+                repositoryFactory: {
+                    create: () => {
+                        return {
+                            search: () => Promise.resolve([]),
+                        };
+                    },
                 },
             },
         },
-        propsData: {
+        props: {
             documents: {
                 disabled: false,
             },
@@ -39,10 +37,6 @@ describe('sw-bulk-edit-order-documents', () => {
 
     beforeEach(async () => {
         wrapper = await createWrapper();
-    });
-
-    afterEach(() => {
-        wrapper.destroy();
     });
 
     it('should be a Vue.js component', async () => {
@@ -72,15 +66,16 @@ describe('sw-bulk-edit-order-documents', () => {
                 disabled: true,
             },
         });
-        expect(wrapper.find('sw-checkbox-field-stub').attributes().disabled).toBeTruthy();
-        expect(wrapper.find('sw-switch-field-stub').attributes().disabled).toBeTruthy();
+
+        expect(wrapper.findComponent('.mt-field--checkbox__container').props().disabled).toBe(true);
+        expect(wrapper.findComponent('.mt-switch').props().disabled).toBeDefined();
 
         await wrapper.setProps({
             documents: {
                 disabled: false,
             },
         });
-        expect(wrapper.find('sw-checkbox-field-stub').attributes().disabled).toBeUndefined();
-        expect(wrapper.find('sw-switch-field-stub').attributes().disabled).toBeUndefined();
+        expect(wrapper.findComponent('.mt-field--checkbox__container').props().disabled).toBe(false);
+        expect(wrapper.findComponent('.mt-switch').props().disabled).toBeUndefined();
     });
 });

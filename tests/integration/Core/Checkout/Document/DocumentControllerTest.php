@@ -11,6 +11,7 @@ use Shopware\Core\Checkout\Cart\Price\Struct\CartPrice;
 use Shopware\Core\Checkout\Cart\Price\Struct\QuantityPriceDefinition;
 use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTaxCollection;
 use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
+use Shopware\Core\Checkout\Document\Aggregate\DocumentType\DocumentTypeCollection;
 use Shopware\Core\Checkout\Document\Aggregate\DocumentType\DocumentTypeEntity;
 use Shopware\Core\Checkout\Document\DocumentIdCollection;
 use Shopware\Core\Checkout\Document\DocumentIdStruct;
@@ -19,6 +20,7 @@ use Shopware\Core\Checkout\Document\Renderer\InvoiceRenderer;
 use Shopware\Core\Checkout\Document\Service\DocumentGenerator;
 use Shopware\Core\Checkout\Document\Service\PdfRenderer;
 use Shopware\Core\Checkout\Document\Struct\DocumentGenerateOperation;
+use Shopware\Core\Checkout\Order\OrderCollection;
 use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Order\OrderStates;
 use Shopware\Core\Defaults;
@@ -27,7 +29,6 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Pricing\CashRoundingConfig;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
-use Shopware\Core\Framework\Feature;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Test\TestCaseBase\AdminApiTestBehaviour;
 use Shopware\Core\Framework\Test\TestCaseBase\CountryAddToSalesChannelTestBehaviour;
@@ -43,7 +44,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * @internal
  */
-#[Package('customer-order')]
+#[Package('after-sales')]
 class DocumentControllerTest extends TestCase
 {
     use AdminApiTestBehaviour;
@@ -58,6 +59,9 @@ class DocumentControllerTest extends TestCase
 
     private DocumentGenerator $documentGenerator;
 
+    /**
+     * @var EntityRepository<OrderCollection>
+     */
     private EntityRepository $orderRepository;
 
     private string $customerId;
@@ -66,7 +70,7 @@ class DocumentControllerTest extends TestCase
     {
         parent::setUp();
 
-        $this->connection = $this->getContainer()->get(Connection::class);
+        $this->connection = static::getContainer()->get(Connection::class);
 
         $this->context = Context::createDefaultContext();
 
@@ -77,7 +81,7 @@ class DocumentControllerTest extends TestCase
 
         $this->addCountriesToSalesChannel();
 
-        $this->salesChannelContext = $this->getContainer()->get(SalesChannelContextFactory::class)->create(
+        $this->salesChannelContext = static::getContainer()->get(SalesChannelContextFactory::class)->create(
             Uuid::randomHex(),
             TestDefaults::SALES_CHANNEL,
             [
@@ -87,25 +91,28 @@ class DocumentControllerTest extends TestCase
             ]
         );
 
-        $ruleIds = [$shippingMethod->getAvailabilityRuleId()];
+        $ruleIds = [];
+        if ($shippingRuleId = $shippingMethod->getAvailabilityRuleId()) {
+            $ruleIds[] = $shippingRuleId;
+        }
         if ($paymentRuleId = $paymentMethod->getAvailabilityRuleId()) {
             $ruleIds[] = $paymentRuleId;
         }
         $this->salesChannelContext->setRuleIds($ruleIds);
 
-        $this->connection = $this->getContainer()->get(Connection::class);
+        $this->connection = static::getContainer()->get(Connection::class);
 
-        $this->documentGenerator = $this->getContainer()->get(DocumentGenerator::class);
+        $this->documentGenerator = static::getContainer()->get(DocumentGenerator::class);
 
-        $this->orderRepository = $this->getContainer()->get('order.repository');
+        $this->orderRepository = static::getContainer()->get('order.repository');
     }
 
     public function testCustomUploadDocument(): void
     {
         $context = Context::createDefaultContext();
 
-        /** @var EntityRepository $documentTypeRepository */
-        $documentTypeRepository = $this->getContainer()->get('document_type.repository');
+        /** @var EntityRepository<DocumentTypeCollection> $documentTypeRepository */
+        $documentTypeRepository = static::getContainer()->get('document_type.repository');
         $criteria = (new Criteria())->addFilter(new EqualsFilter('technicalName', 'invoice'));
         /** @var DocumentTypeEntity $type */
         $type = $documentTypeRepository->search($criteria, $context)->first();
@@ -139,11 +146,11 @@ class DocumentControllerTest extends TestCase
 
         $filename = 'invoice';
         $expectedFileContent = 'simple invoice';
-        $expectedContentType = 'text/plain; charset=UTF-8';
+        $expectedContentType = 'application/pdf';
 
         $this->getBrowser()->request(
             'POST',
-            $baseResource . '_action/document/' . $response['data'][0]['documentId'] . '/upload?fileName=' . $filename . '&extension=txt',
+            $baseResource . '_action/document/' . $response['data'][0]['documentId'] . '/upload?fileName=' . $filename . '&extension=pdf',
             [],
             [],
             ['HTTP_CONTENT_TYPE' => $expectedContentType, 'HTTP_CONTENT_LENGTH' => mb_strlen($expectedFileContent)],
@@ -154,6 +161,7 @@ class DocumentControllerTest extends TestCase
 
         $this->getBrowser()->request('GET', $baseResource . '_action/document/' . $response['documentId'] . '/' . $response['documentDeepLink']);
         $response = $this->getBrowser()->getResponse();
+
         static::assertEquals(200, $response->getStatusCode());
 
         static::assertEquals($expectedFileContent, $response->getContent());
@@ -169,31 +177,23 @@ class DocumentControllerTest extends TestCase
         $order = $this->orderRepository->search(new Criteria([$orderId]), $this->context)->get($orderId);
         static::assertNotNull($order);
 
-        $endpoint = sprintf('/api/_action/order/%s/%s/document/invoice/preview', Uuid::randomHex(), $order->getDeepLinkCode());
+        $endpoint = \sprintf('/api/_action/order/%s/%s/document/invoice/preview', Uuid::randomHex(), $order->getDeepLinkCode());
         $this->getBrowser()->request('GET', $endpoint);
 
         static::assertEquals($this->getBrowser()->getResponse()->getStatusCode(), Response::HTTP_NOT_FOUND);
         $response = json_decode((string) $this->getBrowser()->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         static::assertNotEmpty($response['errors']);
-        if (!Feature::isActive('v6.6.0.0')) {
-            static::assertEquals('CHECKOUT__INVALID_ORDER_ID', $response['errors'][0]['code']);
-        } else {
-            static::assertEquals('DOCUMENT__GENERATION_ERROR', $response['errors'][0]['code']);
-        }
+        static::assertEquals('DOCUMENT__GENERATION_ERROR', $response['errors'][0]['code']);
 
-        $endpoint = sprintf('/api/_action/order/%s/%s/document/invoice/preview', $orderId, 'wrong deep link code');
+        $endpoint = \sprintf('/api/_action/order/%s/%s/document/invoice/preview', $orderId, 'wrong deep link code');
         $this->getBrowser()->request('GET', $endpoint);
 
         static::assertEquals($this->getBrowser()->getResponse()->getStatusCode(), Response::HTTP_NOT_FOUND);
         $response = json_decode((string) $this->getBrowser()->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         static::assertNotEmpty($response['errors']);
-        if (!Feature::isActive('v6.6.0.0')) {
-            static::assertEquals('CHECKOUT__INVALID_ORDER_ID', $response['errors'][0]['code']);
-        } else {
-            static::assertEquals('DOCUMENT__GENERATION_ERROR', $response['errors'][0]['code']);
-        }
+        static::assertEquals('DOCUMENT__GENERATION_ERROR', $response['errors'][0]['code']);
 
-        $endpoint = sprintf('/api/_action/order/%s/%s/document/invoice/preview', $orderId, $order->getDeepLinkCode());
+        $endpoint = \sprintf('/api/_action/order/%s/%s/document/invoice/preview', $orderId, $order->getDeepLinkCode());
 
         $this->getBrowser()->request('GET', $endpoint);
 
@@ -212,11 +212,11 @@ class DocumentControllerTest extends TestCase
         static::assertNotNull($order);
 
         TestUser::createNewTestUser(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             []
         )->authorizeBrowser($this->getBrowser());
 
-        $endpoint = sprintf('/api/_action/order/%s/%s/document/invoice/preview', $orderId, $order->getDeepLinkCode());
+        $endpoint = \sprintf('/api/_action/order/%s/%s/document/invoice/preview', $orderId, $order->getDeepLinkCode());
 
         $this->getBrowser()->request('GET', $endpoint);
 
@@ -226,7 +226,7 @@ class DocumentControllerTest extends TestCase
         static::assertEquals($response['errors'][0]['code'], 'FRAMEWORK__MISSING_PRIVILEGE_ERROR');
 
         TestUser::createNewTestUser(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             ['document:read']
         )->authorizeBrowser($this->getBrowser());
 
@@ -448,7 +448,7 @@ class DocumentControllerTest extends TestCase
     public function testDownloadPermission(): void
     {
         TestUser::createNewTestUser(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             []
         )->authorizeBrowser($this->getBrowser());
 
@@ -460,7 +460,7 @@ class DocumentControllerTest extends TestCase
         static::assertEquals($response['errors'][0]['code'], 'FRAMEWORK__MISSING_PRIVILEGE_ERROR');
 
         TestUser::createNewTestUser(
-            $this->getContainer()->get(Connection::class),
+            static::getContainer()->get(Connection::class),
             ['document:read']
         )->authorizeBrowser($this->getBrowser());
 
@@ -499,7 +499,7 @@ class DocumentControllerTest extends TestCase
     private function createOrder(string $customerId, Context $context): OrderEntity
     {
         $orderId = Uuid::randomHex();
-        $stateId = $this->getContainer()->get(InitialStateIdLoader::class)->get(OrderStates::STATE_MACHINE);
+        $stateId = static::getContainer()->get(InitialStateIdLoader::class)->get(OrderStates::STATE_MACHINE);
         $billingAddressId = Uuid::randomHex();
 
         $order = [

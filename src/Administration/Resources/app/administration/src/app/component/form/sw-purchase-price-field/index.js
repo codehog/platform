@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-purchase-price-field.html.twig';
@@ -7,10 +7,13 @@ import template from './sw-purchase-price-field.html.twig';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-purchase-price-field', {
     template,
+
+    emits: ['update:value'],
+
     props: {
         price: {
             type: Array,
@@ -34,14 +37,12 @@ Component.register('sw-purchase-price-field', {
             default: null,
         },
 
-        // FIXME: add property type
         // eslint-disable-next-line vue/require-prop-types
         label: {
             required: false,
             default: true,
         },
 
-        // FIXME: add property type
         // eslint-disable-next-line vue/require-prop-types
         disabled: {
             required: false,
@@ -62,12 +63,14 @@ Component.register('sw-purchase-price-field', {
                     return [priceForCurrency];
                 }
 
-                return [{
-                    gross: null,
-                    currencyId: this.currency.id,
-                    linked: true,
-                    net: null,
-                }];
+                return [
+                    {
+                        gross: null,
+                        currencyId: this.currency.id,
+                        linked: true,
+                        net: null,
+                    },
+                ];
             },
 
             set(newPurchasePrice) {
@@ -79,7 +82,7 @@ Component.register('sw-purchase-price-field', {
                     this.price.push(newPurchasePrice);
                 }
 
-                this.$emit('input', this.price);
+                this.$emit('update:value', this.price);
             },
         },
     },

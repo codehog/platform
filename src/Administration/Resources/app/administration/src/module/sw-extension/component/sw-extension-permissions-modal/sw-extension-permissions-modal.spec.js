@@ -1,61 +1,43 @@
-import { shallowMount, createLocalVue } from '@vue/test-utils';
-
-import swExtensionPermissionsModal from 'src/module/sw-extension/component/sw-extension-permissions-modal';
-import 'src/app/component/base/sw-button';
-
-Shopware.Component.register('sw-extension-permissions-modal', swExtensionPermissionsModal);
+import { mount } from '@vue/test-utils';
+import findByText from '../../../../../test/_helper_/find-by-text';
 
 async function createWrapper(propsData) {
-    const localVue = createLocalVue();
-
-    return shallowMount(await Shopware.Component.build('sw-extension-permissions-modal'), {
-        localVue,
-        propsData: {
-            ...propsData,
-        },
-        mocks: {
-            $t: (...args) => JSON.stringify([...args]),
-            $tc: (...args) => JSON.stringify([...args]),
-        },
-        stubs: {
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-modal': {
-                props: ['title'],
-                // eslint-disable-next-line max-len
-                template: '<div><div class="sw-modal__title">{{ title }}</div><slot/><slot name="modal-footer"></slot></div>',
+    return mount(
+        await wrapTestComponent('sw-extension-permissions-modal', {
+            sync: true,
+        }),
+        {
+            global: {
+                mocks: {
+                    $t: (...args) => JSON.stringify([...args]),
+                    $tc: (...args) => JSON.stringify([...args]),
+                },
+                stubs: {
+                    'sw-modal': {
+                        props: ['title'],
+                        // eslint-disable-next-line max-len
+                        template:
+                            '<div><div class="sw-modal__title">{{ title }}</div><slot/><slot name="modal-footer"></slot></div>',
+                    },
+                    'sw-extension-permissions-details-modal': true,
+                    'sw-extension-domains-modal': true,
+                    'router-link': true,
+                    'sw-loader': true,
+                },
             },
-            'sw-extension-permissions-details-modal': true,
-            'sw-icon': true,
+            props: {
+                ...propsData,
+            },
         },
-    });
+    );
 }
 
 /**
- * @package merchant-services
+ * @sw-package checkout
  */
 describe('src/module/sw-extension/component/sw-extension-permissions-modal', () => {
-    /** @type Wrapper */
-    let wrapper;
-
-    afterEach(() => {
-        if (wrapper) wrapper.destroy();
-    });
-
-    it('should be a Vue.JS component', async () => {
-        wrapper = await createWrapper({
-            extensionLabel: 'Sample Extension Label',
-            actionLabel: null,
-            permissions: {
-                product: [{}],
-                promotion: [{}],
-            },
-        });
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should have the correct title, discription and icon', async () => {
-        wrapper = await createWrapper({
+        const wrapper = await createWrapper({
             extensionLabel: 'Sample Extension Label',
             actionLabel: null,
             permissions: {
@@ -64,26 +46,31 @@ describe('src/module/sw-extension/component/sw-extension-permissions-modal', () 
             },
         });
 
-        expect(wrapper.find('.sw-modal__title').text()).toBe(JSON.stringify([
-            'sw-extension-store.component.sw-extension-permissions-modal.title',
-            1,
-            {
-                extensionLabel: 'Sample Extension Label',
-            },
-        ]));
+        expect(wrapper.find('.sw-modal__title').text()).toBe(
+            JSON.stringify([
+                'sw-extension-store.component.sw-extension-permissions-modal.title',
+                {
+                    extensionLabel: 'Sample Extension Label',
+                },
+                1,
+            ]),
+        );
 
-        expect(wrapper.find('.sw-extension-permissions-modal__description').text()).toBe(JSON.stringify([
-            'sw-extension-store.component.sw-extension-permissions-modal.description',
-            1,
-            { extensionLabel: 'Sample Extension Label' },
-        ]));
+        expect(wrapper.find('.sw-extension-permissions-modal__description').text()).toBe(
+            JSON.stringify([
+                'sw-extension-store.component.sw-extension-permissions-modal.description',
+                { extensionLabel: 'Sample Extension Label' },
+                1,
+            ]),
+        );
 
-        expect(wrapper.find('.sw-extension-permissions-modal__image')
-            .attributes().src).toBe('administration/static/img/extension-store/permissions.svg');
+        expect(wrapper.find('.sw-extension-permissions-modal__image').attributes().src).toBe(
+            'administration/static/img/extension-store/permissions.svg',
+        );
     });
 
     it('should display two detail links and open the correct detail page', async () => {
-        wrapper = await createWrapper({
+        const wrapper = await createWrapper({
             extensionLabel: 'Sample Extension Label',
             actionLabel: null,
             permissions: {
@@ -94,16 +81,21 @@ describe('src/module/sw-extension/component/sw-extension-permissions-modal', () 
 
         const category = wrapper.findAll('.sw-extension-permissions-modal__category');
 
-        expect(category.at(0).find('.sw-extension-permissions-modal__category-label').text()).toBe(JSON.stringify(
-            ['entityCategories.product.title'],
-        ));
+        expect(category.at(0).find('.sw-extension-permissions-modal__category-label').text()).toBe(
+            JSON.stringify(['entityCategories.product.title']),
+        );
 
-        expect(category.at(0).find('.sw-button__content').text()).toBe(JSON.stringify(
-            ['sw-extension-store.component.sw-extension-permissions-modal.textEntities'],
-        ));
+        let toggleButton = await findByText(
+            category.at(0),
+            'button',
+            JSON.stringify([
+                'sw-extension-store.component.sw-extension-permissions-modal.textEntities',
+            ]),
+        );
+        expect(toggleButton.exists()).toBe(true);
 
         // open details modal
-        await category.at(0).find('.sw-button__content').trigger('click');
+        await toggleButton.trigger('click');
         expect(wrapper.vm.selectedEntity).toBe('product');
         expect(wrapper.vm.showDetailsModal).toBe(true);
 
@@ -112,27 +104,38 @@ describe('src/module/sw-extension/component/sw-extension-permissions-modal', () 
         expect(wrapper.vm.selectedEntity).toBe('');
         expect(wrapper.vm.showDetailsModal).toBe(false);
 
-        expect(category.at(1).find('.sw-extension-permissions-modal__category-label').text()).toBe(JSON.stringify(
-            ['entityCategories.promotion.title'],
-        ));
+        expect(category.at(1).find('.sw-extension-permissions-modal__category-label').text()).toBe(
+            JSON.stringify(['entityCategories.promotion.title']),
+        );
 
-        expect(category.at(1).find('.sw-button__content').text()).toBe(JSON.stringify(
-            ['sw-extension-store.component.sw-extension-permissions-modal.textEntities'],
-        ));
+        toggleButton = await findByText(
+            category.at(1),
+            'button',
+            JSON.stringify([
+                'sw-extension-store.component.sw-extension-permissions-modal.textEntities',
+            ]),
+        );
 
         // open details modal
-        await category.at(1).find('.sw-button__content').trigger('click');
+        await toggleButton.trigger('click');
         expect(wrapper.vm.selectedEntity).toBe('promotion');
         expect(wrapper.vm.showDetailsModal).toBe(true);
     });
 
     [
         ['http://www.google.com'],
-        ['http://www.google.com', 'https://www.facebook.com'],
-        ['http://www.google.com', 'https://www.facebook.com', 'https://www.amazon.com'],
-    ].forEach(domains => {
+        [
+            'http://www.google.com',
+            'https://www.facebook.com',
+        ],
+        [
+            'http://www.google.com',
+            'https://www.facebook.com',
+            'https://www.amazon.com',
+        ],
+    ].forEach((domains) => {
         it(`should display domains hint with domain length of ${domains.length}`, async () => {
-            wrapper = await createWrapper({
+            const wrapper = await createWrapper({
                 extensionLabel: 'Sample Extension Label',
                 permissions: {
                     product: [{}],
@@ -147,11 +150,18 @@ describe('src/module/sw-extension/component/sw-extension-permissions-modal', () 
 
     [
         ['http://www.google.com'],
-        ['http://www.google.com', 'https://www.facebook.com'],
-        ['http://www.google.com', 'https://www.facebook.com', 'https://www.amazon.com'],
-    ].forEach(domains => {
+        [
+            'http://www.google.com',
+            'https://www.facebook.com',
+        ],
+        [
+            'http://www.google.com',
+            'https://www.facebook.com',
+            'https://www.amazon.com',
+        ],
+    ].forEach((domains) => {
         it('should display category domains', async () => {
-            wrapper = await createWrapper({
+            const wrapper = await createWrapper({
                 extensionLabel: 'Sample Extension Label',
                 permissions: {
                     product: [{}],
@@ -172,9 +182,9 @@ describe('src/module/sw-extension/component/sw-extension-permissions-modal', () 
         [],
         null,
         undefined,
-    ].forEach(domains => {
+    ].forEach((domains) => {
         it(`should not display domains hint when prop domains contains ${domains}`, async () => {
-            wrapper = await createWrapper({
+            const wrapper = await createWrapper({
                 extensionLabel: 'Sample Extension Label',
                 permissions: {
                     product: [{}],
@@ -187,14 +197,13 @@ describe('src/module/sw-extension/component/sw-extension-permissions-modal', () 
         });
     });
 
-
     [
         [],
         null,
         undefined,
-    ].forEach(domains => {
+    ].forEach((domains) => {
         it('should not display category domains', async () => {
-            wrapper = await createWrapper({
+            const wrapper = await createWrapper({
                 extensionLabel: 'Sample Extension Label',
                 permissions: {
                     product: [{}],

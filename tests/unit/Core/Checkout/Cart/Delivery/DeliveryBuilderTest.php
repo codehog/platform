@@ -2,12 +2,13 @@
 
 namespace Shopware\Tests\Unit\Core\Checkout\Cart\Delivery;
 
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\Cart;
 use Shopware\Core\Checkout\Cart\CartBehavior;
+use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\Delivery\DeliveryBuilder;
-use Shopware\Core\Checkout\Cart\Delivery\Struct\Delivery;
 use Shopware\Core\Checkout\Cart\Delivery\Struct\DeliveryDate;
 use Shopware\Core\Checkout\Cart\Delivery\Struct\DeliveryInformation;
 use Shopware\Core\Checkout\Cart\Delivery\Struct\DeliveryTime;
@@ -18,7 +19,6 @@ use Shopware\Core\Checkout\Cart\LineItem\LineItemCollection;
 use Shopware\Core\Checkout\Cart\Price\Struct\CalculatedPrice;
 use Shopware\Core\Checkout\Cart\Tax\Struct\CalculatedTaxCollection;
 use Shopware\Core\Checkout\Cart\Tax\Struct\TaxRuleCollection;
-use Shopware\Core\Checkout\Shipping\ShippingException;
 use Shopware\Core\Checkout\Shipping\ShippingMethodEntity;
 use Shopware\Core\System\Country\CountryEntity;
 use Shopware\Core\System\DeliveryTime\DeliveryTimeEntity;
@@ -26,24 +26,22 @@ use Shopware\Core\System\SalesChannel\SalesChannelContext;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Checkout\Cart\Delivery\DeliveryBuilder
  */
+#[CoversClass(DeliveryBuilder::class)]
 class DeliveryBuilderTest extends TestCase
 {
     public function testBuildThrowsIfNoShippingMethodCanBeFound(): void
     {
         $salesChannelContext = $this->createMock(SalesChannelContext::class);
-        $salesChannelContext->expects(static::any())
-            ->method('getShippingMethod')
+        $salesChannelContext->method('getShippingMethod')
             ->willReturn(
                 (new ShippingMethodEntity())->assign([
                     'id' => 'shipping-method-id',
                 ])
             );
 
-        static::expectException(ShippingException::class);
-        static::expectExceptionMessage('Shipping method with id "shipping-method-id" not found.');
+        $this->expectException(CartException::class);
+        $this->expectExceptionMessage('Could not find shipping method with id "shipping-method-id"');
         (new DeliveryBuilder())->build(
             new Cart('cart-token'),
             new CartDataCollection([]),
@@ -59,8 +57,7 @@ class DeliveryBuilderTest extends TestCase
         ]);
 
         $salesChannelContext = $this->createMock(SalesChannelContext::class);
-        $salesChannelContext->expects(static::any())
-            ->method('getShippingMethod')
+        $salesChannelContext->method('getShippingMethod')
             ->willReturn($shippingMethod);
 
         $cart = new Cart('cart-token');
@@ -68,7 +65,6 @@ class DeliveryBuilderTest extends TestCase
             'shipping-method-shipping-method-id' => $shippingMethod,
         ]);
 
-        /** @var DeliveryBuilder&MockObject $deliveryBuilder */
         $deliveryBuilder = $this->getMockBuilder(DeliveryBuilder::class)
             // don't mock build because it is the function under test
             ->onlyMethods(['buildByUsingShippingMethod'])
@@ -86,9 +82,7 @@ class DeliveryBuilderTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider getLineItemsThatResultInAnEmptyDelivery
-     */
+    #[DataProvider('getLineItemsThatResultInAnEmptyDelivery')]
     public function testLineItemResultInAnEmptyDelivery(LineItemCollection $lineItems): void
     {
         $cart = new Cart('cart-token');
@@ -100,7 +94,7 @@ class DeliveryBuilderTest extends TestCase
             $this->createMock(SalesChannelContext::class),
         );
 
-        static::assertEquals(0, $deliveries->count());
+        static::assertCount(0, $deliveries);
     }
 
     /**
@@ -110,14 +104,19 @@ class DeliveryBuilderTest extends TestCase
     {
         yield 'DeliveryCollection is empty if LineItemCollection is empty' => [new LineItemCollection()];
 
+        yield 'DeliveryCollection is empty if LineItem is not aware of shipping costs' => [new LineItemCollection([
+            (new LineItem('line-item-id', LineItem::CUSTOM_LINE_ITEM_TYPE, null, 1))
+                ->assign(['shippingCostAware' => false, 'deliveryInformation' => new DeliveryInformation(10, 1, false, 5, self::createDeliveryTime(1, 3))]),
+        ])];
+
         yield 'DeliveryCollection is empty if no LineItem has set deliveryInformation' => [new LineItemCollection([
             (new LineItem('line-item-id', LineItem::CUSTOM_LINE_ITEM_TYPE, null, 1))
-                ->assign(['deliveryInformation' => null]),
+                ->assign(['deliveryInformation' => null, 'shippingCostAware' => true]),
         ])];
 
         yield 'DeliveryCollection is empty if LineItems deliveryTime is null' => [new LineItemCollection([
             (new LineItem('line-item-id', LineItem::CUSTOM_LINE_ITEM_TYPE, null, 1))
-                ->assign(['deliveryInformation' => new DeliveryInformation(10, 1, false, null, null)]),
+                ->assign(['deliveryInformation' => new DeliveryInformation(10, 1, false, null, null), 'shippingCostAware' => true]),
         ])];
 
         $deliveryTime = self::createDeliveryTime(1, 3);
@@ -127,13 +126,12 @@ class DeliveryBuilderTest extends TestCase
                 ->assign([
                     'deliveryInformation' => new DeliveryInformation(10, 1, false, 5, $deliveryTime),
                     'price' => null,
+                    'shippingCostAware' => null,
                 ]),
         ])];
     }
 
-    /**
-     * @dataProvider provideLineItemDataForSingleDelivery
-     */
+    #[DataProvider('provideLineItemDataForSingleDelivery')]
     public function testDeliveryTimesForSingleDelivery(LineItemCollection $lineItems, DeliveryDate $expectedDeliveryDate): void
     {
         $cart = new Cart('cart-token');
@@ -151,10 +149,10 @@ class DeliveryBuilderTest extends TestCase
 
         $deliveryCollection = (new DeliveryBuilder())->buildByUsingShippingMethod($cart, $shippingMethod, $salesChannelContext);
 
-        static::assertEquals(1, $deliveryCollection->count());
+        static::assertCount(1, $deliveryCollection);
 
-        /** @var Delivery $delivery */
         $delivery = $deliveryCollection->first();
+        static::assertNotNull($delivery);
 
         static::assertSame($shippingMethod, $delivery->getShippingMethod());
         static::assertSame($deliveryLocation, $delivery->getLocation());
@@ -177,6 +175,19 @@ class DeliveryBuilderTest extends TestCase
                     ->assign([
                         'deliveryInformation' => self::createDeliveryInformation(null, 0),
                         'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
+                    ]),
+            ]),
+            DeliveryDate::createFromDeliveryTime(self::createDeliveryTime(2, 3)),
+        ];
+
+        yield 'Shipping method delivery data is used if LineItem has no delivery information' => [
+            new LineItemCollection([
+                (new LineItem('line-item-id', LineItem::PROMOTION_LINE_ITEM_TYPE, null, 1))
+                    ->assign([
+                        'deliveryInformation' => null,
+                        'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
                     ]),
             ]),
             DeliveryDate::createFromDeliveryTime(self::createDeliveryTime(2, 3)),
@@ -188,6 +199,7 @@ class DeliveryBuilderTest extends TestCase
                     ->assign([
                         'deliveryInformation' => self::createDeliveryInformation(self::createDeliveryTime(4, 5), 0),
                         'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
                     ]),
             ]),
             DeliveryDate::createFromDeliveryTime(self::createDeliveryTime(4, 5)),
@@ -199,6 +211,7 @@ class DeliveryBuilderTest extends TestCase
                     ->assign([
                         'deliveryInformation' => self::createDeliveryInformation(self::createDeliveryTime(4, 5), 2),
                         'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
                     ]),
             ]),
             DeliveryDate::createFromDeliveryTime(self::createDeliveryTime(6, 7)),
@@ -208,11 +221,13 @@ class DeliveryBuilderTest extends TestCase
             new LineItemCollection([
                 (new LineItem('parent-line-item', LineItem::CUSTOM_LINE_ITEM_TYPE, null, 1))
                     ->assign([
+                        'shippingCostAware' => true,
                         'children' => new LineItemCollection([
                             (new LineItem('line-item-id', LineItem::CUSTOM_LINE_ITEM_TYPE, null, 1))
                                 ->assign([
                                     'deliveryInformation' => self::createDeliveryInformation(self::createDeliveryTime(4, 5), 0),
                                     'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                                    'shippingCostAware' => true,
                                 ]),
                         ]),
                     ]),
@@ -226,11 +241,13 @@ class DeliveryBuilderTest extends TestCase
                     ->assign([
                         'deliveryInformation' => self::createDeliveryInformation(self::createDeliveryTime(2, 8), 2),
                         'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
                     ]),
                 (new LineItem('second-line-item-id', LineItem::CUSTOM_LINE_ITEM_TYPE, null, 1))
                     ->assign([
                         'deliveryInformation' => self::createDeliveryInformation(self::createDeliveryTime(4, 6), 2),
                         'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
                     ]),
             ]),
             DeliveryDate::createFromDeliveryTime(self::createDeliveryTime(4, 8)),
@@ -242,6 +259,7 @@ class DeliveryBuilderTest extends TestCase
                     ->assign([
                         'deliveryInformation' => self::createDeliveryInformation(self::createDeliveryTime(2, 2), 2),
                         'price' => new CalculatedPrice(0, 0, new CalculatedTaxCollection(), new TaxRuleCollection()),
+                        'shippingCostAware' => true,
                     ]),
             ]),
             DeliveryDate::createFromDeliveryTime(self::createDeliveryTime(2, 3)),

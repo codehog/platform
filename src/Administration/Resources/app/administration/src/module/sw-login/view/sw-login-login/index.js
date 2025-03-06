@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import getErrorCode from 'src/core/data/error-codes/login.error-codes';
@@ -8,12 +8,23 @@ import template from './sw-login-login.html.twig';
 const { Component, Mixin } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  */
 Component.register('sw-login-login', {
     template,
 
-    inject: ['loginService', 'userService', 'licenseViolationService'],
+    inject: [
+        'loginService',
+        'userService',
+        'licenseViolationService',
+    ],
+
+    emits: [
+        'is-loading',
+        'is-not-loading',
+        'login-success',
+        'login-error',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -23,6 +34,7 @@ Component.register('sw-login-login', {
         return {
             username: '',
             password: '',
+            rememberMe: false,
             loginAlertMessage: '',
         };
     },
@@ -35,7 +47,7 @@ Component.register('sw-login-login', {
 
     created() {
         if (!localStorage.getItem('sw-admin-locale')) {
-            Shopware.State.dispatch('setAdminLocale', navigator.language);
+            Shopware.Store.get('session').setAdminLocale(navigator.language);
         }
     },
 
@@ -43,7 +55,10 @@ Component.register('sw-login-login', {
         loginUserWithPassword() {
             this.$emit('is-loading');
 
-            return this.loginService.loginByUsername(this.username, this.password)
+            this.loginService.setRememberMe(this.rememberMe);
+
+            return this.loginService
+                .loginByUsername(this.username, this.password)
                 .then(() => {
                     this.handleLoginSuccess();
                     this.$emit('is-not-loading');
@@ -89,7 +104,11 @@ Component.register('sw-login-login', {
 
             const firstRunWizard = Shopware.Context.app.firstRunWizard;
 
-            if (firstRunWizard && !this.$router.history.current.name.startsWith('sw.first.run.wizard.')) {
+            if (
+                firstRunWizard &&
+                !this.$router?.currentRoute?.value?.name?.startsWith('sw.first.run.wizard') &&
+                this.$router.hasRoute('sw.first.run.wizard.index')
+            ) {
                 this.$router.push({ name: 'sw.first.run.wizard.index' });
                 return;
             }
@@ -127,7 +146,7 @@ Component.register('sw-login-login', {
 
             if (parseInt(error.status, 10) === 429) {
                 const seconds = error?.meta?.parameters?.seconds;
-                this.loginAlertMessage = this.$tc('sw-login.index.messageAuthThrottled', 0, { seconds });
+                this.loginAlertMessage = this.$tc('sw-login.index.messageAuthThrottled', { seconds }, 0);
 
                 setTimeout(() => {
                     this.loginAlertMessage = '';

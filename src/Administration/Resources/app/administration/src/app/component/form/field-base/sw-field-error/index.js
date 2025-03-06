@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-field-error.html.twig';
@@ -44,7 +44,7 @@ Component.register('sw-field-error', {
             }
 
             const formattedParameters = {};
-            Object.keys(parameters).forEach(key => {
+            Object.keys(parameters).forEach((key) => {
                 if (parameters.hasOwnProperty(key)) {
                     const formattedKey = key.replace(/{{\s*(.*?)\s*}}/, '$1');
                     formattedParameters[formattedKey] = parameters[key];

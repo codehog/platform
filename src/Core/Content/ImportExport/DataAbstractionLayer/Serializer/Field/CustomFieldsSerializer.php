@@ -2,6 +2,7 @@
 
 namespace Shopware\Core\Content\ImportExport\DataAbstractionLayer\Serializer\Field;
 
+use Shopware\Core\Content\ImportExport\ImportExportException;
 use Shopware\Core\Content\ImportExport\Struct\Config;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\CustomFields;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\Field;
@@ -10,7 +11,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\FieldSerializer\CustomFieldsSer
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\CustomField\CustomFieldService;
 
-#[Package('core')]
+#[Package('fundamentals@after-sales')]
 class CustomFieldsSerializer extends FieldSerializer
 {
     /**
@@ -23,14 +24,12 @@ class CustomFieldsSerializer extends FieldSerializer
     }
 
     /**
-     * @param mixed|null $value
-     *
      * @return iterable<string, mixed>
      */
     public function serialize(Config $config, Field $field, $value): iterable
     {
         if (!$field instanceof CustomFields) {
-            throw new \InvalidArgumentException('Expected field to be an instance of ' . CustomFields::class);
+            throw ImportExportException::invalidInstanceType('field', CustomFields::class);
         }
 
         if (!\is_array($value)) {
@@ -52,13 +51,11 @@ class CustomFieldsSerializer extends FieldSerializer
 
     /**
      * @param mixed|null $value
-     *
-     * @return mixed|null
      */
-    public function deserialize(Config $config, Field $field, $value)
+    public function deserialize(Config $config, Field $field, $value): mixed
     {
         if (!$field instanceof CustomFields) {
-            throw new \InvalidArgumentException('Expected CustomFields');
+            throw ImportExportException::invalidInstanceType('field', CustomFields::class);
         }
 
         if (!\is_array($value)) {
@@ -110,7 +107,7 @@ class CustomFieldsSerializer extends FieldSerializer
 
         $customFields = $this->customFieldsSerializer->decode($field, $customFields);
 
-        if (!\is_array($customFields)) {
+        if (!\is_array($customFields) || empty($customFields)) {
             return null;
         }
 

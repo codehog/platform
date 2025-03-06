@@ -2,11 +2,15 @@
 
 namespace Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Integration\Calculation;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Ticket;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Cart\CartException;
 use Shopware\Core\Checkout\Cart\LineItem\LineItem;
 use Shopware\Core\Checkout\Cart\Price\Struct\CalculatedPrice;
 use Shopware\Core\Checkout\Cart\SalesChannel\CartService;
+use Shopware\Core\Checkout\Promotion\PromotionCollection;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Defaults;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Log\Package;
@@ -14,9 +18,9 @@ use Shopware\Core\Framework\Test\TestCaseBase\IntegrationTestBehaviour;
 use Shopware\Core\Framework\Util\Random;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionIntegrationTestBehaviour;
+use Shopware\Core\Test\Integration\Traits\Promotion\PromotionTestFixtureBehaviour;
 use Shopware\Core\Test\TestDefaults;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionIntegrationTestBehaviour;
-use Shopware\Tests\Integration\Core\Checkout\Cart\Promotion\Helpers\Traits\PromotionTestFixtureBehaviour;
 
 /**
  * @internal
@@ -28,19 +32,25 @@ class PromotionPercentageCalculationTest extends TestCase
     use PromotionIntegrationTestBehaviour;
     use PromotionTestFixtureBehaviour;
 
+    /**
+     * @var EntityRepository<ProductCollection>
+     */
     protected EntityRepository $productRepository;
 
     protected CartService $cartService;
 
+    /**
+     * @var EntityRepository<PromotionCollection>
+     */
     protected EntityRepository $promotionRepository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->productRepository = $this->getContainer()->get('product.repository');
-        $this->promotionRepository = $this->getContainer()->get('promotion.repository');
-        $this->cartService = $this->getContainer()->get(CartService::class);
+        $this->productRepository = static::getContainer()->get('product.repository');
+        $this->promotionRepository = static::getContainer()->get('promotion.repository');
+        $this->cartService = static::getContainer()->get(CartService::class);
     }
 
     /**
@@ -48,22 +58,21 @@ class PromotionPercentageCalculationTest extends TestCase
      * We add a product to the cart and apply a code for a promotion with 100% discount.
      * Our cart should have a total value of 0,00 in the end.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function test100PercentageDiscount(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 29, 17, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 29, 17, static::getContainer(), $context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $code, 100, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $code, 100, null, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -84,22 +93,21 @@ class PromotionPercentageCalculationTest extends TestCase
      * We add a product to the cart and apply a code for a promotion with 50% discount.
      * Our cart should have a total value of 15,00 in the end.
      *
-     * @group promotions
-     *
      * @throws CartException
      */
+    #[Group('promotions')]
     public function test50PercentageDiscount(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 100, 20, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 100, 20, static::getContainer(), $context);
 
         // add a new promotion black friday
-        $this->createTestFixturePercentagePromotion($promotionId, $code, 50, null, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $code, 50, null, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -147,22 +155,21 @@ class PromotionPercentageCalculationTest extends TestCase
      * We have a 100 EUR product and 50% OFF but a maximum
      * of 30 EUR discount. This means our cart should be minimum 70 EUR in the end.
      * We have
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function test50PercentageDiscountWithMaximumValue(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 100, 20, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 100, 20, static::getContainer(), $context);
 
         // add a new promotion with 50% discount but a maximum of 30 EUR.
         // our product costs 100 EUR, which should now be 70 EUR due to the threshold
-        $this->createTestFixturePercentagePromotion($promotionId, $code, 50, 30.0, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $code, 50, 30.0, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -185,15 +192,14 @@ class PromotionPercentageCalculationTest extends TestCase
      * a max global threshold of 40 EUR.
      * But for your currency, we use 30 EUR instead.
      * Our test needs to verify that we use 30 EUR, and end with a product sum of 70 EUR in the end.
-     *
-     * @group promotions
      */
+    #[Group('promotions')]
     public function test50PercentageDiscountWithMaximumValueAndCurrencies(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $productGross = 100;
         $percentage = 50;
@@ -203,11 +209,11 @@ class PromotionPercentageCalculationTest extends TestCase
         $expectedPrice = $productGross - $currencyMaxValue;
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, $productGross, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, $productGross, 19, static::getContainer(), $context);
 
-        $discountId = $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, $maxValueGlobal, $this->getContainer());
+        $discountId = $this->createTestFixturePercentagePromotion($promotionId, $code, $percentage, $maxValueGlobal, static::getContainer());
 
-        $this->createTestFixtureAdvancedPrice($discountId, Defaults::CURRENCY, $currencyMaxValue, $this->getContainer());
+        $this->createTestFixtureAdvancedPrice($discountId, Defaults::CURRENCY, $currencyMaxValue, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 
@@ -228,22 +234,20 @@ class PromotionPercentageCalculationTest extends TestCase
      * product total sum is 0,00 but we still have a promotion that will be calculated.
      * We fake a product with 0,00 price and just try to add our promotion in here.
      * We must not get a division by zero!
-     *
-     * @group promotions
-     *
-     * @ticket NEXT-4146
      */
+    #[Ticket('NEXT-4146')]
+    #[Group('promotions')]
     public function testPercentagePromotionDivisionByZero(): void
     {
         $productId = Uuid::randomHex();
         $promotionId = Uuid::randomHex();
         $code = 'BF' . Random::getAlphanumericString(5);
-        $context = $this->getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
+        $context = static::getContainer()->get(SalesChannelContextFactory::class)->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         // add a new sample product
-        $this->createTestFixtureProduct($productId, 0, 19, $this->getContainer(), $context);
+        $this->createTestFixtureProduct($productId, 0, 19, static::getContainer(), $context);
         // add a new percentage promotion
-        $this->createTestFixturePercentagePromotion($promotionId, $code, 100.0, 100.0, $this->getContainer());
+        $this->createTestFixturePercentagePromotion($promotionId, $code, 100.0, 100.0, static::getContainer());
 
         $cart = $this->cartService->getCart($context->getToken(), $context);
 

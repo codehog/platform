@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package checkout
  */
 import template from './sw-bulk-edit-save-modal-success.html.twig';
 import './sw-bulk-edit-save-modal-success.scss';
@@ -10,7 +10,15 @@ const { Criteria } = Shopware.Data;
 export default {
     template,
 
-    inject: ['repositoryFactory', 'orderDocumentApiService'],
+    inject: [
+        'repositoryFactory',
+        'orderDocumentApiService',
+    ],
+
+    emits: [
+        'title-set',
+        'buttons-update',
+    ],
 
     mixins: [
         Shopware.Mixin.getByName('notification'),
@@ -42,16 +50,21 @@ export default {
         },
 
         selectedIds() {
-            return Shopware.State.get('shopwareApps').selectedIds;
+            return Shopware.Store.get('shopwareApps').selectedIds;
         },
 
         downloadOrderDocuments() {
-            return Shopware.State.get('swBulkEdit')?.orderDocuments?.download;
+            return Shopware.Store.get('swBulkEdit')?.orderDocuments?.download;
         },
 
         latestDocumentsCriteria() {
             const criteria = new Criteria(1, null);
-            criteria.addFilter(Criteria.equalsAny('documentTypeId', this.selectedDocumentTypes.map(item => item.id)));
+            criteria.addFilter(
+                Criteria.equalsAny(
+                    'documentTypeId',
+                    this.selectedDocumentTypes.map((item) => item.id),
+                ),
+            );
             criteria.addFilter(Criteria.equalsAny('orderId', this.selectedIds));
             criteria.addSorting(Criteria.sort('createdAt', 'DESC'));
 
@@ -121,17 +134,17 @@ export default {
 
             const documents = await this.documentRepository.search(this.latestDocumentsCriteria);
 
-            this.selectedDocumentTypes.forEach(documentType => {
+            this.selectedDocumentTypes.forEach((documentType) => {
                 latestDocuments[documentType.technicalName] ??= [];
                 const latestDoc = latestDocuments[documentType.technicalName];
 
-                const documentsGrouped = documents.filter(document => {
+                const documentsGrouped = documents.filter((document) => {
                     return document.documentTypeId === documentType.id;
                 });
 
                 const latestDocKeyedByOrderId = {};
 
-                documentsGrouped.forEach(doc => {
+                documentsGrouped.forEach((doc) => {
                     if (Object.values(latestDoc).length === maxDocsPerType) {
                         return;
                     }
@@ -157,8 +170,9 @@ export default {
                 return Promise.resolve();
             }
 
-            this.$set(this.document[documentType], 'isDownloading', true);
-            return this.orderDocumentApiService.download(documentIds)
+            this.document[documentType].isDownloading = true;
+            return this.orderDocumentApiService
+                .download(documentIds)
                 .then((response) => {
                     if (!response.data) {
                         return;
@@ -177,7 +191,7 @@ export default {
                     });
                 })
                 .finally(() => {
-                    this.$set(this.document[documentType], 'isDownloading', false);
+                    this.document[documentType].isDownloading = false;
                 });
         },
     },

@@ -2,11 +2,13 @@
 
 namespace Shopware\Tests\Unit\Core\System\Snippet\Mock;
 
+use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\System\Snippet\Files\AbstractSnippetFile;
 
 /**
  * @internal
  */
+#[Package('discovery')]
 class MockSnippetFile extends AbstractSnippetFile
 {
     private readonly string $iso;
@@ -28,7 +30,7 @@ class MockSnippetFile extends AbstractSnippetFile
 
     public function getPath(): string
     {
-        return sprintf('%s/_fixtures/%s.json', __DIR__, $this->getName());
+        return \sprintf('%s/_fixtures/%s.json', __DIR__, $this->getName());
     }
 
     public function getIso(): string

@@ -28,7 +28,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Field\UpdatedAtField;
 use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Struct\ArrayEntity;
 
-#[Package('core')]
+#[Package('framework')]
 abstract class EntityDefinition
 {
     protected ?CompiledFieldCollection $fields = null;
@@ -54,16 +54,13 @@ abstract class EntityDefinition
      */
     protected array $extensionFields = [];
 
-    /**
-     * @var EntityDefinition|false|null
-     */
-    private $parentDefinition = false;
+    private EntityDefinition|false|null $parentDefinition = false;
 
     private string $className;
 
     private ?FieldVisibility $fieldVisibility = null;
 
-    final public function __construct()
+    public function __construct()
     {
         $this->className = static::class;
     }
@@ -106,6 +103,20 @@ abstract class EntityDefinition
                 $this->fields = null;
 
                 return;
+            }
+        }
+    }
+
+    /**
+     * @internal
+     * Intended for use only in plugin lifecycle processes. Avoid using it for other cases as it can have unintended side effects.
+     */
+    final public function removeExtensions(string $namespacePrefix): void
+    {
+        foreach ($this->extensions as $key => $extension) {
+            if (\str_starts_with($extension::class, $namespacePrefix)) {
+                unset($this->extensions[$key]);
+                $this->fields = null;
             }
         }
     }
@@ -155,7 +166,7 @@ abstract class EntityDefinition
                 }
 
                 if (!$this->hasAssociationWithStorageName($field->getStorageName(), $new)) {
-                    throw new \Exception(sprintf('FkField %s has no configured OneToOneAssociationField or ManyToOneAssociationField in entity %s', $field->getPropertyName(), $this->className));
+                    throw new \Exception(\sprintf('FkField %s has no configured OneToOneAssociationField or ManyToOneAssociationField in entity %s', $field->getPropertyName(), $this->className));
                 }
 
                 $fields->add($field);
@@ -282,6 +293,11 @@ abstract class EntityDefinition
         return $this->getField('autoIncrement') instanceof AutoIncrementField;
     }
 
+    final public function hasCreatedAndUpdatedAtFields(): bool
+    {
+        return $this->getField('createdAt') instanceof CreatedAtField && $this->getField('updatedAt') instanceof UpdatedAtField;
+    }
+
     final public function getPrimaryKeys(): CompiledFieldCollection
     {
         if ($this->primaryKeys !== null) {
@@ -370,7 +386,7 @@ abstract class EntityDefinition
         $field = $this->getField($property);
 
         if ($field === null) {
-            throw new \RuntimeException(sprintf('Field %s not found', $property));
+            throw new \RuntimeException(\sprintf('Field %s not found', $property));
         }
 
         return $field->getSerializer()->decode($field, $value);

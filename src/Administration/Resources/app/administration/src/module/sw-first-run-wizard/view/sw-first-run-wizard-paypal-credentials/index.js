@@ -1,11 +1,16 @@
 import template from './sw-first-run-wizard-paypal-credentials.html.twig';
 
 /**
- * @package merchant-services
+ * @sw-package fundamentals@after-sales
  */
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
+
+    emits: [
+        'frw-set-title',
+        'buttons-update',
+    ],
 
     computed: {
         buttonConfig() {

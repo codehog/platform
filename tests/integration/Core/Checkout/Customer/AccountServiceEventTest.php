@@ -3,14 +3,13 @@
 namespace Shopware\Tests\Integration\Core\Checkout\Customer;
 
 use PHPUnit\Framework\TestCase;
-use Shopware\Core\Checkout\Customer\CustomerEntity;
+use Shopware\Core\Checkout\Customer\CustomerCollection;
 use Shopware\Core\Checkout\Customer\Event\CustomerBeforeLoginEvent;
-use Shopware\Core\Checkout\Customer\Event\CustomerChangedPaymentMethodEvent;
 use Shopware\Core\Checkout\Customer\Event\CustomerLoginEvent;
 use Shopware\Core\Checkout\Customer\Event\CustomerLogoutEvent;
 use Shopware\Core\Checkout\Customer\Exception\BadCredentialsException;
+use Shopware\Core\Checkout\Customer\SalesChannel\AbstractLoginRoute;
 use Shopware\Core\Checkout\Customer\SalesChannel\AccountService;
-use Shopware\Core\Checkout\Customer\SalesChannel\ChangePaymentMethodRoute;
 use Shopware\Core\Checkout\Customer\SalesChannel\LoginRoute;
 use Shopware\Core\Checkout\Customer\SalesChannel\LogoutRoute;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -21,42 +20,39 @@ use Shopware\Core\Framework\Test\TestCaseBase\SalesChannelFunctionalTestBehaviou
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\Framework\Validation\DataBag\DataBag;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
-use Shopware\Core\System\SalesChannel\Context\AbstractSalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\Context\SalesChannelContextFactory;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\Test\TestDefaults;
-use Symfony\Component\HttpKernel\Debug\TraceableEventDispatcher;
 
 /**
  * @internal
  */
-#[Package('customer-order')]
+#[Package('checkout')]
 class AccountServiceEventTest extends TestCase
 {
     use SalesChannelFunctionalTestBehaviour;
 
     private AccountService $accountService;
 
+    /**
+     * @var EntityRepository<CustomerCollection>
+     */
     private EntityRepository $customerRepository;
 
     private SalesChannelContext $salesChannelContext;
 
-    private LoginRoute $loginRoute;
+    private AbstractLoginRoute $loginRoute;
 
     private LogoutRoute $logoutRoute;
 
-    private ChangePaymentMethodRoute $changePaymentMethodRoute;
-
     protected function setUp(): void
     {
-        $this->accountService = $this->getContainer()->get(AccountService::class);
-        $this->customerRepository = $this->getContainer()->get('customer.repository');
-        $this->logoutRoute = $this->getContainer()->get(LogoutRoute::class);
-        $this->changePaymentMethodRoute = $this->getContainer()->get(ChangePaymentMethodRoute::class);
-        $this->loginRoute = $this->getContainer()->get(LoginRoute::class);
+        $this->accountService = static::getContainer()->get(AccountService::class);
+        $this->customerRepository = static::getContainer()->get('customer.repository');
+        $this->logoutRoute = static::getContainer()->get(LogoutRoute::class);
+        $this->loginRoute = static::getContainer()->get(LoginRoute::class);
 
-        /** @var AbstractSalesChannelContextFactory $salesChannelContextFactory */
-        $salesChannelContextFactory = $this->getContainer()->get(SalesChannelContextFactory::class);
+        $salesChannelContextFactory = static::getContainer()->get(SalesChannelContextFactory::class);
         $this->salesChannelContext = $salesChannelContextFactory->create(Uuid::randomHex(), TestDefaults::SALES_CHANNEL);
 
         $this->createCustomer('info@example.com');
@@ -64,8 +60,7 @@ class AccountServiceEventTest extends TestCase
 
     public function testLoginBeforeEventNotDispatchedIfNoCredentialsGiven(): void
     {
-        /** @var TraceableEventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $eventDidRun = false;
 
@@ -80,7 +75,7 @@ class AccountServiceEventTest extends TestCase
 
         try {
             $this->loginRoute->login($dataBag->toRequestDataBag(), $this->salesChannelContext);
-            $this->accountService->login('', $this->salesChannelContext);
+            $this->accountService->loginByCredentials('', 'shopware', $this->salesChannelContext);
         } catch (BadCredentialsException) {
             // nth
         }
@@ -91,8 +86,7 @@ class AccountServiceEventTest extends TestCase
 
     public function testLoginEventsDispatched(): void
     {
-        /** @var TraceableEventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $eventsToTest = [
             CustomerBeforeLoginEvent::class,
@@ -125,7 +119,7 @@ class AccountServiceEventTest extends TestCase
 
             $eventDidRun = false;
 
-            $this->accountService->login('info@example.com', $this->salesChannelContext);
+            $this->accountService->loginByCredentials('info@example.com', 'shopware', $this->salesChannelContext);
             /** @phpstan-ignore-next-line - $eventDidRun updated value on listener */
             static::assertTrue($eventDidRun, 'Event "' . $eventClass . '" did not run');
 
@@ -136,8 +130,7 @@ class AccountServiceEventTest extends TestCase
     public function testLogoutEventsDispatched(): void
     {
         $email = 'info@example.com';
-        /** @var TraceableEventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
+        $dispatcher = static::getContainer()->get('event_dispatcher');
 
         $eventDidRun = false;
 
@@ -161,56 +154,23 @@ class AccountServiceEventTest extends TestCase
         $dispatcher->removeListener(CustomerLogoutEvent::class, $listenerClosure);
     }
 
-    public function testChangeDefaultPaymentMethod(): void
-    {
-        $email = 'info@example.com';
-        /** @var TraceableEventDispatcher $dispatcher */
-        $dispatcher = $this->getContainer()->get('event_dispatcher');
-
-        $eventDidRun = false;
-
-        $listenerClosure = $this->getCustomerListenerClosure($eventDidRun);
-        $this->addEventListener($dispatcher, CustomerChangedPaymentMethodEvent::class, $listenerClosure);
-
-        /** @var CustomerEntity $customer */
-        $customer = $this->customerRepository->search(
-            (new Criteria())->addFilter(new EqualsFilter('email', $email)),
-            $this->salesChannelContext->getContext()
-        )->first();
-
-        $this->salesChannelContext->assign(['customer' => $customer]);
-
-        static::assertNotNull($customer = $this->salesChannelContext->getCustomer());
-        static::assertSame($email, $customer->getEmail());
-
-        $this->changePaymentMethodRoute->change(
-            $customer->getDefaultPaymentMethodId(),
-            new RequestDataBag(),
-            $this->salesChannelContext,
-            $customer
-        );
-        static::assertTrue($eventDidRun, 'Event "' . CustomerChangedPaymentMethodEvent::class . '" did not run');
-
-        $dispatcher->removeListener(CustomerChangedPaymentMethodEvent::class, $listenerClosure);
-    }
-
     /**
      * @return callable(CustomerBeforeLoginEvent): void
      */
     private function getEmailListenerClosure(bool &$eventDidRun): callable
     {
-        return function (CustomerBeforeLoginEvent $event) use (&$eventDidRun): void {
+        return static function (CustomerBeforeLoginEvent $event) use (&$eventDidRun): void {
             $eventDidRun = true;
             static::assertSame('info@example.com', $event->getEmail());
         };
     }
 
     /**
-     * @return callable(CustomerLoginEvent|CustomerLogoutEvent|CustomerChangedPaymentMethodEvent): void
+     * @return callable(CustomerLoginEvent|CustomerLogoutEvent): void
      */
     private function getCustomerListenerClosure(bool &$eventDidRun): callable
     {
-        return function (CustomerLoginEvent|CustomerLogoutEvent|CustomerChangedPaymentMethodEvent $event) use (&$eventDidRun): void {
+        return static function (CustomerLoginEvent|CustomerLogoutEvent $event) use (&$eventDidRun): void {
             $eventDidRun = true;
             static::assertSame('info@example.com', $event->getCustomer()->getEmail());
         };

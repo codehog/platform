@@ -53,6 +53,7 @@
         <service id="Shopware\Core\Content\Media\Message\GenerateThumbnailsHandler">
             <argument type="service" id="Shopware\Core\Content\Media\Thumbnail\ThumbnailService"/>
             <argument type="service" id="media.repository"/>
+            <argument>%shopware.media.remote_thumbnails.enable%</argument>
 
             <tag name="messenger.message_handler"/>
         </service>
@@ -66,8 +67,8 @@
         <!-- end of message handlers -->
 
         <service id="Shopware\Core\Content\Media\Subscriber\MediaLoadedSubscriber">
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface"/>
-            <tag name="kernel.event_subscriber"/>
+            <!-- unseralize read optimized (serialized) database objects > restores thumbnails from `RO` into real property-->
+            <tag name="kernel.event_listener" event="media.loaded" method="unserialize" priority="100" />
         </service>
 
         <service id="Shopware\Core\Content\Media\Subscriber\MediaFolderConfigLoadedSubscriber">
@@ -75,8 +76,12 @@
         </service>
 
         <!--File Services-->
+        <service id="Shopware\Core\Content\Media\File\FileService">
+        </service>
+
         <service id="Shopware\Core\Content\Media\File\FileFetcher">
             <argument type="service" id="Shopware\Core\Content\Media\File\FileUrlValidatorInterface" />
+            <argument type="service" id="Shopware\Core\Content\Media\File\FileService" />
             <argument>%shopware.media.enable_url_upload_feature%</argument>
             <argument>%shopware.media.enable_url_validation%</argument>
             <argument>%shopware.media.url_upload_max_size%</argument>
@@ -89,20 +94,21 @@
             <argument type="service" id="media.repository"/>
             <argument type="service" id="shopware.filesystem.public"/>
             <argument type="service" id="shopware.filesystem.private"/>
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface"/>
             <argument type="service" id="Shopware\Core\Content\Media\Thumbnail\ThumbnailService"/>
             <argument type="service" id="Shopware\Core\Content\Media\Metadata\MetadataLoader"/>
             <argument type="service" id="Shopware\Core\Content\Media\TypeDetector\TypeDetector"/>
-            <argument type="service" id="messenger.bus.shopware" />
+            <argument type="service" id="messenger.default_bus" />
             <argument type="service" id="event_dispatcher" />
+            <argument type="service" id="Shopware\Core\Content\Media\Core\Application\MediaLocationBuilder" />
+            <argument type="service" id="Shopware\Core\Content\Media\Core\Application\AbstractMediaPathStrategy" />
             <argument>%shopware.filesystem.allowed_extensions%</argument>
             <argument>%shopware.filesystem.private_allowed_extensions%</argument>
+            <argument>%shopware.media.remote_thumbnails.enable%</argument>
         </service>
 
         <service id="Shopware\Core\Content\Media\File\FileLoader">
             <argument type="service" id="shopware.filesystem.public"/>
             <argument type="service" id="shopware.filesystem.private"/>
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface"/>
             <argument type="service" id="media.repository"/>
             <argument type="service" id="Nyholm\Psr7\Factory\Psr17Factory"/>
         </service>
@@ -114,9 +120,10 @@
         <service id="Shopware\Core\Content\Media\File\DownloadResponseGenerator">
             <argument type="service" id="shopware.filesystem.public"/>
             <argument type="service" id="shopware.filesystem.private"/>
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface"/>
             <argument type="service" id="Shopware\Core\Content\Media\MediaService"/>
             <argument>%shopware.filesystem.private_local_download_strategy%</argument>
+            <argument type="service" id="Shopware\Core\Content\Media\Core\Application\AbstractMediaUrlGenerator"/>
+            <argument>%shopware.filesystem.private_local_path_prefix%</argument>
         </service>
 
         <!-- Commands -->
@@ -124,7 +131,8 @@
             <argument type="service" id="Shopware\Core\Content\Media\Thumbnail\ThumbnailService"/>
             <argument type="service" id="media.repository"/>
             <argument type="service" id="media_folder.repository"/>
-            <argument type="service" id="messenger.bus.shopware"/>
+            <argument type="service" id="messenger.default_bus"/>
+            <argument>%shopware.media.remote_thumbnails.enable%</argument>
 
             <tag name="console.command"/>
         </service>
@@ -138,48 +146,18 @@
 
         <service id="Shopware\Core\Content\Media\Commands\DeleteNotUsedMediaCommand" shared="false">
             <argument type="service" id="Shopware\Core\Content\Media\UnusedMediaPurger"/>
-            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="event_dispatcher" />
 
             <tag name="console.command"/>
         </service>
 
-        <!-- Pathname -->
-        <service class="Shopware\Core\Content\Media\Pathname\UrlGenerator" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface">
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PathnameStrategyInterface"/>
-            <argument type="service" id="shopware.filesystem.public"/>
+        <!-- Commands -->
+        <service id="Shopware\Core\Content\Media\Commands\DeleteThumbnailsCommand">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="media_thumbnail.repository"/>
+            <argument>%shopware.media.remote_thumbnails.enable%</argument>
 
-            <tag name="kernel.reset" method="reset"/>
-        </service>
-
-        <service id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\StrategyFactory">
-            <argument type="tagged" tag="shopware.pathname.strategy"/>
-        </service>
-
-        <service id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PathnameStrategyInterface">
-            <factory service="Shopware\Core\Content\Media\Pathname\PathnameStrategy\StrategyFactory" method="factory"/>
-            <argument>%shopware.cdn.strategy%</argument>
-        </service>
-
-        <service id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\FilenamePathnameStrategy">
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PlainPathnameStrategy"/>
-
-            <tag name="shopware.pathname.strategy"/>
-        </service>
-
-        <service id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PhysicalFilenamePathnameStrategy">
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PlainPathnameStrategy"/>
-
-            <tag name="shopware.pathname.strategy"/>
-        </service>
-
-        <service id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PlainPathnameStrategy">
-            <tag name="shopware.pathname.strategy"/>
-        </service>
-
-        <service id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\IdPathnameStrategy">
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\PathnameStrategy\PlainPathnameStrategy"/>
-
-            <tag name="shopware.pathname.strategy"/>
+            <tag name="console.command"/>
         </service>
 
         <!-- Controller -->
@@ -208,7 +186,7 @@
         </service>
 
         <service id="Shopware\Core\Content\Media\Metadata\MetadataLoader">
-            <argument type="tagged" tag="shopware.metadata.loader"/>
+            <argument type="tagged_iterator" tag="shopware.metadata.loader"/>
         </service>
 
         <!-- TypeDetector -->
@@ -232,18 +210,18 @@
             <tag name="shopware.media_type.detector" priority="10"/>
         </service>
 
+        <service id="Shopware\Core\Content\Media\TypeDetector\SpatialObjectTypeDetector">
+            <tag name="shopware.media_type.detector" priority="10"/>
+        </service>
+
         <service id="Shopware\Core\Content\Media\TypeDetector\TypeDetector">
-            <argument type="tagged" tag="shopware.media_type.detector"/>
+            <argument type="tagged_iterator" tag="shopware.media_type.detector"/>
         </service>
 
         <!-- Services -->
-        <service id="Shopware\Core\Content\Media\DeleteNotUsedMediaService">
-            <argument type="service" id="media.repository"/>
-            <argument type="service" id="media_default_folder.repository"/>
-        </service>
-
         <service id="Shopware\Core\Content\Media\UnusedMediaPurger">
             <argument type="service" id="media.repository"/>
+            <argument type="service" id="Doctrine\DBAL\Connection" />
             <argument type="service" id="event_dispatcher"/>
         </service>
 
@@ -257,8 +235,15 @@
             <argument type="service" id="media_thumbnail.repository"/>
             <argument type="service" id="shopware.filesystem.public"/>
             <argument type="service" id="shopware.filesystem.private"/>
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface"/>
             <argument type="service" id="media_folder.repository"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument type="service" id="Shopware\Core\Content\Media\DataAbstractionLayer\MediaIndexer"/>
+            <argument type="service" id="Shopware\Core\Content\Media\Thumbnail\ThumbnailSizeCalculator"/>
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument>%shopware.media.remote_thumbnails.enable%</argument>
+        </service>
+
+        <service id="Shopware\Core\Content\Media\Thumbnail\ThumbnailSizeCalculator">
         </service>
 
         <service id="Shopware\Core\Content\Media\MediaService">
@@ -267,6 +252,11 @@
             <argument type="service" id="Shopware\Core\Content\Media\File\FileLoader"/>
             <argument type="service" id="Shopware\Core\Content\Media\File\FileSaver"/>
             <argument type="service" id="Shopware\Core\Content\Media\File\FileFetcher"/>
+        </service>
+
+        <service id="Shopware\Core\Content\Media\MediaUrlPlaceholderHandlerInterface" class="Shopware\Core\Content\Media\MediaUrlPlaceholderHandler" public="true">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="Shopware\Core\Content\Media\Core\Application\AbstractMediaUrlGenerator"/>
         </service>
 
         <service id="Shopware\Core\Content\Media\Cms\DefaultMediaResolver">
@@ -325,14 +315,22 @@
         </service>
 
         <service id="Shopware\Core\Content\Media\Subscriber\MediaDeletionSubscriber">
-            <tag name="kernel.event_subscriber"/>
-            <argument type="service" id="Shopware\Core\Content\Media\Pathname\UrlGeneratorInterface"/>
             <argument type="service" id="event_dispatcher"/>
             <argument type="service" id="media_thumbnail.repository"/>
-            <argument type="service" id="messenger.bus.shopware"/>
+            <argument type="service" id="messenger.default_bus"/>
             <argument type="service" id="Shopware\Core\Content\Media\Message\DeleteFileHandler"/>
             <argument type="service" id="Doctrine\DBAL\Connection"/>
             <argument type="service" id="media.repository"/>
+
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="Shopware\Core\Content\Media\Subscriber\MediaVisibilityRestrictionSubscriber">
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="Shopware\Core\Content\Media\Subscriber\MediaCreationSubscriber">
+            <tag name="kernel.event_subscriber"/>
         </service>
 
         <service id="Shopware\Core\Content\Media\Subscriber\CustomFieldsUnusedMediaSubscriber">
@@ -340,6 +338,10 @@
             <argument type="service" id="Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry"/>
 
             <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="Shopware\Core\Content\Media\SalesChannel\MediaRoute" public="true">
+            <argument type="service" id="media.repository"/>
         </service>
     </services>
 </container>

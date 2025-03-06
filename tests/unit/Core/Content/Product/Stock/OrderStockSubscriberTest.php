@@ -3,6 +3,8 @@
 namespace Shopware\Tests\Unit\Core\Content\Product\Stock;
 
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Order\Aggregate\OrderLineItem\OrderLineItemDefinition;
 use Shopware\Core\Checkout\Order\OrderDefinition;
@@ -20,17 +22,16 @@ use Shopware\Core\Framework\DataAbstractionLayer\Write\Command\UpdateCommand;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityExistence;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\EntityWriteGatewayInterface;
 use Shopware\Core\Framework\DataAbstractionLayer\Write\WriteContext;
-use Shopware\Core\Framework\Test\IdsCollection;
 use Shopware\Core\System\StateMachine\Aggregation\StateMachineState\StateMachineStateEntity;
 use Shopware\Core\System\StateMachine\Event\StateMachineTransitionEvent;
-use Shopware\Tests\Unit\Common\Stubs\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\DataAbstractionLayer\StaticDefinitionInstanceRegistry;
+use Shopware\Core\Test\Stub\Framework\IdsCollection;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * @internal
- *
- * @covers \Shopware\Core\Content\Product\Stock\OrderStockSubscriber
  */
+#[CoversClass(OrderStockSubscriber::class)]
 class OrderStockSubscriberTest extends TestCase
 {
     private IdsCollection $ids;
@@ -183,13 +184,12 @@ class OrderStockSubscriberTest extends TestCase
     }
 
     /**
-     * @dataProvider orderItemWriteProvider
-     *
      * @param list<array{id: string, quantity: string, referenced_id: string}> $beforeState
      * @param list<array{id: string, quantity: string, referenced_id: string}> $afterState
      * @param list<array{lineItemId: string, productId: string, quantityBefore: int, newQuantity: int}> $expectedUpdates
      * @param list<array{type: 'insert'|'delete'|'update', id: string, state: array<string, mixed>}> $commands
      */
+    #[DataProvider('orderItemWriteProvider')]
     public function testOrderItemWrites(array $beforeState, array $afterState, array $expectedUpdates, array $commands): void
     {
         $idMapper = function (array $fields): callable {
@@ -294,7 +294,7 @@ class OrderStockSubscriberTest extends TestCase
                             []
                         ),
                         '/0'
-                    )
+                    ),
                 };
             },
             $commands
@@ -311,12 +311,12 @@ class OrderStockSubscriberTest extends TestCase
     public static function orderItemWriteProvider(): \Generator
     {
         yield 'new-orders' => [
-            'before-state' => [],
-            'after-state' => [
+            'beforeState' => [],
+            'afterState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-1'],
                 ['id' => 'item-2', 'quantity' => '10', 'referenced_id' => 'product-2'],
             ],
-            'expected-updates' => [
+            'expectedUpdates' => [
                 [
                     'lineItemId' => 'item-1',
                     'productId' => 'product-1',
@@ -343,13 +343,13 @@ class OrderStockSubscriberTest extends TestCase
         ];
 
         yield 'new-item-and-deleted-item' => [
-            'before-state' => [
+            'beforeState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-1'],
             ],
-            'after-state' => [
+            'afterState' => [
                 ['id' => 'item-2', 'quantity' => '10', 'referenced_id' => 'product-2'],
             ],
-            'expected-updates' => [
+            'expectedUpdates' => [
                 [
                     'lineItemId' => 'item-1',
                     'productId' => 'product-1',
@@ -376,12 +376,12 @@ class OrderStockSubscriberTest extends TestCase
         ];
 
         yield 'items-deleted' => [
-            'before-state' => [
+            'beforeState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-1'],
                 ['id' => 'item-2', 'quantity' => '10', 'referenced_id' => 'product-2'],
             ],
-            'after-state' => [],
-            'expected-updates' => [
+            'afterState' => [],
+            'expectedUpdates' => [
                 [
                     'lineItemId' => 'item-1',
                     'productId' => 'product-1',
@@ -408,15 +408,15 @@ class OrderStockSubscriberTest extends TestCase
         ];
 
         yield 'items-qty-changed' => [
-            'before-state' => [
+            'beforeState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-1'],
                 ['id' => 'item-2', 'quantity' => '5', 'referenced_id' => 'product-2'],
             ],
-            'after-state' => [
+            'afterState' => [
                 ['id' => 'item-1', 'quantity' => '20', 'referenced_id' => 'product-1'],
                 ['id' => 'item-2', 'quantity' => '3', 'referenced_id' => 'product-2'],
             ],
-            'expected-updates' => [
+            'expectedUpdates' => [
                 [
                     'lineItemId' => 'item-1',
                     'productId' => 'product-1',
@@ -445,13 +445,13 @@ class OrderStockSubscriberTest extends TestCase
         ];
 
         yield 'items-product-changed' => [
-            'before-state' => [
+            'beforeState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-1'],
             ],
-            'after-state' => [
+            'afterState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-2'],
             ],
-            'expected-updates' => [
+            'expectedUpdates' => [
                 [
                     'lineItemId' => 'item-1',
                     'productId' => 'product-1',
@@ -475,13 +475,13 @@ class OrderStockSubscriberTest extends TestCase
         ];
 
         yield 'items-product-and-qty-changed' => [
-            'before-state' => [
+            'beforeState' => [
                 ['id' => 'item-1', 'quantity' => '10', 'referenced_id' => 'product-1'],
             ],
-            'after-state' => [
+            'afterState' => [
                 ['id' => 'item-1', 'quantity' => '15', 'referenced_id' => 'product-2'],
             ],
-            'expected-updates' => [
+            'expectedUpdates' => [
                 [
                     'lineItemId' => 'item-1',
                     'productId' => 'product-1',
@@ -595,11 +595,13 @@ class OrderStockSubscriberTest extends TestCase
         $stockSubscriber->stateChanged($event);
     }
 
-    /**
-     * @dataProvider orderStateTransitionProvider
-     */
-    public function testStocksAreUpdatedWhenOrdersTransitionThroughStates(string $fromStateName, string $toStateName, int $quantityBefore, int $quantityAfter): void
-    {
+    #[DataProvider('orderStateTransitionProvider')]
+    public function testStocksAreUpdatedWhenOrdersTransitionThroughStates(
+        string $fromStateName,
+        string $toStateName,
+        int $quantityBefore,
+        int $quantityAfter
+    ): void {
         $context = Context::createDefaultContext();
 
         $fromState = new StateMachineStateEntity();
@@ -653,22 +655,22 @@ class OrderStockSubscriberTest extends TestCase
     }
 
     /**
-     * @return array<string, array{from-state: string, to-state: string, quantity-before: int, new-quantity: int}>
+     * @return array<string, array{fromStateName: string, toStateName: string, quantityBefore: int, quantityAfter: int}>
      */
     public static function orderStateTransitionProvider(): array
     {
         return [
             'order-cancelled' => [
-                'from-state' => OrderStates::STATE_OPEN,
-                'to-state' => OrderStates::STATE_CANCELLED,
-                'quantity-before' => 10,
-                'new-quantity' => 0,
+                'fromStateName' => OrderStates::STATE_OPEN,
+                'toStateName' => OrderStates::STATE_CANCELLED,
+                'quantityBefore' => 10,
+                'quantityAfter' => 0,
             ],
             'order-reopened' => [
-                'from-state' => OrderStates::STATE_CANCELLED,
-                'to-state' => OrderStates::STATE_OPEN,
-                'quantity-before' => 0,
-                'new-quantity' => 10,
+                'fromStateName' => OrderStates::STATE_CANCELLED,
+                'toStateName' => OrderStates::STATE_OPEN,
+                'quantityBefore' => 0,
+                'quantityAfter' => 10,
             ],
         ];
     }

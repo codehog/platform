@@ -1,5 +1,5 @@
 /**
- * @package system-settings
+ * @sw-package fundamentals@framework
  */
 import './acl';
 

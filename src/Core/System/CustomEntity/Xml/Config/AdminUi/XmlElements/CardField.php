@@ -13,23 +13,18 @@ use Symfony\Component\Config\Util\XmlUtils;
  *
  * @internal
  */
-#[Package('content')]
+#[Package('framework')]
 final class CardField extends ConfigXmlElement
 {
-    private function __construct(
-        protected readonly string $ref
-    ) {
-    }
-
-    public static function fromXml(\DOMElement $element): self
-    {
-        return new self(
-            XmlUtils::phpize($element->getAttribute('ref'))
-        );
-    }
+    protected string $ref;
 
     public function getRef(): string
     {
         return $this->ref;
+    }
+
+    protected static function parse(\DOMElement $element): array
+    {
+        return ['ref' => XmlUtils::phpize($element->getAttribute('ref'))];
     }
 }

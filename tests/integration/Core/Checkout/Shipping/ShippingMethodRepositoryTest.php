@@ -3,7 +3,7 @@
 namespace Shopware\Tests\Integration\Core\Checkout\Shipping;
 
 use PHPUnit\Framework\TestCase;
-use Shopware\Core\Checkout\Shipping\ShippingMethodEntity;
+use Shopware\Core\Checkout\Shipping\ShippingMethodCollection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
@@ -24,6 +24,9 @@ class ShippingMethodRepositoryTest extends TestCase
 {
     use IntegrationTestBehaviour;
 
+    /**
+     * @var EntityRepository<ShippingMethodCollection>
+     */
     private EntityRepository $shippingRepository;
 
     private string $shippingMethodId;
@@ -32,7 +35,7 @@ class ShippingMethodRepositoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->shippingRepository = $this->getContainer()->get('shipping_method.repository');
+        $this->shippingRepository = static::getContainer()->get('shipping_method.repository');
         $this->shippingMethodId = Uuid::randomHex();
         $this->ruleId = Uuid::randomHex();
     }
@@ -48,9 +51,8 @@ class ShippingMethodRepositoryTest extends TestCase
         $criteria = new Criteria([$this->shippingMethodId]);
         $criteria->addAssociation('availabilityRule');
 
-        $resultSet = $this->shippingRepository->search($criteria, $defaultContext);
+        $resultSet = $this->shippingRepository->search($criteria, $defaultContext)->getEntities();
 
-        /** @var ShippingMethodEntity|null $rule */
         $rule = $resultSet->first();
 
         static::assertNotNull($rule);
@@ -59,6 +61,21 @@ class ShippingMethodRepositoryTest extends TestCase
         static::assertSame($this->shippingMethodId, $rule->getId());
         static::assertSame($this->ruleId, $rule->getAvailabilityRule()->getId());
         static::assertSame($this->ruleId, $rule->getAvailabilityRuleId());
+    }
+
+    public function testCreateShippingMethodWithoutAvailabilityRule(): void
+    {
+        $defaultContext = Context::createDefaultContext();
+
+        $shippingMethod = $this->createShippingMethodDummyArray();
+        unset($shippingMethod[0]['availabilityRule']);
+
+        $this->shippingRepository->create($shippingMethod, $defaultContext);
+
+        $resultSet = $this->shippingRepository->search(new Criteria([$this->shippingMethodId]), $defaultContext)->getEntities()->first();
+
+        static::assertNotNull($resultSet);
+        static::assertNull($resultSet->getAvailabilityRuleId());
     }
 
     public function testUpdateShippingMethod(): void
@@ -84,11 +101,8 @@ class ShippingMethodRepositoryTest extends TestCase
         $criteria = new Criteria([$this->shippingMethodId]);
         $criteria->addAssociation('availabilityRule');
 
-        $resultSet = $this->shippingRepository->search($criteria, $defaultContext);
-
-        /** @var ShippingMethodEntity|null $rule */
+        $resultSet = $this->shippingRepository->search($criteria, $defaultContext)->getEntities();
         $rule = $resultSet->first();
-
         static::assertNotNull($rule);
         static::assertNotNull($rule->getAvailabilityRule());
 
@@ -128,7 +142,6 @@ class ShippingMethodRepositoryTest extends TestCase
 
             static::fail('The type should always be required!');
         } catch (WriteException $e) {
-            /** @var WriteConstraintViolationException $constraintViolation */
             $constraintViolation = $e->getExceptions()[0];
             static::assertInstanceOf(WriteConstraintViolationException::class, $constraintViolation);
             static::assertEquals('/name', $constraintViolation->getViolations()->get(0)->getPropertyPath());
@@ -145,7 +158,7 @@ class ShippingMethodRepositoryTest extends TestCase
     }
 
     /**
-     * @return array<array{id: string, bindShippingfree: boolean, name: string, tax_type: null, availabilityRule: array<string, mixed>, deliveryTime: DeliveryTimeData}>
+     * @return array<array{id: string, bindShippingfree: bool, name: string, tax_type: null, availabilityRule: array<string, mixed>, deliveryTime: DeliveryTimeData}>
      */
     private function createShippingMethodDummyArray(): array
     {
@@ -154,6 +167,7 @@ class ShippingMethodRepositoryTest extends TestCase
                 'id' => $this->shippingMethodId,
                 'bindShippingfree' => false,
                 'name' => 'test',
+                'technicalName' => 'shipping_test',
                 'tax_type' => null,
                 'availabilityRule' => [
                     'id' => $this->ruleId,

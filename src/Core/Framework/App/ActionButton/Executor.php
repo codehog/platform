@@ -16,7 +16,6 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -24,9 +23,9 @@ use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\RouterInterface;
 
 /**
- * @internal only for use by the app-system, will be considered internal from v6.4.0 onward
+ * @internal only for use by the app-system
  */
-#[Package('core')]
+#[Package('framework')]
 class Executor
 {
     public function __construct(
@@ -55,7 +54,7 @@ class Executor
             'language' => $context->getLanguageId(),
         ];
 
-        $appSecret = $action->getAppSecret();
+        $appSecret = $action->getApp()->getAppSecret();
 
         if (!$appSecret || str_starts_with($action->getTargetUrl(), '/')) {
             $content = $this->executeSubRequest($action);
@@ -112,7 +111,7 @@ class Executor
                 return '';
             }
 
-            $this->logger->notice(sprintf('ActionButton execution failed to target url "%s".', $action->getTargetUrl()), [
+            $this->logger->notice(\sprintf('ActionButton execution failed to target url "%s".', $action->getTargetUrl()), [
                 'exceptionMessage' => $e->getMessage(),
                 'statusCode' => $statusCode,
                 'response' => $e->getResponse()->getBody()->getContents(),
@@ -120,7 +119,7 @@ class Executor
 
             throw AppException::actionButtonProcessException($action->getActionId(), 'ActionButton remote execution failed', $e);
         } catch (ConnectException $e) {
-            $this->logger->notice(sprintf('ActionButton execution failed to target url "%s" due to connection problems.', $action->getTargetUrl()), [
+            $this->logger->notice(\sprintf('ActionButton execution failed to target url "%s" due to connection problems.', $action->getTargetUrl()), [
                 'message' => $e->getMessage(),
             ]);
 
@@ -136,8 +135,10 @@ class Executor
         try {
             $route = $this->router->match($action->getTargetUrl());
 
-            /** @var Request $request */
             $request = $this->requestStack->getCurrentRequest();
+            if ($request === null) {
+                return '';
+            }
             $subRequest = $request->duplicate(null, null, $route);
 
             $response = $this->kernel->handle($subRequest, HttpKernelInterface::SUB_REQUEST);

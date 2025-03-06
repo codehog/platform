@@ -6,7 +6,7 @@ use Shopware\Core\Framework\Log\Package;
 use Shopware\Core\Framework\ShopwareHttpException;
 use Symfony\Component\HttpFoundation\Response;
 
-#[Package('storefront')]
+#[Package('framework')]
 class ThemeAssignmentException extends ShopwareHttpException
 {
     /**
@@ -56,7 +56,7 @@ class ThemeAssignmentException extends ShopwareHttpException
     }
 
     /**
-     * @param  array<string, array<int, string>> $assignmentMapping
+     * @param array<string, array<int, string>> $assignmentMapping
      */
     private function formatAssignments(array $assignmentMapping): string
     {
@@ -75,7 +75,7 @@ class ThemeAssignmentException extends ShopwareHttpException
                 $salesChannelNames[] = $salesChannel;
             }
 
-            $output[] = sprintf('"%s" => "%s"', $themeName, implode(', ', $salesChannelNames));
+            $output[] = \sprintf('"%s" => "%s"', $themeName, implode(', ', $salesChannelNames));
         }
 
         return implode(', ', $output);

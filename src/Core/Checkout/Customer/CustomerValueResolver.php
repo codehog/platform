@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadata;
 
-#[Package('customer-order')]
+#[Package('checkout')]
 class CustomerValueResolver implements ValueResolverInterface
 {
     public function resolve(Request $request, ArgumentMetadata $argument): \Generator
@@ -23,14 +23,14 @@ class CustomerValueResolver implements ValueResolverInterface
         if ($loginRequired !== true) {
             $route = $request->attributes->get('_route');
 
-            throw new \RuntimeException('Missing @LoginRequired annotation for route: ' . $route);
+            throw CustomerException::missingRouteAnnotation('LoginRequired', $route);
         }
 
         $context = $request->attributes->get(PlatformRequest::ATTRIBUTE_SALES_CHANNEL_CONTEXT_OBJECT);
         if (!$context instanceof SalesChannelContext) {
             $route = $request->attributes->get('_route');
 
-            throw new \RuntimeException('Missing sales channel context for route ' . $route);
+            throw CustomerException::missingRouteSalesChannel($route);
         }
 
         yield $context->getCustomer();

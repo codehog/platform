@@ -18,7 +18,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[Package('core')]
+#[Package('framework')]
 #[AsCommand(name: 'plugin:update:all', description: 'Install all available plugin updates')]
 class PluginUpdateAllCommand extends Command
 {
@@ -50,7 +50,7 @@ class PluginUpdateAllCommand extends Command
         $helperSet = $this->getHelperSet();
         \assert($helperSet instanceof HelperSet);
 
-        $context = Context::createDefaultContext();
+        $context = Context::createCLIContext();
 
         if ($input->getOption('skip-asset-build')) {
             $context->addState(PluginLifecycleService::STATE_SKIP_ASSET_BUILDING);
@@ -68,7 +68,7 @@ class PluginUpdateAllCommand extends Command
 
             $currentVersion = $plugin->getVersion();
             $this->pluginLifecycleService->updatePlugin($plugin, $context);
-            $output->writeln(sprintf('Updated plugin %s from version %s to version %s', $plugin->getName(), $currentVersion, $plugin->getVersion()));
+            $output->writeln(\sprintf('Updated plugin %s from version %s to version %s', $plugin->getName(), $currentVersion, $plugin->getVersion()));
         }
 
         return self::SUCCESS;

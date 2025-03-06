@@ -5,6 +5,7 @@ namespace Shopware\Core\System\SystemConfig;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Shopware\Core\Defaults;
+use Shopware\Core\Framework\Adapter\Cache\Event\AddCacheTagEvent;
 use Shopware\Core\Framework\Bundle;
 use Shopware\Core\Framework\DataAbstractionLayer\Doctrine\MultiInsertQueryQueue;
 use Shopware\Core\Framework\DataAbstractionLayer\Field\ConfigJsonField;
@@ -14,9 +15,11 @@ use Shopware\Core\Framework\Util\XmlReader;
 use Shopware\Core\Framework\Uuid\Exception\InvalidUuidException;
 use Shopware\Core\Framework\Uuid\Uuid;
 use Shopware\Core\System\SystemConfig\Event\BeforeSystemConfigChangedEvent;
+use Shopware\Core\System\SystemConfig\Event\BeforeSystemConfigMultipleChangedEvent;
 use Shopware\Core\System\SystemConfig\Event\SystemConfigChangedEvent;
 use Shopware\Core\System\SystemConfig\Event\SystemConfigChangedHook;
 use Shopware\Core\System\SystemConfig\Event\SystemConfigDomainLoadedEvent;
+use Shopware\Core\System\SystemConfig\Event\SystemConfigMultipleChangedEvent;
 use Shopware\Core\System\SystemConfig\Exception\BundleConfigNotFoundException;
 use Shopware\Core\System\SystemConfig\Exception\InvalidDomainException;
 use Shopware\Core\System\SystemConfig\Exception\InvalidKeyException;
@@ -25,7 +28,7 @@ use Shopware\Core\System\SystemConfig\Util\ConfigReader;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Service\ResetInterface;
 
-#[Package('system-settings')]
+#[Package('framework')]
 class SystemConfigService implements ResetInterface
 {
     /**
@@ -50,8 +53,8 @@ class SystemConfigService implements ResetInterface
         private readonly Connection $connection,
         private readonly ConfigReader $configReader,
         private readonly AbstractSystemConfigLoader $loader,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly bool $fineGrainedCache
+        private readonly EventDispatcherInterface $dispatcher,
+        private readonly SymfonySystemConfigService $symfonySystemConfigService,
     ) {
     }
 
@@ -65,15 +68,7 @@ class SystemConfigService implements ResetInterface
      */
     public function get(string $key, ?string $salesChannelId = null)
     {
-        if ($this->fineGrainedCache) {
-            foreach (array_keys($this->keys) as $trace) {
-                $this->traces[$trace][self::buildName($key)] = true;
-            }
-        } else {
-            foreach (array_keys($this->keys) as $trace) {
-                $this->traces[$trace]['global.system.config'] = true;
-            }
-        }
+        $this->dispatcher->dispatch(new AddCacheTagEvent('system.config-' . $salesChannelId));
 
         $config = $this->loader->load($salesChannelId);
 
@@ -160,7 +155,7 @@ class SystemConfigService implements ResetInterface
         }
 
         $queryBuilder = $this->connection->createQueryBuilder()
-            ->select(['configuration_key', 'configuration_value'])
+            ->select('configuration_key', 'configuration_value')
             ->from('system_config');
 
         if ($inherit) {
@@ -210,8 +205,10 @@ class SystemConfigService implements ResetInterface
             $merged[$key] = $value;
         }
 
+        $merged = $this->symfonySystemConfigService->override($merged, $salesChannelId, $inherit, false);
+
         $event = new SystemConfigDomainLoadedEvent($domain, $merged, $inherit, $salesChannelId);
-        $this->eventDispatcher->dispatch($event);
+        $this->dispatcher->dispatch($event);
 
         return $event->getConfig();
     }
@@ -229,6 +226,28 @@ class SystemConfigService implements ResetInterface
      */
     public function setMultiple(array $values, ?string $salesChannelId = null): void
     {
+        foreach ($values as $key => $value) {
+            if ($this->symfonySystemConfigService->has($key)) {
+                /**
+                 * The administration setting pages are always sending the full configuration.
+                 * This means when the user wants to change an allowed configuration, we also get the read-only configuration,
+                 *
+                 * Therefore, when the value of that field is the same as the statically configured one, we just drop that value and don't throw an exception
+                 */
+                if ($this->symfonySystemConfigService->get($key, $salesChannelId) === $value) {
+                    unset($values[$key]);
+                    continue;
+                }
+
+                throw SystemConfigException::systemConfigKeyIsManagedBySystems($key);
+            }
+        }
+
+        $event = new BeforeSystemConfigMultipleChangedEvent($values, $salesChannelId);
+        $this->dispatcher->dispatch($event);
+
+        $values = $event->getConfig();
+
         $where = $salesChannelId ? 'sales_channel_id = :salesChannelId' : 'sales_channel_id IS NULL';
 
         $existingIds = $this->connection
@@ -252,7 +271,7 @@ class SystemConfigService implements ResetInterface
             $this->validate($key, $salesChannelId);
 
             $event = new BeforeSystemConfigChangedEvent($key, $value, $salesChannelId);
-            $this->eventDispatcher->dispatch($event);
+            $this->dispatcher->dispatch($event);
 
             // Use modified value provided by potential event subscribers.
             $value = $event->getValue();
@@ -317,12 +336,15 @@ class SystemConfigService implements ResetInterface
 
         $insertQueue->execute();
 
+        // Dispatch the hook before the events to invalid the cache
+        $this->dispatcher->dispatch(new SystemConfigChangedHook($values, $this->getAppMapping(), $salesChannelId));
+
         // Dispatch events that the given values have been changed
         foreach ($events as $event) {
-            $this->eventDispatcher->dispatch($event);
+            $this->dispatcher->dispatch($event);
         }
 
-        $this->eventDispatcher->dispatch(new SystemConfigChangedHook($values, $this->getAppMapping()));
+        $this->dispatcher->dispatch(new SystemConfigMultipleChangedEvent($values, $salesChannelId));
     }
 
     public function delete(string $key, ?string $salesChannel = null): void

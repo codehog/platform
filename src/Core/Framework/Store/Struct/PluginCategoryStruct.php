@@ -8,18 +8,12 @@ use Shopware\Core\Framework\Struct\Struct;
 /**
  * @codeCoverageIgnore
  */
-#[Package('merchant-services')]
+#[Package('checkout')]
 class PluginCategoryStruct extends Struct
 {
-    /**
-     * @var string
-     */
-    protected $name;
+    protected string $name;
 
-    /**
-     * @var string
-     */
-    protected $label;
+    protected string $label;
 
     public function __construct(
         string $name,

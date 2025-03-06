@@ -8,7 +8,7 @@ const { dom } = Shopware.Utils;
  * @status ready
  * @description The <u>sw-media-media-item</u> component is used to store the media item and manage it through the
  * <u>sw-media-base-item</u> component. Use the default slot to add additional context menu items.
- * @package content
+ * @sw-package discovery
  * @example-type code-only
  * @component-example
  * <sw-media-media-item
@@ -28,9 +28,18 @@ const { dom } = Shopware.Utils;
 // eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
 export default {
     template,
+
     inheritAttrs: false,
 
     inject: ['mediaService'],
+
+    emits: [
+        'media-item-rename-success',
+        'media-item-play',
+        'media-item-delete',
+        'media-folder-move',
+        'media-item-replaced',
+    ],
 
     mixins: [
         Mixin.getByName('notification'),
@@ -85,13 +94,35 @@ export default {
                     message: this.$tc('global.sw-media-media-item.notification.renamingSuccess.message'),
                 });
                 this.$emit('media-item-rename-success', item);
-            } catch {
-                this.createNotificationError({
-                    message: this.$tc('global.sw-media-media-item.notification.renamingError.message'),
+            } catch (exception) {
+                const errors = exception.response.data.errors;
+
+                errors.forEach((error) => {
+                    this.handleErrorMessage(error);
                 });
             } finally {
                 item.isLoading = false;
                 endInlineEdit();
+            }
+        },
+
+        handleErrorMessage(error) {
+            switch (error.code) {
+                case 'CONTENT__MEDIA_FILE_NAME_IS_TOO_LONG':
+                    this.createNotificationError({
+                        message: this.$tc(
+                            'global.sw-media-media-item.notification.fileNameTooLong.message',
+                            {
+                                length: error.meta.parameters.maxLength,
+                            },
+                            0,
+                        ),
+                    });
+                    break;
+                default:
+                    this.createNotificationError({
+                        message: this.$tc('global.sw-media-media-item.notification.renamingError.message'),
+                    });
             }
         },
 
@@ -107,11 +138,7 @@ export default {
             const input = event.target.value;
 
             if (input !== item.fileName) {
-                return;
-            }
-
-            if (!input || !input.trim()) {
-                this.rejectRenaming(item, 'empty-name', endInlineEdit);
+                this.onChangeName(input, item, endInlineEdit);
                 return;
             }
 
@@ -130,11 +157,18 @@ export default {
             this.removeFromSelection(originalDomEvent);
         },
 
-        copyItemLink(item) {
-            dom.copyToClipboard(item.url);
-            this.createNotificationSuccess({
-                message: this.$tc('sw-media.general.notification.urlCopied.message'),
-            });
+        async copyItemLink(item) {
+            try {
+                await dom.copyStringToClipboard(item.url);
+                this.createNotificationSuccess({
+                    message: this.$tc('sw-media.general.notification.urlCopied.message'),
+                });
+            } catch (err) {
+                this.createNotificationError({
+                    title: this.$tc('global.default.error'),
+                    message: this.$tc('global.sw-field.notification.notificationCopyFailureMessage'),
+                });
+            }
         },
 
         openModalDelete() {

@@ -1,95 +1,103 @@
-import { createLocalVue, shallowMount } from '@vue/test-utils';
-import swSettingsDeliveryTimeList from 'src/module/sw-settings-delivery-times/page/sw-settings-delivery-time-list';
-import 'src/app/component/base/sw-card';
+import { mount } from '@vue/test-utils';
 
 /**
- * @package customer-order
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-settings-delivery-time-list', swSettingsDeliveryTimeList);
-
 async function createWrapper(privileges = []) {
-    const localVue = createLocalVue();
-    localVue.directive('tooltip', {});
-
-    return shallowMount(await Shopware.Component.build('sw-settings-delivery-time-list'), {
-        localVue,
-        mocks: {
-            $route: {
-                query: {
-                    page: 1,
-                    limit: 25,
-                },
-            },
-        },
-        provide: {
-            repositoryFactory: {
-                create: () => ({
-                    search: () => {
-                        return Promise.resolve([
-                            {
-                                id: '123abc',
-                                name: '1 - 3 weeks',
-                                min: 1,
-                                max: 3,
-                                unit: 'week',
-                            },
-                        ]);
+    return mount(
+        await wrapTestComponent('sw-settings-delivery-time-list', {
+            sync: true,
+        }),
+        {
+            global: {
+                renderStubDefaultSlot: true,
+                mocks: {
+                    $route: {
+                        query: {
+                            page: 1,
+                            limit: 25,
+                        },
                     },
-                }),
-            },
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) { return true; }
-
-                    return privileges.includes(identifier);
                 },
-            },
-            searchRankingService: {},
-        },
-        stubs: {
-            'sw-page': {
-                template: `
+                provide: {
+                    repositoryFactory: {
+                        create: () => ({
+                            search: () => {
+                                return Promise.resolve([
+                                    {
+                                        id: '123abc',
+                                        name: '1 - 3 weeks',
+                                        min: 1,
+                                        max: 3,
+                                        unit: 'week',
+                                    },
+                                ]);
+                            },
+                        }),
+                    },
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
+
+                            return privileges.includes(identifier);
+                        },
+                    },
+                    searchRankingService: {},
+                },
+                stubs: {
+                    'sw-page': {
+                        template: `
                     <div class="sw-page">
                         <slot name="smart-bar-actions"></slot>
                         <slot name="content"></slot>
                         <slot></slot>
                     </div>`,
-            },
-            'sw-button': true,
-            'sw-icon': true,
-            'sw-search-bar': true,
-            'sw-language-switch': true,
-            'sw-context-menu-item': true,
-            'sw-card-view': true,
-            'sw-card': await Shopware.Component.build('sw-card'),
-            'sw-ignore-class': true,
-            'sw-extension-component-section': true,
-            'sw-entity-listing': {
-                props: ['items', 'allowEdit', 'allowDelete', 'detailRoute'],
-                template: `
+                    },
+                    'sw-search-bar': true,
+                    'sw-language-switch': true,
+                    'sw-context-menu-item': true,
+                    'sw-card-view': true,
+                    'sw-ignore-class': true,
+                    'sw-extension-component-section': true,
+                    'sw-entity-listing': {
+                        props: [
+                            'items',
+                            'allowEdit',
+                            'allowDelete',
+                            'detailRoute',
+                        ],
+                        template: `
                     <div>
                         <template v-for="item in items">
                             <slot name="actions" v-bind="{ item }">
                                 <slot name="detail-action" v-bind="{ item }">
                                     <sw-context-menu-item-stub class="sw-entity-listing__context-menu-edit-action"
                                                           v-if="detailRoute"
-                                                          :disabled="!allowEdit"
+                                                          :disabled="!allowEdit || undefined"
                                                           :routerLink="{ name: detailRoute, params: { id: item.id } }">
                                     </sw-context-menu-item-stub>
                                 </slot>
 
                                 <slot name="delete-action" v-bind="{ item }">
-                                    <sw-context-menu-item-stub :disabled="!allowDelete"
+                                    <sw-context-menu-item-stub :disabled="!allowDelete || undefined"
                                                           class="sw-entity-listing__context-menu-edit-delete">
                                     </sw-context-menu-item-stub>
                                 </slot>
                             </slot>
                         </template>
                     </div>`,
+                    },
+                    'sw-context-menu-item-stub': true,
+                    'sw-loader': true,
+                    'sw-ai-copilot-badge': true,
+                    'sw-context-button': true,
+                },
             },
         },
-    });
+    );
 }
 
 describe('module/sw-settings-delivery-times/page/sw-settings-delivery-time-list', () => {
@@ -99,7 +107,7 @@ describe('module/sw-settings-delivery-times/page/sw-settings-delivery-time-list'
 
         const createButton = wrapper.find('.sw-settings-delivery-time-list__create');
 
-        expect(createButton.attributes().disabled).toBeTruthy();
+        expect(createButton.attributes('disabled')).toBeDefined();
     });
 
     it('should be able to create a new delivery time if user has create permission', async () => {

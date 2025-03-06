@@ -9,7 +9,7 @@ use Symfony\Contracts\Service\ResetInterface;
 /**
  * @final
  */
-#[Package('system-settings')]
+#[Package('framework')]
 class MySQLKeyValueStorage extends AbstractKeyValueStorage implements ResetInterface
 {
     /**

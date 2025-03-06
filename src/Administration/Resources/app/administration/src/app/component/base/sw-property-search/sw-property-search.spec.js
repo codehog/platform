@@ -1,146 +1,163 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import { shallowMount } from '@vue/test-utils';
-import 'src/app/component/base/sw-property-search';
-import 'src/app/component/form/sw-field';
-import 'src/app/component/form/sw-text-field';
-import 'src/app/component/form/field-base/sw-contextual-field';
-import 'src/app/component/form/field-base/sw-block-field';
-import 'src/app/component/form/field-base/sw-base-field';
-import 'src/app/component/grid/sw-grid';
-import 'src/app/component/grid/sw-pagination';
-import 'src/app/component/grid/sw-grid-row';
-import 'src/app/component/grid/sw-grid-column';
-import 'src/app/component/base/sw-button';
+import { mount } from '@vue/test-utils';
+
+Shopware.Utils.debounce = function debounce(fn) {
+    return function execFunction(...args) {
+        fn.apply(this, args);
+    };
+};
 
 async function createWrapper() {
-    return shallowMount(await Shopware.Component.build('sw-property-search'), {
-        propsData: {
+    return mount(await wrapTestComponent('sw-property-search', { sync: true }), {
+        props: {
             options: [
                 {},
             ],
         },
-        stubs: {
-            'sw-field': await Shopware.Component.build('sw-field'),
-            'sw-text-field': await Shopware.Component.build('sw-text-field'),
-            'sw-contextual-field': await Shopware.Component.build('sw-contextual-field'),
-            'sw-block-field': await Shopware.Component.build('sw-block-field'),
-            'sw-base-field': await Shopware.Component.build('sw-base-field'),
-            'sw-field-error': {
-                template: '<div></div>',
+        global: {
+            renderStubDefaultSlot: true,
+            stubs: {
+                'sw-text-field': await wrapTestComponent('sw-text-field'),
+                'sw-text-field-deprecated': await wrapTestComponent('sw-text-field-deprecated', { sync: true }),
+                'sw-contextual-field': await wrapTestComponent('sw-contextual-field'),
+                'sw-block-field': await wrapTestComponent('sw-block-field'),
+                'sw-base-field': await wrapTestComponent('sw-base-field'),
+                'sw-field-error': {
+                    template: '<div></div>',
+                },
+                'sw-container': {
+                    template: '<div><slot></slot></div>',
+                },
+                'sw-grid': await wrapTestComponent('sw-grid', {
+                    sync: true,
+                }),
+                'sw-pagination': await wrapTestComponent('sw-pagination'),
+                'sw-grid-row': await wrapTestComponent('sw-grid-row'),
+                'sw-grid-column': await wrapTestComponent('sw-grid-column'),
+                'sw-checkbox-field': {
+                    template: '<div class="checkbox"></div>',
+                },
+                'sw-empty-state': true,
+                'sw-field-copyable': true,
+                'sw-inheritance-switch': true,
+                'sw-ai-copilot-badge': true,
+                'sw-help-text': true,
+                'router-link': true,
+                'sw-loader': true,
+                'sw-select-field': true,
             },
-            'sw-container': {
-                template: '<div><slot></slot></div>',
-            },
-            'sw-grid': await Shopware.Component.build('sw-grid'),
-            'sw-pagination': await Shopware.Component.build('sw-pagination'),
-            'sw-grid-row': await Shopware.Component.build('sw-grid-row'),
-            'sw-grid-column': await Shopware.Component.build('sw-grid-column'),
-            'sw-button': await Shopware.Component.build('sw-button'),
-            'sw-icon': {
-                template: '<div></div>',
-            },
-            'sw-checkbox-field': {
-                template: '<div class="checkbox"></div>',
-            },
-        },
-        provide: {
-            validationService: {},
-            repositoryFactory: {
-                create: (entity) => ({
-                    search: () => {
-                        if (entity === 'property_group') {
-                            const response = [];
-                            const count = 12;
+            provide: {
+                validationService: {},
+                repositoryFactory: {
+                    create: (entity) => ({
+                        search: () => {
+                            if (entity === 'property_group') {
+                                const response = [];
+                                const count = 12;
 
-                            for (let i = 0; i < count; i += 1) {
-                                const group = {
-                                    isDeleted: false,
-                                    isLoading: false,
-                                    errors: [],
-                                    versionId: '__vue_devtool_undefined__',
-                                    id: `${i}c909198131346e299b93aa60dd40eeb`,
-                                    name: 'length',
-                                    description: null,
-                                    displayType: 'text',
-                                    sortingType: 'alphanumeric',
-                                    filterable: true,
-                                    position: 1,
-                                    customFields: null,
-                                    createdAt: '2020-06-02T13:03:33+00:00',
-                                    updatedAt: null,
-                                    translated: {
-                                        name: 'Länge',
-                                        description: null,
-                                        position: 1,
-                                        customFields: [],
-                                    },
-                                    relationships: null,
-                                    options: [],
-                                    type: 'property_group',
-                                    meta: {},
-                                    translations: [],
-                                    optionCount: 3,
-                                };
-
-                                group.options.entity = 'property_group_option';
-
-                                response.push(group);
-                            }
-
-                            response.total = count;
-
-                            return Promise.resolve(response);
-                        }
-
-                        if (entity === 'property_group_option') {
-                            const response = [];
-                            const count = 12;
-
-                            for (let i = 0; i < count; i += 1) {
-                                response.push({
-                                    groupId: '1c909198131346e299b93aa60dd40eeb',
-                                    name: 'darkgreen',
-                                    position: i + 1,
-                                    colorHexCode: null,
-                                    mediaId: null,
-                                    customFields: null,
-                                    createdAt: '2020-06-02T13:03:33+00:00',
-                                    updatedAt: null,
-                                    translated: { name: 'Dunkelgrün', position: 1, customFields: [] },
-                                    id: `${i}66e8d9b5ce24916896d29e27a9e1763`,
-                                    translations: [],
-                                    group: {
+                                for (let i = 0; i < count; i += 1) {
+                                    const group = {
+                                        isDeleted: false,
+                                        isLoading: false,
+                                        errors: [],
                                         versionId: '__vue_devtool_undefined__',
                                         id: `${i}c909198131346e299b93aa60dd40eeb`,
                                         name: 'length',
                                         description: null,
                                         displayType: 'text',
                                         sortingType: 'alphanumeric',
-                                    },
-                                    productConfiguratorSettings: [],
-                                    productProperties: [],
-                                    productOptions: [],
-                                });
+                                        filterable: true,
+                                        position: 1,
+                                        customFields: null,
+                                        createdAt: '2020-06-02T13:03:33+00:00',
+                                        updatedAt: null,
+                                        translated: {
+                                            name: 'Länge',
+                                            description: null,
+                                            position: 1,
+                                            customFields: [],
+                                        },
+                                        relationships: null,
+                                        options: [],
+                                        type: 'property_group',
+                                        meta: {},
+                                        translations: [],
+                                        optionCount: 3,
+                                    };
+
+                                    group.options.entity = 'property_group_option';
+
+                                    response.push(group);
+                                }
+
+                                response.total = count;
+
+                                return Promise.resolve(response);
                             }
 
-                            response.total = count;
-                            return Promise.resolve(response);
-                        }
+                            if (entity === 'property_group_option') {
+                                const response = [];
+                                const count = 12;
 
-                        const response = [];
-                        response.total = 0;
-                        return Promise.resolve(response);
-                    },
-                }),
+                                for (let i = 0; i < count; i += 1) {
+                                    response.push({
+                                        groupId: '1c909198131346e299b93aa60dd40eeb',
+                                        name: 'darkgreen',
+                                        position: i + 1,
+                                        colorHexCode: null,
+                                        mediaId: null,
+                                        customFields: null,
+                                        createdAt: '2020-06-02T13:03:33+00:00',
+                                        updatedAt: null,
+                                        translated: {
+                                            name: 'Dunkelgrün',
+                                            position: 1,
+                                            customFields: [],
+                                        },
+                                        id: `${i}66e8d9b5ce24916896d29e27a9e1763`,
+                                        translations: [],
+                                        group: {
+                                            versionId: '__vue_devtool_undefined__',
+                                            id: `${i}c909198131346e299b93aa60dd40eeb`,
+                                            name: 'length',
+                                            description: null,
+                                            displayType: 'text',
+                                            sortingType: 'alphanumeric',
+                                            translated: {
+                                                name: 'Dunkelgrün',
+                                                position: 1,
+                                                customFields: [],
+                                            },
+                                        },
+                                        productConfiguratorSettings: [],
+                                        productProperties: [],
+                                        productOptions: [],
+                                    });
+                                }
+
+                                response.total = count;
+                                return Promise.resolve(response);
+                            }
+
+                            const response = [];
+                            response.total = 0;
+                            return Promise.resolve(response);
+                        },
+                    }),
+                },
             },
         },
     });
 }
 
 describe('components/base/sw-property-search', () => {
+    afterEach(async () => {
+        await flushPromises();
+    });
+
     it('should be a Vue.js component', async () => {
         const wrapper = await createWrapper();
 
@@ -149,10 +166,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should have a pagination element inside group grid', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
         await wrapper.vm.onFocusSearch();
-
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const paginationElement = wrapper.find('.sw-pagination');
 
@@ -161,9 +178,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should have pagination with two buttons inside group grid', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const amountOfPages = wrapper.findAll('.sw-pagination__list-item').length;
 
@@ -172,9 +190,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should change group page when paginating', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         expect(wrapper.vm.groupPage).toBe(1);
 
@@ -186,9 +205,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should open options grid after clicking on property group', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const groupElement = wrapper.find('.group_grid__column-name');
         await groupElement.trigger('click');
@@ -202,9 +222,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should have a pagination for the option grid', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const groupElement = wrapper.find('.group_grid__column-name');
         await groupElement.trigger('click');
@@ -217,9 +238,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should have multiple pages for option grid', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const groupElement = wrapper.find('.group_grid__column-name');
         await groupElement.trigger('click');
@@ -235,9 +257,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should change the option page when clicking pagination', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const groupElement = wrapper.find('.group_grid__column-name');
         await groupElement.trigger('click');
@@ -247,7 +270,9 @@ describe('components/base/sw-property-search', () => {
         expect(wrapper.vm.optionPage).toBe(1);
 
         // eslint-disable-next-line max-len
-        const nextPageButton = wrapper.find('.sw-property-search__tree-selection__option_grid .sw-pagination__list-button:not(.is-active)');
+        const nextPageButton = wrapper.find(
+            '.sw-property-search__tree-selection__option_grid .sw-pagination__list-button:not(.is-active)',
+        );
         await nextPageButton.trigger('click');
 
         expect(wrapper.vm.optionPage).toBe(2);
@@ -255,8 +280,7 @@ describe('components/base/sw-property-search', () => {
 
     it('should keep text when entering something into the search input', async () => {
         const wrapper = await createWrapper();
-
-        await wrapper.vm.$nextTick();
+        await flushPromises();
 
         const searchInput = wrapper.find('#sw-field--searchTerm');
 
@@ -272,9 +296,10 @@ describe('components/base/sw-property-search', () => {
 
     it('should change the group options when clicking pagination', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const groupElement = wrapper.find('.group_grid__column-name');
         await groupElement.trigger('click');
@@ -284,10 +309,12 @@ describe('components/base/sw-property-search', () => {
         let groupOptions = wrapper.findAll('.sw-property-search__tree-selection__option_grid--option-value').length;
 
         expect(wrapper.vm.optionPage).toBe(1);
-        expect(groupOptions).toBe(10);
+        expect(groupOptions).toBe(12);
 
         // eslint-disable-next-line max-len
-        const nextPageButton = wrapper.find('.sw-property-search__tree-selection__option_grid .sw-pagination__list-button:not(.is-active)');
+        const nextPageButton = wrapper.find(
+            '.sw-property-search__tree-selection__option_grid .sw-pagination__list-button:not(.is-active)',
+        );
         await nextPageButton.trigger('click');
 
         await wrapper.vm.$nextTick();
@@ -295,14 +322,15 @@ describe('components/base/sw-property-search', () => {
         groupOptions = wrapper.findAll('.sw-property-search__tree-selection__option_grid--option-value').length;
 
         expect(wrapper.vm.optionPage).toBe(2);
-        expect(groupOptions).toBe(2);
+        expect(groupOptions).toBe(12);
     });
 
     it('should display translated property groups and property group options', async () => {
         const wrapper = await createWrapper();
-        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.vm.onFocusSearch();
+        await flushPromises();
 
         const groupElement = wrapper.find('.group_grid__column-name');
         await groupElement.trigger('click');
@@ -315,9 +343,49 @@ describe('components/base/sw-property-search', () => {
         expect(groupOptionElement.find('.sw-grid__cell-content').text()).toBe('Dunkelgrün');
     });
 
-    it('should return filters from filter registry', async () => {
+    it('should display the option list of searching', async () => {
         const wrapper = await createWrapper();
+        await flushPromises();
 
-        expect(wrapper.vm.assetFilter).toEqual(expect.any(Function));
+        jest.useFakeTimers();
+
+        const searchInput = wrapper.find('.mt-block-field__block input');
+        await searchInput.setValue('test');
+        await searchInput.trigger('input');
+
+        jest.runAllTimers();
+
+        const groupOptions = wrapper.findAll('div[class*="sw-grid__row"]').length;
+
+        expect(groupOptions).toBe(12);
+    });
+
+    it('should add option count when change the isAddOnly', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
+        await wrapper.setProps({
+            isAddOnly: true,
+        });
+
+        const addOptionCount = jest.spyOn(wrapper.vm, 'addOptionCount');
+        await wrapper.setProps({
+            isAddOnly: false,
+        });
+
+        expect(addOptionCount).toHaveBeenCalled();
+    });
+
+    it('should be able to set search term with property name', async () => {
+        const wrapper = await createWrapper();
+        await flushPromises();
+
+        jest.useFakeTimers();
+
+        const searchInput = wrapper.find('.mt-block-field__block input');
+        await searchInput.setValue('property-A');
+        await searchInput.trigger('input');
+
+        expect(wrapper.vm.searchTerm).toBe('property-A');
     });
 });

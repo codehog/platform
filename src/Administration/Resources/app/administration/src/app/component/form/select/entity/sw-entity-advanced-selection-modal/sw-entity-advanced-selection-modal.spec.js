@@ -1,4 +1,8 @@
-import { shallowMount, createLocalVue } from '@vue/test-utils';
+/**
+ * @sw-package framework
+ */
+
+import { mount } from '@vue/test-utils';
 import 'src/app/component/form/select/entity/sw-entity-advanced-selection-modal';
 
 const EntityColumnsFixture = [
@@ -64,25 +68,7 @@ const EntityFiltersFixture = {
 };
 
 const createAdvancedSelectionModal = async (customOptions) => {
-    const localVue = createLocalVue();
-
     const options = {
-        localVue,
-        stubs: {
-            'sw-icon': true,
-            'sw-modal': true,
-            'sw-card': true,
-            'sw-card-filter': true,
-            'sw-ignore-class': true,
-            'sw-extension-component-section': true,
-            'sw-empty-state': true,
-            'sw-loader': true,
-            'sw-button': true,
-            'sw-simple-search-field': true,
-            'sw-context-menu': true,
-            'sw-filter-panel': true,
-            'sw-entity-listing': true,
-        },
         propsData: {
             entityName: 'test',
             entityDisplayText: 'Test',
@@ -91,51 +77,69 @@ const createAdvancedSelectionModal = async (customOptions) => {
             entityColumns: EntityColumnsFixture,
             entityFilters: EntityFiltersFixture,
         },
-        provide: {
-            acl: {
-                can: () => {
-                    return true;
-                },
+        global: {
+            stubs: {
+                'sw-modal': true,
+                'sw-card-filter': true,
+                'sw-ignore-class': true,
+                'sw-extension-component-section': true,
+                'sw-empty-state': true,
+                'sw-loader': true,
+                'sw-simple-search-field': true,
+                'sw-context-menu': true,
+                'sw-filter-panel': true,
+                'sw-entity-listing': true,
+                'sw-entity-advanced-selection-modal-grid': true,
             },
-            repositoryFactory: {
-                create: () => {
-                    return {
-                        get: (value) => Promise.resolve({ id: value, name: value }),
-                        search: () => Promise.resolve(null),
-                    };
+            provide: {
+                acl: {
+                    can: () => {
+                        return true;
+                    },
                 },
-            },
-            filterFactory: {
-                create: (entityName, filters) => {
-                    return Object.entries(filters);
+                repositoryFactory: {
+                    create: () => {
+                        return {
+                            get: (value) => Promise.resolve({ id: value, name: value }),
+                            search: () => Promise.resolve(null),
+                        };
+                    },
                 },
-            },
-            filterService: {
-                getStoredCriteria: () => {
-                    return Promise.resolve([]);
+                filterFactory: {
+                    create: (entityName, filters) => {
+                        return Object.entries(filters);
+                    },
                 },
-            },
-            shortcutService: {
-                startEventListener() {
+                filterService: {
+                    getStoredCriteria: () => {
+                        return Promise.resolve([]);
+                    },
                 },
-                stopEventListener() {
+                shortcutService: {
+                    startEventListener() {},
+                    stopEventListener() {},
                 },
-            },
-            searchRankingService: {
-                getSearchFieldsByEntity() {
-                    return Promise.resolve(null);
-                },
-                buildSearchQueriesForEntity: () => {
-                    return null;
+                searchRankingService: {
+                    getSearchFieldsByEntity() {
+                        return Promise.resolve(null);
+                    },
+                    buildSearchQueriesForEntity: () => {
+                        return null;
+                    },
                 },
             },
         },
     };
 
-    return shallowMount(await Shopware.Component.build('sw-entity-advanced-selection-modal'), {
-        ...options,
-        ...customOptions,
-    });
+    return mount(
+        await wrapTestComponent('sw-entity-advanced-selection-modal', {
+            sync: true,
+        }),
+        {
+            ...options,
+            ...customOptions,
+        },
+    );
 };
 
 describe('components/sw-entity-advanced-selection-modal', () => {
@@ -159,12 +163,14 @@ describe('components/sw-entity-advanced-selection-modal', () => {
         const searchModal = await createAdvancedSelectionModal();
         const allEntityAssociations = searchModal.vm.allEntityAssociations;
 
-        expect(allEntityAssociations).toEqual(new Set([
-            'assoc',
-            'another',
-            'some.deeply.nested',
-            'some.changed.association',
-        ]));
+        expect(allEntityAssociations).toEqual(
+            new Set([
+                'assoc',
+                'another',
+                'some.deeply.nested',
+                'some.changed.association',
+            ]),
+        );
     });
 
     it('should have the correct filter number', async () => {
@@ -194,10 +200,12 @@ describe('components/sw-entity-advanced-selection-modal', () => {
         // assert proper event dispatch with correct data
         const selectionSubmitEvent = searchModal.emitted('selection-submit');
         expect(selectionSubmitEvent).toHaveLength(1);
-        expect(selectionSubmitEvent[0]).toEqual([[
-            'one',
-            'two',
-        ]]);
+        expect(selectionSubmitEvent[0]).toEqual([
+            [
+                'one',
+                'two',
+            ],
+        ]);
         expect(searchModal.emitted('modal-close')).toHaveLength(1);
     });
 

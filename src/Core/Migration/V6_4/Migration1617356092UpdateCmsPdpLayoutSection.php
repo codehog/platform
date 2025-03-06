@@ -14,7 +14,7 @@ use Shopware\Core\Framework\Uuid\Uuid;
  *
  * @codeCoverageIgnore
  */
-#[Package('core')]
+#[Package('framework')]
 class Migration1617356092UpdateCmsPdpLayoutSection extends MigrationStep
 {
     public function getCreationTimestamp(): int
@@ -94,7 +94,7 @@ class Migration1617356092UpdateCmsPdpLayoutSection extends MigrationStep
             FROM cms_slot
             WHERE cms_block_id IN (:cmsBlockId)
             AND type = "image-gallery" OR `type` = "manufacturer-logo"
-        ', ['cmsBlockId' => $blockIds], ['cmsBlockId' => ArrayParameterType::STRING]);
+        ', ['cmsBlockId' => $blockIds], ['cmsBlockId' => ArrayParameterType::BINARY]);
 
         foreach ($slots as $slot) {
             $configData = match ($slot['type']) {

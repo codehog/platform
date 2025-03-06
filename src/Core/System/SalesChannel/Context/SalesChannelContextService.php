@@ -11,7 +11,7 @@ use Shopware\Core\System\SalesChannel\Event\SalesChannelContextCreatedEvent;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
-#[Package('core')]
+#[Package('framework')]
 class SalesChannelContextService implements SalesChannelContextServiceInterface
 {
     final public const CURRENCY_ID = 'currencyId';
@@ -41,6 +41,8 @@ class SalesChannelContextService implements SalesChannelContextServiceInterface
     final public const DOMAIN_ID = 'domainId';
 
     final public const ORIGINAL_CONTEXT = 'originalContext';
+
+    final public const IMITATING_USER_ID = 'imitatingUserId';
 
     /**
      * @internal
@@ -85,8 +87,12 @@ class SalesChannelContextService implements SalesChannelContextServiceInterface
                 $session[self::CUSTOMER_ID] = $parameters->getCustomerId();
             }
 
+            if ($parameters->getImitatingUserId() !== null) {
+                $session[self::IMITATING_USER_ID] = $parameters->getImitatingUserId();
+            }
+
             $context = $this->factory->create($token, $parameters->getSalesChannelId(), $session);
-            $this->eventDispatcher->dispatch(new SalesChannelContextCreatedEvent($context, $token));
+            $this->eventDispatcher->dispatch(new SalesChannelContextCreatedEvent($context, $token, $session));
 
             $result = $this->ruleLoader->loadByToken($context, $token);
 

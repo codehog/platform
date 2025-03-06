@@ -1,41 +1,45 @@
-import { shallowMount } from '@vue/test-utils';
-import swPaymentCard from 'src/module/sw-settings-payment/component/sw-payment-card';
+import { mount } from '@vue/test-utils';
 
 /**
- * @package checkout
+ * @sw-package checkout
  */
 
-Shopware.Component.register('sw-payment-card', swPaymentCard);
-
 async function createWrapper(privileges = []) {
-    return shallowMount(await Shopware.Component.build('sw-payment-card'), {
-        propsData: {
-            paymentMethod: {
-                id: '5e6f7g8h',
-                translated: {
-                    name: 'Test settings-payment 2',
+    return mount(
+        await wrapTestComponent('sw-payment-card', {
+            sync: true,
+        }),
+        {
+            props: {
+                paymentMethod: {
+                    id: '5e6f7g8h',
+                    translated: {
+                        name: 'Test settings-payment 2',
+                    },
+                    active: true,
                 },
-                active: true,
             },
-        },
-        provide: {
-            acl: {
-                can: (identifier) => {
-                    if (!identifier) {
-                        return true;
-                    }
+            global: {
+                renderStubDefaultSlot: true,
+                provide: {
+                    acl: {
+                        can: (identifier) => {
+                            if (!identifier) {
+                                return true;
+                            }
 
-                    return privileges.includes(identifier);
+                            return privileges.includes(identifier);
+                        },
+                    },
+                },
+                stubs: {
+                    'sw-internal-link': true,
+
+                    'sw-media-preview-v2': true,
                 },
             },
         },
-        stubs: {
-            'sw-card': true,
-            'sw-internal-link': true,
-            'sw-switch-field': true,
-            'sw-media-preview-v2': true,
-        },
-    });
+    );
 }
 
 describe('module/sw-settings-payment/component/sw-payment-card', () => {
@@ -53,8 +57,8 @@ describe('module/sw-settings-payment/component/sw-payment-card', () => {
         const editLink = wrapper.find('sw-internal-link-stub');
         expect(editLink.attributes().disabled).toBeTruthy();
 
-        const activeToggle = wrapper.find('sw-switch-field-stub');
-        expect(activeToggle.attributes().disabled).toBeTruthy();
+        const activeToggle = wrapper.findComponent('.mt-switch');
+        expect(activeToggle.props().disabled).toBe(true);
     });
 
     it('should be able to edit a payment method', async () => {
@@ -64,8 +68,30 @@ describe('module/sw-settings-payment/component/sw-payment-card', () => {
         const editLink = wrapper.find('sw-internal-link-stub');
         expect(editLink.attributes().disabled).toBeFalsy();
 
-        const activeToggle = wrapper.find('sw-switch-field-stub');
+        const activeToggle = wrapper.find('.mt-switch');
         expect(activeToggle.attributes().disabled).toBeFalsy();
     });
-});
 
+    it('should correctly emit set-payment-active event', async () => {
+        const wrapper = await createWrapper(['payment.editor']);
+        await wrapper.vm.$nextTick();
+
+        const activeToggle = wrapper.findComponent('.mt-switch');
+        await activeToggle.vm.$emit('change', false);
+
+        const expectedPaymentMethod = {
+            id: '5e6f7g8h',
+            translated: {
+                name: 'Test settings-payment 2',
+            },
+            active: false,
+        };
+
+        expect(wrapper.emitted('set-payment-active')).toHaveLength(1);
+        expect(wrapper.emitted('set-payment-active')[0]).toEqual([expectedPaymentMethod]);
+
+        await activeToggle.vm.$emit('change', false);
+
+        expect(wrapper.emitted('set-payment-active')).toHaveLength(1);
+    });
+});

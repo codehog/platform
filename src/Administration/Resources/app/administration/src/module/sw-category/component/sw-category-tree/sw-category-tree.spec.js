@@ -1,91 +1,71 @@
 /**
- * @package content
+ * @sw-package discovery
  */
-import { config, createLocalVue, shallowMount } from '@vue/test-utils';
-import VueRouter from 'vue-router';
-import swCategoryTree from 'src/module/sw-category/component/sw-category-tree';
-import swCategoryState from 'src/module/sw-category/page/sw-category-detail/state';
-
-Shopware.Component.register('sw-category-tree', swCategoryTree);
+import { mount } from '@vue/test-utils';
+import { createRouter, createWebHashHistory } from 'vue-router';
 
 async function createWrapper() {
-    // delete global $router and $routes mocks
-    delete config.mocks.$router;
-    delete config.mocks.$route;
+    const routes = [
+        {
+            name: 'sw.category.detail',
+            path: '/category/detail/:id',
+        },
+    ];
 
-    const localVue = createLocalVue();
-    localVue.use(VueRouter);
-
-    const routes = [{
-        name: 'sw.category.detail',
-        path: 'category/detail/:id',
-    }];
-
-    const router = new VueRouter({
+    const router = createRouter({
         routes,
+        history: createWebHashHistory(),
     });
 
-    return shallowMount(await Shopware.Component.build('sw-category-tree'), {
-        localVue,
-        router,
-        stubs: {
-            'sw-loader': true,
-            'sw-skeleton': true,
-            'sw-tree': {
-                props: ['items'],
-                template: `
-                    <div class="sw-tree">
-                      <slot name="items" :treeItems="items" :checkItem="() => {}"></slot>
-                    </div>
-                `,
+    return mount(await wrapTestComponent('sw-category-tree', { sync: true }), {
+        global: {
+            mocks: {
+                $router: router,
             },
-            'sw-tree-item': true,
-        },
-        provide: {
-            syncService: {},
-            repositoryFactory: {
-                create: () => ({
-                    search: () => Promise.resolve([
-                        {
-                            id: '1a',
-                        },
-                    ]),
-                    delete: () => Promise.resolve(),
-                    get: () => Promise.resolve(),
-                    saveAll: () => Promise.resolve(),
-                    syncDeleted: () => Promise.resolve(),
-                }),
+            stubs: {
+                'sw-loader': true,
+                'sw-skeleton': true,
+                'sw-tree': {
+                    props: ['items'],
+                    template: `
+                        <div class="sw-tree">
+                          <slot name="items" :treeItems="items" :checkItem="() => {}"></slot>
+                        </div>
+                    `,
+                },
+                'sw-tree-item': true,
+            },
+            provide: {
+                syncService: {},
+                repositoryFactory: {
+                    create: () => ({
+                        search: () =>
+                            Promise.resolve([
+                                {
+                                    id: '1a',
+                                },
+                            ]),
+                        delete: () => Promise.resolve(),
+                        get: () => Promise.resolve(),
+                        saveAll: () => Promise.resolve(),
+                        syncDeleted: () => Promise.resolve(),
+                    }),
+                },
             },
         },
-        propsData: {
+        props: {
             currentLanguageId: '1a2b3c',
         },
     });
 }
 
 describe('src/module/sw-category/component/sw-category-tree', () => {
-    beforeAll(() => {
-        if (Shopware.State.get('swCategoryDetail')) {
-            Shopware.State.unregisterModule('swCategoryDetail');
-        }
-
-        Shopware.State.registerModule('swCategoryDetail', swCategoryState);
-    });
-
-    it('should be a Vue.js component', async () => {
-        const wrapper = await createWrapper();
-
-        expect(wrapper.vm).toBeTruthy();
-    });
-
     it('should be able to sort the items', async () => {
         const wrapper = await createWrapper();
 
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-
-        await wrapper.vm.$nextTick();
 
         const tree = wrapper.find('.sw-tree');
         expect(tree.attributes().sortable).toBeDefined();
@@ -102,8 +82,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             allowEdit: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         expect(wrapper.vm.sortable).toBe(false);
     });
 
@@ -113,8 +91,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-
-        await wrapper.vm.$nextTick();
 
         const tree = wrapper.find('.sw-tree');
         expect(tree.attributes()['allow-delete-categories']).toBeDefined();
@@ -131,8 +107,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             allowDelete: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         const tree = wrapper.find('.sw-tree');
         expect(tree.attributes()['allow-delete-categories']).toBeUndefined();
     });
@@ -143,8 +117,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-
-        await wrapper.vm.$nextTick();
 
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['allow-new-categories']).toBeDefined();
@@ -161,8 +133,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             allowCreate: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['allow-new-categories']).toBeUndefined();
     });
@@ -173,8 +143,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-
-        await wrapper.vm.$nextTick();
 
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['allow-delete-categories']).toBeDefined();
@@ -191,8 +159,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             allowDelete: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['allow-delete-categories']).toBeUndefined();
     });
@@ -203,8 +169,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-
-        await wrapper.vm.$nextTick();
 
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['display-checkbox']).toBeDefined();
@@ -221,8 +185,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             allowEdit: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['display-checkbox']).toBeUndefined();
     });
@@ -238,8 +200,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             allowEdit: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['context-menu-tooltip-text']).toBe('sw-privileges.tooltip.warning');
     });
@@ -251,8 +211,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             isLoadingInitialData: false,
         });
 
-        await wrapper.vm.$nextTick();
-
         const treeItem = wrapper.find('sw-tree-item-stub');
         expect(treeItem.attributes()['context-menu-tooltip-text']).toBeUndefined();
     });
@@ -263,10 +221,9 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-        await wrapper.vm.$nextTick();
 
         const itemUrl = wrapper.vm.getCategoryUrl({ id: '1a2b' });
-        expect(itemUrl).toBe('#category/detail/1a2b');
+        expect(itemUrl).toBe('#/category/detail/1a2b');
     });
 
     it('should get wrong category url', async () => {
@@ -275,7 +232,6 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
         await wrapper.setData({
             isLoadingInitialData: false,
         });
-        await wrapper.vm.$nextTick();
 
         const itemUrl = wrapper.vm.getCategoryUrl({ id: '1a2b' });
         expect(itemUrl).not.toBe('#/detail/1a2b');
@@ -283,10 +239,13 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
 
     [
         { serviceSalesChannels: [{ id: '4d9ef75adbb149aa99785a0a969b3b7a' }] },
-        { navigationSalesChannels: [{ id: '4d9ef75adbb149aa99785a0a969b3b7b' }] },
+        {
+            navigationSalesChannels: [
+                { id: '4d9ef75adbb149aa99785a0a969b3b7b' },
+            ],
+        },
         { footerSalesChannels: [{ id: '4d9ef75adbb149aa99785a0a969b3b7c' }] },
-
-    ].forEach(entryPoint => {
+    ].forEach((entryPoint) => {
         it(`should not be able to delete a category having ${Object.keys(entryPoint)[0]} as initial entry point`, async () => {
             const wrapper = await createWrapper();
             wrapper.vm.createNotificationError = jest.fn();
@@ -323,7 +282,9 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             isLoadingInitialData: false,
         });
 
-        const entryPoint = { serviceSalesChannels: [{ id: '4d9ef75adbb149aa99785a0a969b3b7a' }] };
+        const entryPoint = {
+            serviceSalesChannels: [{ id: '4d9ef75adbb149aa99785a0a969b3b7a' }],
+        };
         const category = {
             id: '1a',
             isNew: () => false,
@@ -379,7 +340,11 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
             isNew: () => false,
         };
 
-        await wrapper.vm.onDeleteCategory({ data: category, children: [], checked: true });
+        await wrapper.vm.onDeleteCategory({
+            data: category,
+            children: [],
+            checked: true,
+        });
 
         const emitted = wrapper.emitted()['category-checked-elements-count'];
 
@@ -425,12 +390,42 @@ describe('src/module/sw-category/component/sw-category-tree', () => {
 
         await wrapper.setData({
             loadedCategories: {
-                1: { id: '1', parentId: '1', navigationSalesChannels: null, afterCategoryId: null },
-                2: { id: '2', parentId: '1', navigationSalesChannels: null, afterCategoryId: '1' },
-                3: { id: '3', parentId: '1', navigationSalesChannels: null, afterCategoryId: '2' },
-                4: { id: '4', parentId: '1', navigationSalesChannels: null, afterCategoryId: '3' },
-                5: { id: '5', parentId: '1', navigationSalesChannels: null, afterCategoryId: '4' },
-                6: { id: '6', parentId: '1', navigationSalesChannels: null, afterCategoryId: '5' },
+                1: {
+                    id: '1',
+                    parentId: '1',
+                    navigationSalesChannels: null,
+                    afterCategoryId: null,
+                },
+                2: {
+                    id: '2',
+                    parentId: '1',
+                    navigationSalesChannels: null,
+                    afterCategoryId: '1',
+                },
+                3: {
+                    id: '3',
+                    parentId: '1',
+                    navigationSalesChannels: null,
+                    afterCategoryId: '2',
+                },
+                4: {
+                    id: '4',
+                    parentId: '1',
+                    navigationSalesChannels: null,
+                    afterCategoryId: '3',
+                },
+                5: {
+                    id: '5',
+                    parentId: '1',
+                    navigationSalesChannels: null,
+                    afterCategoryId: '4',
+                },
+                6: {
+                    id: '6',
+                    parentId: '1',
+                    navigationSalesChannels: null,
+                    afterCategoryId: '5',
+                },
             },
         });
 

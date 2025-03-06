@@ -1,29 +1,32 @@
-import type { Entity } from '@shopware-ag/admin-extension-sdk/es/data/_internals/Entity';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * @sw-package framework
+ * @module app/entity-validation-service
+ */
 import type ChangesetGenerator from 'src/core/data/changeset-generator.data';
 import type EntityDefinition from 'src/core/data/entity-definition.data';
 import type ErrorResolver from 'src/core/data/error-resolver.data';
 import type EntityDefinitionFactory from 'src/core/factory/entity-definition.factory';
 
 /**
- * @module app/entity-validation-service
- */
-
-/**
  * @private
  */
 export type ValidationError = {
-    code: string,
+    code: string;
     source: {
-        pointer: string
-    }
-}
+        pointer: string;
+    };
+};
 
 /**
  * @private
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any,max-len,sw-deprecation-rules/private-feature-declarations
-export type CustomValidator = (errors: ValidationError[], entity: Entity<any>, definition: EntityDefinition<any>) => ValidationError[];
-
+// eslint-disable-next-line sw-deprecation-rules/private-feature-declarations
+export type CustomValidator = (
+    errors: ValidationError[],
+    entity: Entity<any>,
+    definition: EntityDefinition<any>,
+) => ValidationError[];
 
 /**
  * A service for client side validation of entities
@@ -85,13 +88,13 @@ export default class EntityValidationService {
 
         // report errors
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        this.errorResolver.handleWriteErrors({ errors }, [{ entity, changes }]);
+        this.errorResolver.handleWriteErrors([{ entity, changes }], { errors });
         return errors.length < 1;
     }
 
     /**
      * Tries to find all the required fields which are not set in the given entity.
-     * TODO: This implementation may only find required fields on the top level and may needs further improvement
+     * Warning: This implementation may only find required fields on the top level and may needs further improvement
      * for other use cases.
      *
      * @private

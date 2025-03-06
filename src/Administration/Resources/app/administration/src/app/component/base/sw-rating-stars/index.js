@@ -1,5 +1,5 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
 import template from './sw-rating-stars.html.twig';
@@ -8,7 +8,7 @@ import './sw-rating-stars.scss';
 const { Component } = Shopware;
 
 /**
- * @deprecated tag:v6.6.0 - Will be private
+ * @private
  * @description Renders rating stars
  * @status ready
  * @example-type static
@@ -49,10 +49,14 @@ Component.register('sw-rating-stars', {
     computed: {
         ratingTooltip() {
             return {
-                message: this.$tc('sw-rating-stars.ratingTooltipText', 0, {
-                    actual: this.cappedValue,
-                    max: this.maxStars,
-                }),
+                message: this.$tc(
+                    'sw-rating-stars.ratingTooltipText',
+                    {
+                        actual: this.cappedValue,
+                        max: this.maxStars,
+                    },
+                    0,
+                ),
             };
         },
 

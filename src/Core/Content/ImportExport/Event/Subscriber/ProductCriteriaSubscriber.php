@@ -14,7 +14,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * @internal
  */
-#[Package('system-settings')]
+#[Package('fundamentals@after-sales')]
 class ProductCriteriaSubscriber implements EventSubscriberInterface
 {
     /**

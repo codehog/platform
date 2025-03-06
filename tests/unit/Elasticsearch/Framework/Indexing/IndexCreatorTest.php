@@ -4,6 +4,8 @@ namespace Shopware\Tests\Unit\Elasticsearch\Framework\Indexing;
 
 use OpenSearch\Client;
 use OpenSearch\Namespaces\IndicesNamespace;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Framework\Context;
 use Shopware\Elasticsearch\Framework\Indexing\Event\ElasticsearchIndexConfigEvent;
@@ -14,18 +16,16 @@ use Shopware\Elasticsearch\Product\ElasticsearchProductDefinition;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
- * @covers \Shopware\Elasticsearch\Framework\Indexing\IndexCreator
- *
  * @internal
  */
+#[CoversClass(IndexCreator::class)]
 class IndexCreatorTest extends TestCase
 {
     /**
      * @param array<mixed> $constructorConfig
      * @param array<mixed> $expectedConfig
-     *
-     * @dataProvider providerCreateIndices
      */
+    #[DataProvider('providerCreateIndices')]
     public function testIndexCreation(array $constructorConfig, array $expectedConfig): void
     {
         $client = $this->createMock(Client::class);
@@ -42,7 +42,7 @@ class IndexCreatorTest extends TestCase
                 ],
             ]);
 
-        // Alias does not exists, swap directly
+        // Alias does not exist, swap directly
         $indices->expects(static::once())->method('existsAlias')->with(['name' => 'bla'])->willReturn(false);
         $indices->expects(static::once())->method('refresh')->with(['index' => 'foo']);
         $indices->expects(static::once())->method('putAlias')->with(['index' => 'foo', 'name' => 'bla']);
@@ -77,7 +77,7 @@ class IndexCreatorTest extends TestCase
                 static::assertTrue($config['body']['event']);
             });
 
-        // Alias does not exists, swap directly
+        // Alias does not exist, swap directly
         $indices->expects(static::once())->method('existsAlias')->with(['name' => 'bla'])->willReturn(false);
         $indices->expects(static::once())->method('refresh')->with(['index' => 'foo']);
         $indices->expects(static::once())->method('putAlias')->with(['index' => 'foo', 'name' => 'bla']);
@@ -177,7 +177,7 @@ class IndexCreatorTest extends TestCase
                 ],
             ]);
 
-        // Alias does not exists, swap directly
+        // Alias does not exist, swap directly
         $indices->expects(static::once())->method('existsAlias')->with(['name' => 'bla'])->willReturn(true);
         $indices->expects(static::never())->method('refresh');
         $indices->expects(static::never())->method('putAlias');

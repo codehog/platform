@@ -14,7 +14,7 @@
 
         {% block page_checkout_finish_product_table %}
             <div class="card checkout-product-table">
-                <div class="card-body">
+                <ul class="card-body list-unstyled">
                     {% block page_checkout_finish_table_header %}
                         {% sw_include '@Storefront/storefront/component/checkout/cart-header.html.twig' with {
                             showTaxPrice: true,
@@ -33,7 +33,7 @@
                             {% endblock %}
                         {% endfor %}
                     {% endblock %}
-                </div>
+                </ul>
             </div>
         {% endblock %}
     {% endblock %}
@@ -47,7 +47,7 @@
                     <div class="card-body">
                         {% block page_checkout_finish_customer_comment_header %}
                             <div class="card-title">
-                                {{ "checkout.customerCommentHeader"|trans|sw_sanitize }}
+                                {{ 'checkout.customerCommentHeader'|trans|sw_sanitize }}
                             </div>
                         {% endblock %}
 

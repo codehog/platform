@@ -1,13 +1,13 @@
 import './page/index';
 
-import type { Route } from 'vue-router';
+import type { RouteLocationNamedRaw } from 'vue-router';
 import deDE from './snippet/de-DE.json';
 import enGB from './snippet/en-GB.json';
 
 const { Module } = Shopware;
 
 /**
- * @package admin
+ * @sw-package framework
  *
  * @private
  */
@@ -31,9 +31,9 @@ Module.register('sw-inactivity-login', {
             path: '/inactivity/login/:id',
             coreRoute: true,
             props: {
-                default(route: Route) {
+                default(route: RouteLocationNamedRaw) {
                     return {
-                        hash: route.params.id,
+                        hash: route.params?.id,
                     };
                 },
             },

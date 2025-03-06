@@ -1,11 +1,9 @@
 /**
- * @package admin
+ * @sw-package framework
  */
 
-import Vue from 'vue';
-import { shallowMount } from '@vue/test-utils';
-import { location } from '@shopware-ag/admin-extension-sdk';
-import 'src/app/component/extension-api/sw-iframe-renderer';
+import { mount } from '@vue/test-utils';
+import { location } from '@shopware-ag/meteor-admin-sdk';
 
 let $routeMock = {
     query: {},
@@ -14,32 +12,42 @@ let $routerMock = {
     replace: jest.fn(),
 };
 
-async function createWrapper({
-    propsData = {},
-} = {}) {
-    return shallowMount(await Shopware.Component.build('sw-iframe-renderer'), {
-        stubs: {
-            'my-replacement-component': {
-                template: '<h1 id="my-replacement-component">Replacement component</h1>',
-            },
-        },
-        provide: {
-            extensionSdkService: {
-                signIframeSrc(url) {
-                    return Promise.resolve({
-                        uri: `https://${url}.com/?shop-id=__SHOP_ID&shop-signature=__SIGNED__`,
-                    });
-                },
-            },
-        },
-        propsData: {
+async function createWrapper({ props = {} } = {}) {
+    return mount(await wrapTestComponent('sw-iframe-renderer', { sync: true }), {
+        props: {
             src: 'https://example.com',
             locationId: 'foo',
-            ...propsData,
+            ...props,
         },
-        mocks: {
-            $route: $routeMock,
-            $router: $routerMock,
+        global: {
+            stubs: {
+                'my-replacement-component': {
+                    template: '<h1 id="my-replacement-component">Replacement component</h1>',
+                },
+            },
+            provide: {
+                extensionSdkService: {
+                    signIframeSrc(extensionName, iframeSrc) {
+                        const url = new URL(iframeSrc);
+
+                        // Add search params to the iframe src
+                        const searchParams = new URLSearchParams(url.search);
+                        searchParams.set('shop-id', '__SHOP_ID');
+                        searchParams.set('shop-signature', '__SIGNED__');
+
+                        url.search = searchParams.toString();
+
+                        return Promise.resolve({
+                            uri: url.href,
+                        });
+                    },
+                },
+            },
+            mocks: {
+                $route: $routeMock,
+                $router: $routerMock,
+            },
+            attachTo: window.document,
         },
     });
 }
@@ -51,13 +59,13 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
         window.location = new URL('https://www.example.com');
 
         // Clear extension store
-        Object.keys(Shopware.State.get('extensions')).forEach((key) => {
-            Vue.delete(Shopware.State.get('extensions'), key);
+        Object.keys(Shopware.Store.get('extensions').extensionsState).forEach((key) => {
+            delete Shopware.Store.get('extensions').extensionsState[key];
         });
 
         // Clear sdkLocation store
-        Object.keys(Shopware.State.get('sdkLocation').locations).forEach((key) => {
-            Vue.delete(Shopware.State.get('sdkLocation').locations, key);
+        Object.keys(Shopware.Store.get('sdkLocation').locations).forEach((key) => {
+            delete Shopware.Store.get('sdkLocation').locations[key];
         });
 
         // Reset route mock
@@ -77,7 +85,7 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
     });
 
     it('should not call signIframeSrc for plugins', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'foo',
             baseUrl: 'https://example.com',
             permissions: [],
@@ -93,7 +101,7 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
     });
 
     it('should call signIframeSrc for apps', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'foo',
             baseUrl: 'https://example.com',
             permissions: [],
@@ -105,11 +113,40 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
         const wrapper = await createWrapper();
         await flushPromises();
 
-        expect(wrapper.vm.signedIframeSrc).toBe('https://foo.com/?shop-id=__SHOP_ID&shop-signature=__SIGNED__');
+        expect(wrapper.vm.signedIframeSrc).toBe(
+            'https://example.com/?location-id=foo&shop-id=__SHOP_ID&shop-signature=__SIGNED__',
+        );
+    });
+
+    it('should render correct iFrame src when parameters are given', async () => {
+        Shopware.Store.get('extensions').addExtension({
+            name: 'MeteorAdminSDKExampleApp',
+            baseUrl: 'http://localhost:8888/index.html',
+            permissions: [],
+            version: '1.0.0',
+            type: 'app',
+            active: true,
+        });
+
+        const wrapper = await createWrapper({
+            props: {
+                src: 'http://localhost:8888/index.html?elementId=018d83de67d471d69a03e4742767f1d7',
+                locationId: 'ex-dailymotion-element',
+            },
+        });
+
+        await flushPromises();
+
+        const iframe = wrapper.find('iframe');
+        const iframeSrc = iframe.attributes('src');
+
+        expect(iframeSrc).toBe(
+            'http://localhost:8888/index.html?elementId=018d83de67d471d69a03e4742767f1d7&location-id=ex-dailymotion-element&shop-id=__SHOP_ID&shop-signature=__SIGNED__',
+        );
     });
 
     it('should render iFrame', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'foo',
             baseUrl: 'https://example.com',
             permissions: [],
@@ -129,7 +166,7 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
     });
 
     it('should render iFrame with replacement component', async () => {
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'foo',
             baseUrl: 'https://example.com',
             permissions: [],
@@ -138,7 +175,7 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
             active: true,
         });
 
-        Shopware.State.commit('sdkLocation/addLocation', {
+        Shopware.Store.get('sdkLocation').addLocation({
             locationId: 'foo',
             componentName: 'my-replacement-component',
         });
@@ -157,7 +194,10 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
         $routeMock.query = {
             // mock query params inside iFrame
             'locationId_my-great-extension-main-module_searchParams': JSON.stringify([
-                ['search', 'T-Shirt'],
+                [
+                    'search',
+                    'T-Shirt',
+                ],
             ]),
             // mock hash route inside iFrame
             'locationId_my-great-extension-main-module_hash': '#/detail/1',
@@ -165,9 +205,9 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
             'locationId_my-great-extension-main-module_pathname': '/app/',
         };
 
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'my-great-extension',
-            baseUrl: 'https://example.com',
+            baseUrl: 'https://my-great-extension.com',
             permissions: [],
             version: '1.0.0',
             type: 'app',
@@ -175,20 +215,26 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
         });
 
         const wrapper = await createWrapper({
-            propsData: {
+            props: {
                 locationId: 'my-great-extension-main-module',
+                src: 'https://my-great-extension.com/',
             },
         });
         await flushPromises();
 
-        expect(wrapper.vm.signedIframeSrc).toBe('https://my-great-extension.com/app/?shop-id=__SHOP_ID&shop-signature=__SIGNED__&search=T-Shirt#/detail/1');
+        expect(wrapper.vm.signedIframeSrc).toBe(
+            'https://my-great-extension.com/app/?location-id=my-great-extension-main-module&shop-id=__SHOP_ID&shop-signature=__SIGNED__&search=T-Shirt#/detail/1',
+        );
     });
 
     it('should handle location url updates', async () => {
         $routeMock.query = {
             // mock query params inside iFrame
             'locationId_my-great-extension-main-module_searchParams': JSON.stringify([
-                ['search', 'T-Shirt'],
+                [
+                    'search',
+                    'T-Shirt',
+                ],
             ]),
             // mock hash route inside iFrame
             'locationId_my-great-extension-main-module_hash': '#/detail/1',
@@ -196,7 +242,7 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
             'locationId_my-great-extension-main-module_pathname': '/app/',
         };
 
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'my-great-extension',
             baseUrl: 'https://example.com',
             permissions: [],
@@ -205,26 +251,29 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
             active: true,
         });
 
-        window.location = new URL('https://my-great-extension.com/app/?shop-id=__SHOP_ID&shop-signature=__SIGNED__&location-id=my-great-extension-main-module&search=T-Shirt#/detail/1');
+        window.location = new URL(
+            'https://my-great-extension.com/app/?shop-id=__SHOP_ID&shop-signature=__SIGNED__&location-id=my-great-extension-main-module&search=T-Shirt#/detail/1',
+        );
 
         await createWrapper({
-            propsData: {
+            props: {
                 locationId: 'my-great-extension-main-module',
             },
         });
 
         await flushPromises();
 
-        await location.updateUrl(new URL(
-            'https://my-great-extension.com/app/?search=Shorts#/detail/2',
-        ));
+        await location.updateUrl(new URL('https://my-great-extension.com/app/?search=Shorts#/detail/2'));
 
         await flushPromises();
 
         expect($routerMock.replace).toHaveBeenCalledWith({
             query: {
                 'locationId_my-great-extension-main-module_searchParams': JSON.stringify([
-                    ['search', 'Shorts'],
+                    [
+                        'search',
+                        'Shorts',
+                    ],
                 ]),
                 'locationId_my-great-extension-main-module_hash': '#/detail/2',
                 'locationId_my-great-extension-main-module_pathname': '/app/',
@@ -236,7 +285,10 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
         $routeMock.query = {
             // mock query params inside iFrame
             'locationId_my-great-extension-main-module_searchParams': JSON.stringify([
-                ['search', 'T-Shirt'],
+                [
+                    'search',
+                    'T-Shirt',
+                ],
             ]),
             // mock hash route inside iFrame
             'locationId_my-great-extension-main-module_hash': '#/detail/1',
@@ -244,7 +296,7 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
             'locationId_my-great-extension-main-module_pathname': '/app/',
         };
 
-        Shopware.State.commit('extensions/addExtension', {
+        Shopware.Store.get('extensions').addExtension({
             name: 'my-great-extension',
             baseUrl: 'https://example.com',
             permissions: [],
@@ -253,22 +305,75 @@ describe('src/app/component/extension-api/sw-iframe-renderer', () => {
             active: true,
         });
 
-        window.location = new URL('https://my-great-extension.com/app/?shop-id=__SHOP_ID&shop-signature=__SIGNED__&location-id=my-great-extension-other-module&search=T-Shirt#/detail/1');
+        window.location = new URL(
+            'https://my-great-extension.com/app/?shop-id=__SHOP_ID&shop-signature=__SIGNED__&location-id=my-great-extension-other-module&search=T-Shirt#/detail/1',
+        );
 
         await createWrapper({
-            propsData: {
+            props: {
                 locationId: 'my-great-extension-main-module',
             },
         });
 
         await flushPromises();
 
-        await location.updateUrl(new URL(
-            'https://my-great-extension.com/app/?search=Shorts#/detail/2',
-        ));
+        await location.updateUrl(new URL('https://my-great-extension.com/app/?search=Shorts#/detail/2'));
 
         await flushPromises();
 
         expect($routerMock.replace).not.toHaveBeenCalled();
+    });
+
+    it('should add full screen class to iframe', async () => {
+        const wrapper = await createWrapper({
+            props: {
+                fullScreen: true,
+            },
+        });
+        await flushPromises();
+
+        const iframeRenderer = wrapper.find('.sw-iframe-renderer.sw-iframe-renderer--full-screen');
+        expect(iframeRenderer.element instanceof HTMLElement).toBe(true);
+    });
+
+    it('should update the iFrame src when location ID changes', async () => {
+        Shopware.Store.get('extensions').addExtension({
+            name: 'MeteorAdminSDKExampleApp',
+            baseUrl: 'http://localhost:8888/index.html',
+            permissions: [],
+            version: '1.0.0',
+            type: 'app',
+            active: true,
+        });
+
+        const wrapper = await createWrapper({
+            props: {
+                src: 'http://localhost:8888/index.html?elementId=018d83de67d471d69a03e4742767f1d7',
+                locationId: 'ex-dailymotion-element',
+            },
+        });
+
+        await flushPromises();
+
+        const iframe = wrapper.find('iframe');
+        const iframeSrc = iframe.attributes('src');
+
+        expect(iframeSrc).toBe(
+            'http://localhost:8888/index.html?elementId=018d83de67d471d69a03e4742767f1d7&location-id=ex-dailymotion-element&shop-id=__SHOP_ID&shop-signature=__SIGNED__',
+        );
+
+        // Update location ID
+        await wrapper.setProps({
+            locationId: 'ex-youtube-element',
+        });
+
+        await flushPromises();
+
+        const updatedIframe = wrapper.find('iframe');
+        const updatedIframeSrc = updatedIframe.attributes('src');
+
+        expect(updatedIframeSrc).toBe(
+            'http://localhost:8888/index.html?elementId=018d83de67d471d69a03e4742767f1d7&location-id=ex-youtube-element&shop-id=__SHOP_ID&shop-signature=__SIGNED__',
+        );
     });
 });
